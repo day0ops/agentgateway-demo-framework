@@ -1,0 +1,71 @@
+/**
+ * Feature Registry
+ * 
+ * Central registry for all agentgateway features.
+ * Import this module to automatically register all available features.
+ * 
+ * Note: Profile-based addons (like telemetry) are registered separately
+ * in addons/index.js
+ */
+
+import { FeatureManager } from '../src/lib/feature.js';
+import { GatewayFeature } from './gateway/index.js';
+import { ProvidersFeature } from './providers/index.js';
+import { PromptEnrichmentFeature } from './prompt-enrichment/index.js';
+import { PromptGuardsFeature } from './prompt-guards/index.js';
+import { GuardrailWebhookFeature } from './guardrail-webhook/index.js';
+import { ModelFailoverFeature } from './model-failover/index.js';
+import { FunctionCallingFeature } from './function-calling/index.js';
+import { RateLimitFeature } from './rate-limit/index.js';
+import { TokenExchangeFeature } from './token-exchange/index.js';
+import { OboTokenExchangeFeature } from './obo-token-exchange/index.js';
+import { OAuthAuthorizationCodeFeature } from './oauth-authorization-code/index.js';
+import { OAuthAccessTokenValidationFeature } from './oauth-access-token-validation/index.js';
+import { M2MClientCredentialsFeature } from './m2m-client-credentials/index.js';
+import { M2MAgentFeature } from './m2m-agent/index.js';
+import { ApiKeyAuthFeature } from './apikey-auth/index.js';
+import { McpServerFeature } from './mcp-server/index.js';
+import { McpAuthFeature } from './mcp-auth/index.js';
+
+// Register all features
+FeatureManager.register('gateway', GatewayFeature);
+FeatureManager.register('providers', ProvidersFeature);
+FeatureManager.register('prompt-enrichment', PromptEnrichmentFeature);
+FeatureManager.register('prompt-guards', PromptGuardsFeature);
+FeatureManager.register('guardrail-webhook', GuardrailWebhookFeature);
+FeatureManager.register('model-failover', ModelFailoverFeature);
+FeatureManager.register('function-calling', FunctionCallingFeature);
+FeatureManager.register('rate-limit', RateLimitFeature);
+FeatureManager.register('token-exchange', TokenExchangeFeature);
+FeatureManager.register('obo-token-exchange', OboTokenExchangeFeature);
+FeatureManager.register('oauth-authorization-code', OAuthAuthorizationCodeFeature);
+FeatureManager.register('oauth-access-token-validation', OAuthAccessTokenValidationFeature);
+FeatureManager.register('m2m-client-credentials', M2MClientCredentialsFeature);
+FeatureManager.register('m2m-agent', M2MAgentFeature);
+FeatureManager.register('apikey-auth', ApiKeyAuthFeature);
+FeatureManager.register('mcp-server', McpServerFeature);
+FeatureManager.register('mcp-auth', McpAuthFeature);
+
+// Export the FeatureManager for use in other modules
+export { FeatureManager };
+
+// Export individual feature classes
+export {
+  GatewayFeature,
+  ProvidersFeature,
+  PromptEnrichmentFeature,
+  PromptGuardsFeature,
+  GuardrailWebhookFeature,
+  ModelFailoverFeature,
+  FunctionCallingFeature,
+  RateLimitFeature,
+  TokenExchangeFeature,
+  OboTokenExchangeFeature,
+  OAuthAuthorizationCodeFeature,
+  OAuthAccessTokenValidationFeature,
+  M2MClientCredentialsFeature,
+  M2MAgentFeature,
+  ApiKeyAuthFeature,
+  McpServerFeature,
+  McpAuthFeature,
+};

@@ -1,0 +1,8 @@
+## Standard AgentGateway profile (without additional addons)
+
+# Helm values
+# Empty object means use enterprise-agentgateway chart defaults
+# The enterprise chart has agentgateway enabled by default with sensible defaults
+helmValues: {}
+
+addons: []

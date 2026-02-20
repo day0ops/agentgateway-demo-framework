@@ -1,0 +1,118 @@
+apiVersion: agentgateway.demo/v1
+kind: UseCase
+metadata:
+  name: mcp-auth
+  description: MCP server protected with OAuth 2.0 authentication via Keycloak IdP
+  docs: https://docs.solo.io/agentgateway/2.1.x/mcp/auth/setup/
+
+spec:
+  steps:
+    - title: Deploy MCP server
+      description: >
+        Deploy the MCP stock server workload and create a static MCP backend
+        and route through agentgateway. This provides the upstream MCP server
+        that will be protected with OAuth 2.0 authentication.
+      features:
+        - name: mcp-server
+          config:
+            deployServer: true
+            image: mcp-stock-server:latest
+            serverName: mcp-stock-server
+            serverPort: 8000
+            servicePort: 80
+            protocol: StreamableHTTP
+            mcpPath: /mcp
+            backendName: mcp-backend
+            routeName: mcp
+
+    - title: Enforce MCP auth
+      description: >
+        Create an EnterpriseAgentgatewayPolicy with MCP authentication
+        targeting the AgentgatewayBackend. Configure Keycloak for dynamic
+        client registration so MCP clients (e.g. MCP Inspector) can
+        automatically register and run the OAuth flow. Update the HTTPRoute
+        with OAuth discovery paths and CORS to support the MCP auth handshake.
+      features:
+        - name: mcp-auth
+          config:
+            policyName: mcp-auth
+            backendName: mcp-backend
+            routeName: mcp
+            mcpPath: /mcp
+            keycloak:
+              realm: agw-dev
+              serviceName: keycloak
+              serviceNamespace: keycloak
+              servicePort: 443
+              configureDynamicRegistration: true
+            audiences:
+              - http://localhost:8080/mcp
+            resource: http://localhost:8080/mcp
+            scopesSupported:
+              - email
+            mode: Strict
+            provider: Keycloak
+
+  tests:
+    - name: test-unauthenticated-mcp-request-blocked
+      description: Verify unauthenticated MCP requests are rejected
+      steps:
+        - action: send-mcp-request
+          endpoint: /mcp
+          method: tools/list
+        - action: verify
+          expect:
+            status: error
+
+    - name: test-resource-metadata-discovery
+      description: Verify the OAuth protected resource metadata endpoint is reachable
+      steps:
+        - action: send-request
+          endpoint: /.well-known/oauth-protected-resource/mcp
+        - action: verify
+          expect:
+            status: success
+            contains: resource
+
+    - name: test-authenticated-mcp-tools-list
+      description: Authenticated user can list MCP tools via bearer token
+      steps:
+        - action: get-token
+          keycloak:
+            realm: agw-dev
+            clientId: agw-client
+            clientSecret: agw-client-secret
+            grantType: password
+            username: user1
+            password: Passwd00
+        - action: send-mcp-request
+          endpoint: /mcp
+          method: tools/list
+          auth: bearer
+        - action: verify
+          expect:
+            status: success
+            contains: get_stock_price
+
+    - name: test-authenticated-mcp-tool-call
+      description: Authenticated user can call an MCP tool
+      steps:
+        - action: get-token
+          keycloak:
+            realm: agw-dev
+            clientId: agw-client
+            clientSecret: agw-client-secret
+            grantType: password
+            username: user1
+            password: Passwd00
+        - action: send-mcp-request
+          endpoint: /mcp
+          method: tools/call
+          auth: bearer
+          params:
+            name: get_stock_price
+            arguments:
+              symbol: AAPL
+        - action: verify
+          expect:
+            status: success

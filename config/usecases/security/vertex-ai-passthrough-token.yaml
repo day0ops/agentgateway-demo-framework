@@ -1,0 +1,42 @@
+apiVersion: agentgateway.demo/v1
+kind: UseCase
+metadata:
+  name: vertex-ai-passthrough-token
+  description: Passthrough token authentication for Vertex AI — client provides the access token in the Authorization header
+  docs: https://docs.solo.io/agentgateway/2.1.x/llm/api-keys/#passthrough
+
+spec:
+  features:
+    - name: providers
+      config:
+        providers:
+          - name: vertex-ai
+            providerName: vertex-ai
+            pathPrefix: /vertex-ai
+            model: google/gemini-2.5-flash
+            projectId: your-gcp-project-id
+            authMode: passthrough
+
+  tests:
+    - name: test-passthrough-with-valid-token
+      description: Request succeeds when the client supplies a valid Bearer token
+      steps:
+        - action: send-request
+          endpoint: /vertex-ai
+          headers:
+            Authorization: "Bearer ${GCP_ACCESS_TOKEN}"
+          prompt: "What is 2+2?"
+        - action: verify
+          expect:
+            status: success
+            contains: "4"
+
+    - name: test-passthrough-without-token
+      description: Request fails when no Authorization header is provided
+      steps:
+        - action: send-request
+          endpoint: /vertex-ai
+          prompt: "Hello"
+        - action: verify
+          expect:
+            status: error

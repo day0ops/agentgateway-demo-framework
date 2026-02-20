@@ -1,0 +1,45 @@
+apiVersion: agentgateway.demo/v1
+kind: UseCase
+metadata:
+  name: anthropic-model-on-vertex-ai-provider
+  description: Anthropic Claude model served via Vertex AI
+  docs: https://kgateway.dev/docs/agentgateway/latest/llm/providers/vertex-ai/
+
+spec:
+  features:
+    - name: providers
+      config:
+        providers:
+          - name: vertex-ai-anthropic
+            providerName: vertex-ai
+            pathPrefix: /v1/messages
+            model: claude-haiku-4-5@20251001
+            location: us-east5
+            policies:
+              ai:
+                routes:
+                  #/v1/messages: Messages
+                  ":rawPredict": Messages
+                  ":streamRawPredict": Messages
+                  "*": Passthrough
+
+  tests:
+    - name: test-anthropic-via-vertex
+      description: Test Anthropic Claude model via Vertex AI endpoint
+      steps:
+        - action: send-request
+          endpoint: /v1/messages
+          prompt: "What is machine learning?"
+        - action: verify
+          expect:
+            status: success
+
+    - name: test-anthropic-via-vertex-simple
+      description: Test Anthropic via Vertex AI with a simple query
+      steps:
+        - action: send-request
+          endpoint: /v1/messages
+          prompt: "Hello, how are you?"
+        - action: verify
+          expect:
+            status: success

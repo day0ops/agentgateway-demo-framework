@@ -1,0 +1,14 @@
+# -- Cluster name
+cluster: "default"
+
+# -- Enable AgentGateway
+products:
+  agentgateway:
+    enabled: true
+
+# -- ClickHouse storage
+clickhouse:
+  persistentVolume:
+    enabled: true
+    storageClass: null
+    size: 10Gi

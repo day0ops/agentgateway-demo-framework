@@ -1,0 +1,14 @@
+# Helm values for Grafana Tempo
+# https://github.com/grafana/helm-charts/tree/main/charts/tempo
+
+# Use default Tempo configuration
+# Customizations can be added here as needed
+
+persistence:
+  enabled: false
+tempo:
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317

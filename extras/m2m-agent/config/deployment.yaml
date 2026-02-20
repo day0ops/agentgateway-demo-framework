@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: m2m-agent
+  namespace: agentgateway-system
+  labels:
+    app.kubernetes.io/managed-by: agentgateway-demo
+    agentgateway.dev/feature: m2m-agent
+    app: m2m-agent
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: m2m-agent
+  template:
+    metadata:
+      labels:
+        app: m2m-agent
+    spec:
+      serviceAccountName: m2m-agent
+      containers:
+        - name: agent
+          image: m2m-agent:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          env:
+            - name: MODEL
+              value: "gemini-2.0-flash"
+            - name: MCP_URL
+              value: "http://agentgateway.agentgateway-system.svc.cluster.local:8080/mcp"
+            - name: STS_TOKEN_URL
+              value: "http://enterprise-agentgateway.agentgateway-system.svc.cluster.local:7777/oauth2/token"
+            - name: GOOGLE_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: m2m-agent-api-keys
+                  key: google-api-key
+                  optional: true
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: m2m-agent-api-keys
+                  key: openai-api-key
+                  optional: true
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 30

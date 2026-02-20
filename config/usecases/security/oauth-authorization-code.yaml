@@ -1,0 +1,75 @@
+apiVersion: agentgateway.demo/v1
+kind: UseCase
+metadata:
+  name: oauth-authorization-code
+  description: OAuth authorization code flow with Keycloak IdP for external auth
+  docs: https://docs.solo.io/agentgateway/2.1.x/security/extauth/oauth/authorization-code/
+
+spec:
+  steps:
+    - title: Deploy OpenAI provider
+      description: >
+        Deploy the OpenAI LLM provider with a route at /openai so there is a
+        backend to protect with authorization code OAuth.
+      features:
+        - name: providers
+          config:
+            providers:
+              - name: openai
+                providerName: openai
+                pathPrefix: /openai
+                model: gpt-3.5-turbo
+
+    - title: Apply OAuth authorization code policy
+      description: >
+        Create an AuthConfig with OIDC authorization code settings and an
+        EnterpriseAgentgatewayPolicy that enforces external auth on the
+        Gateway. Unauthenticated requests receive a 302 redirect to Keycloak.
+      features:
+        - name: oauth-authorization-code
+          config:
+            authConfigName: oauth-authorization-code
+            policyName: oauth-authorization-code
+            keycloak:
+              realm: agw-dev
+            appUrl: http://192.168.105.201:8080
+            issuerUrl: https://keycloak.keycloak.svc.cluster.local/realms/agw-dev/
+            clientId: agw-client
+            clientSecret: agw-client-secret
+            callbackPath: /openai
+            scopes:
+              - email
+            session:
+              cookieName: keycloak-session
+              redisHost: ext-cache-enterprise-agentgateway:6379
+            headers:
+              idTokenHeader: jwt
+
+  tests:
+    - name: test-unauthenticated-redirects-to-keycloak
+      description: Verify unauthenticated requests receive a 302 redirect to Keycloak
+      steps:
+        - action: send-request
+          endpoint: /openai
+          prompt: "What is 2+2?"
+          followRedirects: false
+        - action: verify
+          expect:
+            status: 302
+
+    - name: test-authenticated-request-with-session
+      description: >
+        Validates that a request with a valid session cookie is
+        authorized through the OAuth authorization code flow.
+      steps:
+        - action: get-session-cookie
+          endpoint: /openai
+          cookieName: keycloak-session
+        - action: send-request
+          endpoint: /openai
+          auth: cookie
+          prompt: "What is 2+2?"
+        - action: verify
+          expect:
+            status: success
+            contains: "4"

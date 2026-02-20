@@ -1,0 +1,91 @@
+apiVersion: agentgateway.demo/v1
+kind: UseCase
+metadata:
+  name: multiplex-mcp-server
+  description: Federate multiple MCP servers behind a single agentgateway endpoint using label selectors
+  docs: https://docs.solo.io/agentgateway/2.1.x/mcp/multiplex/
+
+spec:
+  steps:
+    - title: Deploy LLM provider and multiplexed MCP servers
+      description: >
+        Deploy an OpenAI LLM provider and two MCP server workloads
+        (stock-price and currency-exchange). Create a single
+        AgentgatewayBackend that uses label selectors to discover both
+        services, so clients access tools from both servers through one
+        endpoint and one MCP connection.
+        Note: only Streamable HTTP is supported for label selectors.
+      features:
+        - name: providers
+          config:
+            providers:
+              - name: openai
+                providerName: openai
+                pathPrefix: /openai
+                model: gpt-4o-mini
+
+        - name: mcp-server
+          config:
+            servers:
+              - name: mcp-stock-server
+                image: mcp-stock-server:latest
+                serverPort: 8000
+                servicePort: 80
+              - name: mcp-currency-server
+                image: mcp-currency-server:latest
+                serverPort: 8000
+                servicePort: 80
+            protocol: StreamableHTTP
+            mcpPath: /mcp
+            backendName: mcp-backend
+            targets:
+              - name: mcp-stock-server
+                matchLabels:
+                  app: mcp-stock-server
+              - name: mcp-currency-server
+                matchLabels:
+                  app: mcp-currency-server
+            routeName: mcp
+
+  tests:
+    - name: test-multiplexed-tools-list
+      description: Verify tools from both MCP servers are discoverable through the single agentgateway endpoint
+      steps:
+        - action: send-mcp-request
+          endpoint: /mcp
+          method: tools/list
+        - action: verify
+          expect:
+            status: success
+            contains:
+              - get_stock_price
+              - get_exchange_rate
+
+    - name: test-stock-tool-call
+      description: Call the get_stock_price tool from the stock server through the multiplexed endpoint
+      steps:
+        - action: send-mcp-request
+          endpoint: /mcp
+          method: tools/call
+          params:
+            name: mcp-stock-server-80_get_stock_price
+            arguments:
+              symbol: AAPL
+        - action: verify
+          expect:
+            status: success
+
+    - name: test-currency-tool-call
+      description: Call the get_exchange_rate tool from the currency server through the multiplexed endpoint
+      steps:
+        - action: send-mcp-request
+          endpoint: /mcp
+          method: tools/call
+          params:
+            name: mcp-currency-server-80_get_exchange_rate
+            arguments:
+              base: USD
+              target: EUR
+        - action: verify
+          expect:
+            status: success

@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: agentgateway-config
+  namespace: kgateway-system
+data:
+  config.yaml: |-
+    binds:
+    - port: 3000
+      listeners:
+      - protocol: HTTP
+        routes: []

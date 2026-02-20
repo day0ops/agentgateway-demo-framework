@@ -1,0 +1,62 @@
+apiVersion: agentgateway.demo/v1
+kind: UseCase
+metadata:
+  name: apikey-auth
+  description: API key authentication with ext-auth for LLM provider routes
+  docs: https://docs.solo.io/agentgateway/2.1.x/security/extauth/apikey/
+
+spec:
+  steps:
+    - title: Deploy OpenAI provider
+      description: >
+        Deploy the OpenAI LLM provider with a route at /openai so there is a
+        backend to protect with API key authentication.
+      features:
+        - name: providers
+          config:
+            providers:
+              - name: openai
+                providerName: openai
+                pathPrefix: /openai
+                model: gpt-3.5-turbo
+
+    - title: Enforce API key authentication
+      description: >
+        Create an API key Secret, an AuthConfig with apiKeyAuth rules, and an
+        EnterpriseAgentgatewayPolicy with entExtAuth on the Gateway. Requests
+        without a valid API key in the x-ai-api-key header receive a 401.
+      features:
+        - name: apikey-auth
+          config:
+            secretName: apikey
+            headerName: x-ai-api-key
+            labelSelector:
+              provider: openai
+            authConfigName: apikey-auth
+            policyName: apikey-auth
+
+  tests:
+    - name: test-unauthenticated-request-blocked
+      description: Verify requests without an API key are rejected with 401
+      steps:
+        - action: send-request
+          endpoint: /openai
+          prompt: "What is 2+2?"
+        - action: verify
+          expect:
+            status: 401
+
+    - name: test-authenticated-request-succeeds
+      description: Verify request with a valid API key succeeds
+      steps:
+        - action: get-apikey
+          secretName: apikey
+          headerName: x-ai-api-key
+        - action: send-request
+          endpoint: /openai
+          auth: apikey
+          prompt: "What is 2+2?"
+        - action: verify
+          expect:
+            status: success
+            contains: "4"

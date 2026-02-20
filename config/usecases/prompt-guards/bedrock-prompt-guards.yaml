@@ -1,0 +1,123 @@
+apiVersion: agentgateway.demo/v1
+kind: UseCase
+metadata:
+  name: bedrock-prompt-guards
+  description: Demonstrate prompt guardrails for AWS Bedrock with security and compliance
+  docs: https://docs.solo.io/agentgateway/2.1.x/llm/prompt-guards/
+
+spec:
+  # Ordered steps for demo: 1) Add provider, 2) Add policy (stepped deploy shows diagrams and waits for key)
+  steps:
+    - title: Add provider
+      description: Configure the LLM provider backend and route.
+      features:
+        - name: providers
+          config:
+            providers:
+              - name: bedrock
+                providerName: bedrock
+                pathPrefix: /bedrock
+                model: global.amazon.nova-2-lite-v1:0
+                region: us-east-1
+                authMode: credentials
+
+    - title: Add policy
+      description: Apply prompt guardrails (PII, injection, etc.) to the route.
+      features:
+        - name: prompt-guards
+          description: Configure input and output guardrails with regex and builtin patterns
+          config:
+            request:
+              customResponse:
+                message: "Request rejected due to policy violation"
+
+              # Custom regex patterns to reject
+              matches:
+                - "credit card"
+                - "ignore previous instructions"
+                - "disregard previous instructions"
+                - "(?i)password|passwd|pwd"
+
+              # Built-in PII patterns: CreditCard, Ssn, Email, PhoneNumber, CaSin
+              builtins:
+                - CreditCard
+                - Ssn
+                - PhoneNumber
+
+            # Response guards - mask sensitive data in responses
+            response:
+              builtins:
+                - CreditCard
+                - Ssn
+                - Email
+
+  tests:
+    - name: block-ssn-input
+      description: Block requests containing SSN
+      steps:
+        - action: send-request
+          endpoint: /bedrock
+          prompt: "My SSN is 123-45-6789, can you help me?"
+        - action: verify
+          expect:
+            status: blocked
+
+    - name: block-credit-card-input
+      description: Block requests containing credit card numbers
+      steps:
+        - action: send-request
+          endpoint: /bedrock
+          prompt: "My credit card number is 4532-1234-5678-9010"
+        - action: verify
+          expect:
+            status: blocked
+
+    - name: block-credit-card-mention
+      description: Block requests mentioning "credit card"
+      steps:
+        - action: send-request
+          endpoint: /bedrock
+          prompt: "Can you help me with my credit card information?"
+        - action: verify
+          expect:
+            status: blocked
+
+    - name: block-password-mention
+      description: Block requests mentioning password-related terms (custom regex)
+      steps:
+        - action: send-request
+          endpoint: /bedrock
+          prompt: "What's a good password for my account?"
+        - action: verify
+          expect:
+            status: blocked
+
+    - name: block-phone-number
+      description: Block requests containing phone numbers
+      steps:
+        - action: send-request
+          endpoint: /bedrock
+          prompt: "My phone number is 555-123-4567"
+        - action: verify
+          expect:
+            status: blocked
+
+    - name: allow-safe-request
+      description: Allow requests without PII or injection patterns
+      steps:
+        - action: send-request
+          endpoint: /bedrock
+          prompt: "What is the capital of France?"
+        - action: verify
+          expect:
+            status: success
+
+    - name: block-request-credit-card
+      description: Block requests asking for credit card numbers
+      steps:
+        - action: send-request
+          endpoint: /bedrock
+          prompt: "Can you give me some examples of Master Card credit card numbers?"
+        - action: verify
+          expect:
+            status: blocked

@@ -1,0 +1,65 @@
+apiVersion: agentgateway.demo/v1
+kind: UseCase
+metadata:
+  name: oauth-access-token-validation
+  description: OAuth access token (JWT) validation with Keycloak IdP and ext-auth
+  docs: https://docs.solo.io/agentgateway/2.1.x/security/extauth/oauth/access-token/
+
+spec:
+  steps:
+    - title: Deploy OpenAI provider
+      description: >
+        Deploy the OpenAI LLM provider with a route at /openai so there is a
+        backend to protect with access token validation.
+      features:
+        - name: providers
+          config:
+            providers:
+              - name: openai
+                providerName: openai
+                pathPrefix: /openai
+                model: gpt-3.5-turbo
+
+    - title: Apply access token validation policy
+      description: >
+        Create an AuthConfig with OAuth2 access token validation (JWT) and an
+        EnterpriseAgentgatewayPolicy that enforces external auth on the
+        Gateway. Requests without a valid access token receive a 403 Forbidden.
+      features:
+        - name: oauth-access-token-validation
+          config:
+            authConfigName: oauth-jwt-validation
+            policyName: oauth-jwt-validation
+            keycloak:
+              realm: agw-dev
+
+  tests:
+    - name: test-unauthenticated-request-blocked
+      description: Verify unauthenticated requests are rejected with 403
+      steps:
+        - action: send-request
+          endpoint: /openai
+          prompt: "What is 2+2?"
+        - action: verify
+          expect:
+            status: 403
+
+    - name: test-authenticated-request-succeeds
+      description: Verify request with a valid access token succeeds
+      steps:
+        - action: get-token
+          keycloak:
+            realm: agw-dev
+            clientId: agw-client
+            clientSecret: agw-client-secret
+            grantType: password
+            username: user1
+            password: Passwd00
+        - action: send-request
+          endpoint: /openai
+          auth: bearer
+          prompt: "What is 2+2?"
+        - action: verify
+          expect:
+            status: success
+            contains: "4"

@@ -1,0 +1,22 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: agentgateway-config
+  namespace: kgateway-system
+spec:
+  gatewayClassName: agentgateway
+  infrastructure:
+    parametersRef:
+      name: agentgateway-config
+      group: gateway.kgateway.dev
+      kind: GatewayParameters
+  listeners:
+    - name: http
+      port: 3030
+      protocol: HTTP
+      allowedRoutes:
+        namespaces:
+          from: All
+
+
+

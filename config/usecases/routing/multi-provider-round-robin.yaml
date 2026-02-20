@@ -1,0 +1,44 @@
+apiVersion: agentgateway.demo/v1
+kind: UseCase
+metadata:
+  name: multi-provider-round-robin
+  description: Demonstrates multiple LLM providers with custom path prefixes
+  docs: https://kgateway.dev/docs/latest/agentgateway/llm/providers/
+
+spec:
+  features:
+    - name: providers
+      config:
+        providers:
+          - name: openai
+            providerName: openai
+            pathPrefix: /openai
+            model: gpt-4
+
+          # AWS Bedrock
+          - name: bedrock
+            providerName: bedrock
+            pathPrefix: /bedrock
+            model: amazon.titan-text-lite-v1
+            region: us-east-1
+
+  tests:
+    - name: test-openai
+      description: Test OpenAI endpoint
+      steps:
+        - action: send-request
+          endpoint: /openai
+          prompt: "What is 2+2?"
+        - action: verify
+          expect:
+            status: success
+
+    - name: test-bedrock
+      description: Test Bedrock endpoint
+      steps:
+        - action: send-request
+          endpoint: /bedrock
+          prompt: "What is AI?"
+        - action: verify
+          expect:
+            status: success

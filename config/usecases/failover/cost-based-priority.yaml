@@ -1,0 +1,71 @@
+apiVersion: agentgateway.demo/v1
+kind: UseCase
+metadata:
+  name: cost-based-priority
+  description: Cost-optimized failover with cheaper models prioritized over premium models
+  docs: https://docs.solo.io/gateway/2.0.x/ai/llm/failover/
+
+spec:
+  features:
+    - name: model-failover
+      description: Configure cost-based priority with cheaper models first, premium fallback
+      config:
+        pathPrefix: /model
+        providers:
+          # Priority 100 - Cheaper models (load balanced, tried first)
+          - name: openai
+            model: gpt-4o-mini
+            priority: 100
+          - name: vertex-ai
+            model: google/gemini-2.5-flash
+            location: us-east5
+            priority: 100
+
+          # Priority 50 - Premium models (fallback only)
+          - name: openai
+            model: gpt-4o
+            priority: 50
+          - name: vertex-ai
+            model: google/gemini-2.5-pro
+            location: us-east5
+            priority: 50
+
+  tests:
+    - name: test-cheaper-models-first
+      description: Verify that cheaper models (priority 100) are used first
+      steps:
+        - action: send-request
+          endpoint: /model
+          prompt: "What is machine learning?"
+        - action: verify
+          expect:
+            status: success
+            modelIn:
+              - gpt-4o-mini
+              - gemini-2.5-flash
+
+    - name: test-load-balancing
+      description: Verify load balancing across cheaper models
+      steps:
+        - action: send-request
+          endpoint: /model
+          prompt: "Explain AI in simple terms"
+        - action: verify
+          expect:
+            status: success
+            modelIn:
+              - gpt-4o-mini
+              - gemini-2.5-flash
+
+    - name: test-cost-optimization
+      description: Verify cost optimization by checking cheaper models are preferred
+      steps:
+        - action: send-request
+          endpoint: /model
+          prompt: "Hello, how are you?"
+        - action: verify
+          expect:
+            status: success
+            modelIn:
+              - gpt-4o-mini
+              - gemini-2.5-flash

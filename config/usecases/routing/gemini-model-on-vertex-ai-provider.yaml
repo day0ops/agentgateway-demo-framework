@@ -1,0 +1,40 @@
+apiVersion: agentgateway.demo/v1
+kind: UseCase
+metadata:
+  name: gemini-model-on-vertex-ai-provider
+  description: Simple Vertex AI LLM provider call with gemini models
+  docs: https://kgateway.dev/docs/latest/agentgateway/llm/providers/vertex-ai/
+
+spec:
+  features:
+    - name: providers
+      config:
+        providers:
+          - name: vertex-ai
+            providerName: vertex-ai
+            pathPrefix: /vertex-ai
+            model: google/gemini-2.5-flash
+            # Required: GCP project ID. Can also be set via GCP_PROJECT env.
+            projectId: your-gcp-project-id
+
+  tests:
+    - name: test-vertex-ai-endpoint
+      description: Test Vertex AI endpoint with Gemini model
+      steps:
+        - action: send-request
+          endpoint: /vertex-ai
+          prompt: "What is machine learning?"
+        - action: verify
+          expect:
+            status: success
+            contains: "machine learning"
+
+    - name: test-vertex-ai-simple-query
+      description: Test Vertex AI with a simple query
+      steps:
+        - action: send-request
+          endpoint: /vertex-ai
+          prompt: "Hello, how are you?"
+        - action: verify
+          expect:
+            status: success

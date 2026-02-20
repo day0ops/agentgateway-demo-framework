@@ -1,0 +1,68 @@
+apiVersion: agentgateway.demo/v1
+kind: UseCase
+metadata:
+  name: body-routing-with-failover
+  description: |
+    Two separate providers (Vertex AI and local Ollama), each with its own AgentgatewayBackend,
+    behind a single HTTPRoute (/chat). An EnterpriseAgentgatewayPolicy in the PreRouting phase
+    extracts the `model` field from the JSON request body and sets it as a header
+    (X-Gateway-Model-Name). Per-model HTTPRoute rules match on that header to route to
+    the correct backend. No failover or fallback models are configured — requests that
+    specify an unrecognized model receive a 404.
+  references:
+    - https://docs.solo.io/agentgateway/2.1.x/reference/api/solo/#enterpriseagentgatewaypolicyspec
+spec:
+  features:
+    - name: providers
+      config:
+        pathPrefix: /chat
+        bodyRouting: true
+        providers:
+          - name: vertex-ai
+            providerName: vertex-ai
+            model: google/gemini-2.5-flash
+            policies:
+              auth:
+                secretRef:
+                  name: vertex-ai-secret
+          - name: local-ollama
+            providerName: openai-compatible
+            model: llama3
+            host: host.minikube.internal
+            port: 11434
+            path:
+              full: /v1/chat/completions
+
+  tests:
+    - name: test-vertex-gemini-flash
+      description: Call with google/gemini-2.5-flash → exact match → Vertex AI
+      steps:
+        - action: send-request
+          endpoint: /chat
+          model: google/gemini-2.5-flash
+          prompt: "What is Kubernetes?"
+        - action: verify
+          expect:
+            status: success
+
+    - name: test-local-via-model
+      description: Call single endpoint with local model in body → routed to Ollama backend
+      steps:
+        - action: send-request
+          endpoint: /chat
+          model: llama3
+          prompt: "Say hello in one word."
+        - action: verify
+          expect:
+            status: success
+
+    - name: test-unknown-model-rejected
+      description: Unknown model has no matching route rule → gateway returns 404
+      steps:
+        - action: send-request
+          endpoint: /chat
+          model: unknown-model-not-configured
+          prompt: "Hello"
+        - action: verify
+          expect:
+            statusCode: 404
