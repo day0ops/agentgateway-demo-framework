@@ -17,7 +17,9 @@ import { KubernetesHelper, CommandRunner } from '../../src/lib/common.js';
  * - Creates an EnterpriseAgentgatewayPolicy targeting an AgentgatewayBackend
  *   with backend.mcp.authentication (issuer, JWKS, audiences, mode, provider,
  *   resourceMetadata)
- * - Creates/updates the HTTPRoute to include OAuth discovery paths and CORS
+ * - Creates/updates the HTTPRoute to include OAuth discovery paths and CORS.
+ *   CORS requires Gateway API experimental CRDs and
+ *   controller.extraEnv.KGW_ENABLE_GATEWAY_API_EXPERIMENTAL_FEATURES=true.
  *
  * Configuration:
  * {

@@ -1,19 +1,6 @@
 ## AgentGateway with Custom Configuration Profile
 
-# kgateway Helm values
-helmValues:
-  # disabled AI extension
-  gateway:
-    aiExtension:
-      enabled: false
-
-  # enabled agentgateway
-  agentgateway:
-    enabled: true
-
-  # disabled envoy
-  envoy:
-    enabled: false
+helmValues: {}
 
 # Additional Kubernetes resources to create after Helm installation
 # Resources are loaded from YAML files in the profile directory

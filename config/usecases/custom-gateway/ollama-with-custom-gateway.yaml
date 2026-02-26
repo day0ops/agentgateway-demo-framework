@@ -6,6 +6,11 @@ metadata:
   description: Local Ollama (Llama 3) provider with custom Gateway (override)
 
 spec:
+  diagram: |
+    flowchart LR
+      Client --> CG[Custom Gateway :8080]
+      CG --> Ollama[Ollama llama3 local]
+
   features:
     - name: gateway
       config:

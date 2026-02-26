@@ -6,6 +6,11 @@ metadata:
   docs: https://kgateway.dev/docs/latest/agentgateway/llm/providers/amazon-bedrock/
 
 spec:
+  diagram: |
+    flowchart LR
+      Client --> AGW[AGW + API Key]
+      AGW --> Bedrock[AWS Bedrock]
+
   features:
     - name: providers
       config:

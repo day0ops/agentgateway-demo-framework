@@ -21,6 +21,7 @@ export class ProfileManager {
     'agentgateway-with-observability': 'AgentGateway with full observability stack (Solo UI,Prometheus, Grafana, Loki, Tempo)',
     'agentgateway-with-solo-ui': 'AgentGateway with Solo UI stack',
     'agentgateway-custom-config': 'AgentGateway with custom configuration',
+    'agentgateway-custom-version': 'AgentGateway with custom version, OCI registry, and controller extraEnv (e.g. Gateway API experimental)',
     'agentgateway-with-obo': 'AgentGateway with OBO token exchange (Keycloak + STS)',
   };
 

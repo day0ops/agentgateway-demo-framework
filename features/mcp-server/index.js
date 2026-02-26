@@ -58,6 +58,7 @@ import { KubernetesHelper } from '../../src/lib/common.js';
  *   }>,
  *   routeName: string,             // HTTPRoute name (default: 'mcp')
  *   pathPrefix: string,            // Route path prefix (default: none — matches all paths)
+ *   pathRewrite: string | null,   // Replace path prefix with this before forwarding (e.g. '/'); null = no rewrite
  * }
  */
 export class McpServerFeature extends Feature {
@@ -82,6 +83,7 @@ export class McpServerFeature extends Feature {
 
     this.routeName = config.routeName || 'mcp';
     this.pathPrefix = config.pathPrefix || null;
+    this.pathRewrite = config.pathRewrite !== undefined ? config.pathRewrite : null;
   }
 
   getFeaturePath() {
@@ -401,6 +403,17 @@ export class McpServerFeature extends Feature {
       ];
     }
 
+    if (this.pathRewrite != null) {
+      rule.filters = [
+        {
+          type: 'URLRewrite',
+          urlRewrite: {
+            path: { type: 'ReplacePrefixMatch', replacePrefixMatch: this.pathRewrite },
+          },
+        },
+      ];
+    }
+
     const overrides = {
       metadata: {
         name: this.routeName,
@@ -423,7 +436,8 @@ export class McpServerFeature extends Feature {
 
     await this.applyYamlFile('httproute.yaml', overrides);
     const pathMsg = this.pathPrefix ? ` at ${this.pathPrefix}` : '';
-    this.log(`HTTPRoute '${this.routeName}' created${pathMsg}`, 'info');
+    const rewriteMsg = this.pathRewrite != null ? ` (rewrite → ${this.pathRewrite})` : '';
+    this.log(`HTTPRoute '${this.routeName}' created${pathMsg}${rewriteMsg}`, 'info');
   }
 
   async cleanup() {

@@ -6,6 +6,11 @@ metadata:
   docs: https://kgateway.dev/docs/latest/agentgateway/llm/providers/
 
 spec:
+  diagram: |
+    flowchart LR
+      Client --> AGW[AgentGateway]
+      AGW --> Ollama[Ollama llama3]
+
   features:
     - name: providers
       config:

@@ -6,6 +6,20 @@ metadata:
   docs: https://docs.solo.io/agentgateway/2.1.x/llm/prompt-guards/
 
 spec:
+  diagram: |
+    sequenceDiagram
+      participant Client
+      participant AGW as AgentGateway
+      participant Mod as OpenAI Moderation API
+      participant LLM as AWS Bedrock
+      Client->>AGW: request with content
+      AGW->>Mod: POST /v1/moderations
+      Mod-->>AGW: flagged category detected
+      AGW-->>Client: 403 blocked
+      Mod-->>AGW: safe content
+      AGW->>LLM: forward request
+      LLM-->>Client: response
+
   features:
     - name: providers
       config:

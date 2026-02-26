@@ -21,11 +21,11 @@ import { TokenExchangeFeature } from './token-exchange/index.js';
 import { OboTokenExchangeFeature } from './obo-token-exchange/index.js';
 import { OAuthAuthorizationCodeFeature } from './oauth-authorization-code/index.js';
 import { OAuthAccessTokenValidationFeature } from './oauth-access-token-validation/index.js';
-import { M2MClientCredentialsFeature } from './m2m-client-credentials/index.js';
-import { M2MAgentFeature } from './m2m-agent/index.js';
+import { AgentFeature } from './agent/index.js';
 import { ApiKeyAuthFeature } from './apikey-auth/index.js';
 import { McpServerFeature } from './mcp-server/index.js';
 import { McpAuthFeature } from './mcp-auth/index.js';
+import { McpToolAccessFeature } from './mcp-tool-access/index.js';
 
 // Register all features
 FeatureManager.register('gateway', GatewayFeature);
@@ -40,11 +40,11 @@ FeatureManager.register('token-exchange', TokenExchangeFeature);
 FeatureManager.register('obo-token-exchange', OboTokenExchangeFeature);
 FeatureManager.register('oauth-authorization-code', OAuthAuthorizationCodeFeature);
 FeatureManager.register('oauth-access-token-validation', OAuthAccessTokenValidationFeature);
-FeatureManager.register('m2m-client-credentials', M2MClientCredentialsFeature);
-FeatureManager.register('m2m-agent', M2MAgentFeature);
+FeatureManager.register('agent', AgentFeature);
 FeatureManager.register('apikey-auth', ApiKeyAuthFeature);
 FeatureManager.register('mcp-server', McpServerFeature);
 FeatureManager.register('mcp-auth', McpAuthFeature);
+FeatureManager.register('mcp-tool-access', McpToolAccessFeature);
 
 // Export the FeatureManager for use in other modules
 export { FeatureManager };
@@ -63,9 +63,9 @@ export {
   OboTokenExchangeFeature,
   OAuthAuthorizationCodeFeature,
   OAuthAccessTokenValidationFeature,
-  M2MClientCredentialsFeature,
-  M2MAgentFeature,
+  AgentFeature,
   ApiKeyAuthFeature,
   McpServerFeature,
   McpAuthFeature,
+  McpToolAccessFeature,
 };

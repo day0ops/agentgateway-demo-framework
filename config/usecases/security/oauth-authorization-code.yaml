@@ -6,6 +6,23 @@ metadata:
   docs: https://docs.solo.io/agentgateway/2.1.x/security/extauth/oauth/authorization-code/
 
 spec:
+  diagram: |
+    sequenceDiagram
+      participant Client
+      participant AGW as AgentGateway
+      participant KC as Keycloak
+      participant LLM as OpenAI
+      Client->>AGW: GET /openai (no session)
+      AGW-->>Client: 302 redirect to Keycloak
+      Client->>KC: login with credentials
+      KC-->>Client: auth code callback
+      Client->>AGW: GET /callback?code=
+      AGW->>KC: exchange code for tokens
+      KC-->>AGW: access + id tokens
+      AGW-->>Client: session cookie
+      Client->>AGW: GET /openai + Cookie
+      AGW->>LLM: forward request
+      LLM-->>Client: LLM response
   steps:
     - title: Deploy OpenAI provider
       description: >

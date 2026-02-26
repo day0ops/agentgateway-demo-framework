@@ -9,6 +9,13 @@ metadata:
   docs: https://agentgateway.dev/docs/kubernetes/main/llm/providers/multiple-endpoints/
 
 spec:
+  diagram: |
+    flowchart LR
+      Client --> AGW[AGW /openai]
+      AGW -->|chat| OpenAI[OpenAI]
+      AGW -->|embeddings passthrough| OpenAI
+      AGW -->|models passthrough| OpenAI
+
   features:
     - name: providers
       config:

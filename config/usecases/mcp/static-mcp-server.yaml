@@ -6,6 +6,17 @@ metadata:
   docs: https://docs.solo.io/agentgateway/2.1.x/mcp/static-mcp/
 
 spec:
+  diagram: |
+    sequenceDiagram
+      participant Agent
+      participant AGW as AgentGateway
+      participant MCP as MCP Stock Server
+      Agent->>AGW: MCP initialize
+      AGW->>MCP: forward (static target)
+      MCP-->>Agent: tools list
+      Agent->>AGW: MCP tools/call get_stock_price
+      AGW->>MCP: forward tool call
+      MCP-->>Agent: stock price result
   steps:
     - title: Deploy LLM provider and static MCP server
       description: >
@@ -24,8 +35,8 @@ spec:
         - name: mcp-server
           config:
             deployServer: true
-            image: mcp-stock-server:latest
-            serverName: mcp-stock-server
+            image: stock-server-mcp:latest
+            serverName: stock-server-mcp
             serverPort: 8000
             servicePort: 80
             protocol: StreamableHTTP

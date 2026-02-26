@@ -2,12 +2,19 @@
 ## Installs Keycloak as IdP and enables STS token exchange
 ## Reference: https://docs.solo.io/agentgateway/2.1.x/security/obo-elicitations/obo/
 
-helmValues:
-  agentgateway:
-    enabled: true
+agentgateway:
+  version: "v2.2.0-beta.1"
+  ociRegistry: "oci://us-central1-docker.pkg.dev/developers-369321/enterprise-agentgateway-public-nonprod/charts"
 
-  envoy:
-    enabled: false
+agentgateway-crds:
+  version: "v2.2.0-beta.1"
+  ociRegistry: "oci://us-central1-docker.pkg.dev/developers-369321/enterprise-agentgateway-public-nonprod/charts"
+
+helmValues:
+
+  controller:
+    extraEnv:
+      KGW_ENABLE_GATEWAY_API_EXPERIMENTAL_FEATURES: "true"
 
   # STS token exchange configuration (Step 2 from the OBO docs)
   tokenExchange:
@@ -22,12 +29,17 @@ helmValues:
         url: "https://keycloak.keycloak.svc.cluster.local/realms/agw-dev/protocol/openid-connect/certs"
     actorValidator:
       validatorType: k8s
+    # New in 2.2.0: validates callers of the STS HTTP API — use same JWKS as subjectValidator.
+    apiValidator:
+      validatorType: remote
+      remoteConfig:
+        url: "https://keycloak.keycloak.svc.cluster.local/realms/agw-dev/protocol/openid-connect/certs"
 
 resources:
   - agentgateway-with-obo/enterprise-agentgateway-parameters.yaml
 
 featureGates:
-  injectCaCert:
+  injectExtAuthCustomCaCert:
     enabled: true
     sourceSecret: keycloak-tls
     sourceNamespace: keycloak

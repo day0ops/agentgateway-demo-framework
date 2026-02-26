@@ -6,6 +6,12 @@ metadata:
   docs: https://kgateway.dev/docs/latest/agentgateway/llm/providers/
 
 spec:
+  diagram: |
+    flowchart LR
+      Client --> AGW[AgentGateway]
+      AGW -->|round-robin| OpenAI[OpenAI /openai]
+      AGW -->|round-robin| Bedrock[Bedrock /bedrock]
+
   features:
     - name: providers
       config:

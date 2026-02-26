@@ -1,4 +1,4 @@
-import { readdir, readFile, unlink } from 'fs/promises';
+import { readdir, readFile, writeFile, unlink } from 'fs/promises';
 import { join, basename, relative } from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
@@ -8,12 +8,13 @@ import { randomBytes, createHash } from 'crypto';
 import yaml from 'js-yaml';
 import chalk from 'chalk';
 import { Prompts } from './prompts.js';
-import { Logger, SpinnerLogger, KubernetesHelper, CommandRunner } from './common.js';
+import { Logger, SpinnerLogger, KubernetesHelper, CommandRunner, printTrafficBox } from './common.js';
 import { FeatureManager } from '../../features/index.js';
 import {
   showStepHeader,
-  showDiagramForStep,
+  showUseCaseOverview,
   showWaitPrompt,
+  generateMermaidForUseCase,
 } from './diagrams.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -359,6 +360,48 @@ export class UseCaseManager {
   }
 
   /**
+   * Generate Mermaid diagram for all use case YAML files and set spec.diagram.
+   * @returns {Promise<{ updated: string[], skipped: string[], errors: Array<{ file: string, error: string }> }>}
+   */
+  static async generateDiagramsForAll() {
+    const { generateMermaidForUseCase } = await import('./diagrams.js');
+    const yamlFiles = await this.findYamlFiles(this.USECASES_DIR);
+    const updated = [];
+    const skipped = [];
+    const errors = [];
+
+    for (const { file } of yamlFiles) {
+      try {
+        const content = await readFile(file, 'utf8');
+        const usecase = yaml.load(content);
+        if (!usecase?.spec) {
+          skipped.push(file);
+          continue;
+        }
+        const { metadata, spec } = usecase;
+        const steps = this.getSteps(spec);
+        if (steps.length === 0) {
+          skipped.push(file);
+          continue;
+        }
+        const mermaid = generateMermaidForUseCase(metadata, spec, steps);
+        if (!mermaid) {
+          skipped.push(file);
+          continue;
+        }
+        spec.diagram = mermaid;
+        const out = yaml.dump(usecase, { lineWidth: -1, indent: 2 });
+        await writeFile(file, out, 'utf8');
+        updated.push(file);
+      } catch (err) {
+        errors.push({ file, error: err.message });
+      }
+    }
+
+    return { updated, skipped, errors };
+  }
+
+  /**
    * Deploy a use case
    * @param {string} name - Use case name or file path
    * @param {Object} [options] - Deploy options
@@ -438,7 +481,27 @@ export class UseCaseManager {
 
       const useSteppedFlow = stepped && prompt && steps.length > 0 && process.stdin.isTTY;
 
-      if (useSteppedFlow && steps.length > 1) {
+      if (useSteppedFlow && diagrams) {
+        let mermaidText = spec.diagram || null;
+        if (!mermaidText && filePath && filePath.endsWith('.yaml')) {
+          const mdPath = filePath.replace(/\.yaml$/i, '.md');
+          try {
+            const mdContent = await readFile(mdPath, 'utf8');
+            const match = mdContent.match(/```mermaid\s*\n([\s\S]*?)```/);
+            if (match) mermaidText = match[1].trim();
+          } catch {
+            // no companion .md or no mermaid block
+          }
+        }
+        if (!mermaidText && steps.length > 0) {
+          mermaidText = generateMermaidForUseCase(metadata, spec, steps);
+        }
+        await showUseCaseOverview(metadata, spec, steps, mermaidText);
+        showWaitPrompt();
+        await waitForKey();
+      }
+
+      if (useSteppedFlow && steps.length > 1 && !diagrams) {
         showWaitPrompt();
         await waitForKey();
       }
@@ -450,9 +513,6 @@ export class UseCaseManager {
 
         if (useSteppedFlow) {
           showStepHeader(stepIndex, totalSteps, step.title, step.description);
-          if (diagrams) {
-            showDiagramForStep(stepIndex, step.features);
-          }
           Logger.info(`Applying: ${step.features.map((f) => f.name).join(', ')}`);
           showWaitPrompt();
           await waitForKey();
@@ -1055,7 +1115,17 @@ export class UseCaseManager {
             lastResponse = result.response;
             lastResponseBody = result.body;
             lastResponseStatus = result.status;
-            
+
+            if (step.showTraffic || test.showTraffic) {
+              const prevText = spinner.spinner.text;
+              spinner.stop();
+              printTrafficBox(
+                result.requestInfo,
+                { status: result.status, headers: result.responseHeaders, body: result.body },
+              );
+              spinner.start(prevText);
+            }
+
             spinner.setText(`Request sent, status: ${lastResponseStatus}`);
           } catch (error) {
             throw new Error(`Request failed: ${error.message}`);
@@ -1101,6 +1171,17 @@ export class UseCaseManager {
             lastResponse = result.response;
             lastResponseBody = result.body;
             lastResponseStatus = result.status;
+
+            if (step.showTraffic || test.showTraffic) {
+              const prevText = spinner.spinner.text;
+              spinner.stop();
+              printTrafficBox(
+                result.requestInfo,
+                { status: result.status, headers: result.responseHeaders, body: result.body },
+              );
+              spinner.start(prevText);
+            }
+
             spinner.setText(`MCP request sent, status: ${lastResponseStatus}`);
           } catch (error) {
             throw new Error(`MCP request failed: ${error.message}`);
@@ -1444,16 +1525,13 @@ export class UseCaseManager {
     // Build request body
     let body = null;
     if (prompt) {
-      // LLM chat completion format (OpenAI-compatible)
-      body = JSON.stringify({
+      const promptBody = {
         model: model || '',
-        messages: [
-          {
-            role: 'user',
-            content: prompt
-          }
-        ]
-      });
+        messages: [{ role: 'user', content: prompt }],
+        ...step.extraFields,
+      };
+      if (!model && promptBody.model === '') delete promptBody.model;
+      body = JSON.stringify(promptBody);
     } else if (step.input != null) {
       // Embeddings format (OpenAI-compatible)
       const embeddingBody = { input: step.input };
@@ -1515,10 +1593,25 @@ export class UseCaseManager {
         Logger.debug(`Response body: ${JSON.stringify(responseBody).substring(0, 200)}...`);
       }
 
+      let parsedRequestBody = null;
+      if (body) {
+        try { parsedRequestBody = JSON.parse(body); } catch { parsedRequestBody = body; }
+      }
+
+      const responseHeaders = {};
+      response.headers.forEach((value, key) => { responseHeaders[key] = value; });
+
       return {
         response,
         body: responseBody,
-        status
+        status,
+        requestInfo: {
+          method,
+          url,
+          headers: requestHeaders,
+          body: parsedRequestBody,
+        },
+        responseHeaders,
       };
     } catch (error) {
       clearTimeout(timeoutId);
@@ -1641,12 +1734,32 @@ export class UseCaseManager {
 
     // 4. Actual method
     spinner.setText(`MCP ${step.method} -> ${url}`);
+    const mainReqHeaders = { ...baseHeaders };
+    if (sessionId) mainReqHeaders['Mcp-Session-Id'] = sessionId;
+    const mainReqBody = {
+      jsonrpc: '2.0',
+      method: step.method,
+      ...(step.params ? { params: step.params } : {}),
+      id: rpcId,
+    };
     const result = await jsonRpcPost(step.method, step.params || undefined);
 
     // 5. Clean up session
     await cleanupSession();
 
-    return result;
+    const responseHeaders = {};
+    result.response.headers.forEach((value, key) => { responseHeaders[key] = value; });
+
+    return {
+      ...result,
+      requestInfo: {
+        method: 'POST',
+        url,
+        headers: mainReqHeaders,
+        body: mainReqBody,
+      },
+      responseHeaders,
+    };
   }
 
   /**

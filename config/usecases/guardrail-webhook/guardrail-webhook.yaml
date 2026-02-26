@@ -8,6 +8,22 @@ metadata:
   docs: https://docs.solo.io/agentgateway/2.1.x/llm/prompt-guards/
 
 spec:
+  diagram: |
+    sequenceDiagram
+      participant Client
+      participant AGW as AgentGateway
+      participant WH as Opik Webhook
+      participant LLM as OpenAI
+      Client->>AGW: request
+      AGW->>WH: pre-hook (check input)
+      WH-->>AGW: blocked (toxic/banned)
+      AGW-->>Client: 403 blocked
+      WH-->>AGW: allowed
+      AGW->>LLM: forward request
+      LLM-->>AGW: response
+      AGW->>WH: post-hook (check output)
+      WH-->>AGW: mask PII in response
+      AGW-->>Client: safe response
   steps:
     - title: Add provider
       description: Configure the LLM provider backend and route.

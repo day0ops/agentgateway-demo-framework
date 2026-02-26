@@ -8,6 +8,3 @@ spec:
     agentgateway:
       enabled: true
       customConfigMapName: agentgateway-config
-
-
-

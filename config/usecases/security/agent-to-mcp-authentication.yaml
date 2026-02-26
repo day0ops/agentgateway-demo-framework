@@ -1,0 +1,154 @@
+apiVersion: agentgateway.demo/v1
+kind: UseCase
+metadata:
+  name: agent-to-mcp-authentication
+  description: Agent-to-MCP authentication — user JWT is propagated by the stock ADK agent into protected MCP tools via the AGW JWT policy
+  docs: https://docs.solo.io/agentgateway/2.1.x/security/obo-elicitations/obo/
+
+spec:
+  diagram: |
+    sequenceDiagram
+      participant Caller
+      participant AGW as AgentGateway
+      participant Agent as Stock ADK Agent
+      participant KC as Keycloak
+      participant MCP as MCP Stock Server
+      Caller->>KC: get JWT (client_credentials)
+      KC-->>Caller: JWT
+      Caller->>AGW: POST /agent + Bearer JWT
+      AGW->>Agent: forward request
+      Agent->>AGW: POST /mcp + Bearer JWT
+      AGW->>KC: GET JWKS (validate JWT)
+      KC-->>AGW: valid
+      AGW->>MCP: forward authenticated request
+      MCP-->>Agent: tool result
+      Agent->>AGW: POST /openai (LLM call)
+      AGW-->>Caller: final answer
+  steps:
+    - title: Deploy LLM provider
+      description: >
+        Expose an LLM provider at /openai so the stock agent can call the gateway
+        for completions (OpenAI model). Provider credentials are supplied by the
+        gateway profile or environment.
+      features:
+        - name: providers
+          config:
+            providers:
+              - name: openai
+                providerName: openai
+                pathPrefix: /openai
+
+    - title: Deploy MCP stock server
+      description: >
+        Deploy the MCP stock server and expose it through agentgateway at /mcp.
+        This is the protected backend the ADK agent will call. The route is
+        unauthenticated at this stage — the JWT policy is applied in step 3.
+      features:
+        - name: mcp-server
+          config:
+            deployServer: true
+            image: stock-server-mcp:latest
+            serverName: stock-server-mcp
+            serverPort: 8000
+            servicePort: 80
+            protocol: StreamableHTTP
+            env:
+              MCP_TRANSPORT: streamable-http
+            mcpPath: /mcp
+            pathPrefix: /mcp
+            backendName: mcp-backend
+            routeName: mcp
+
+    - title: Enable STS token exchange
+      description: >
+        Enable the AGW Security Token Service (STS) configured to validate
+        Keycloak JWTs as the subject (via HTTP JWKS, reachable from the
+        distroless controller pod without TLS config). The STS issues short-lived
+        delegated JWTs signed by its own keys. The backend JWT policy validates
+        exclusively against the STS JWKS — Keycloak is invisible to the MCP server.
+      features:
+        - name: token-exchange
+          config:
+            tokenExpiration: 1h
+            subjectValidator:
+              validatorType: remote
+              remoteConfig:
+                url: http://keycloak.keycloak.svc.cluster.local:8080/realms/agw-dev/protocol/openid-connect/certs
+
+    - title: Apply JWT auth policy on MCP route
+      description: >
+        Apply an EnterpriseAgentgatewayPolicy with JWT authentication in Strict
+        mode on the /mcp HTTPRoute. Only requests bearing a valid Keycloak JWT
+        are admitted. The stock agent's ADKTokenPropagationPlugin forwards the
+        caller's incoming JWT directly into every outbound MCP tool call; the
+        gateway validates that JWT against Keycloak's JWKS.
+      features:
+        - name: obo-token-exchange
+          config:
+            policyName: m2m-mcp-jwt-policy
+            issuer: http://keycloak.keycloak.svc.cluster.local:8080/realms/agw-dev
+            jwksPath: realms/agw-dev/protocol/openid-connect/certs
+            jwksBackend:
+              name: keycloak
+              namespace: keycloak
+              port: 8080
+            jwtMode: Strict
+            targetRefs:
+              - group: gateway.networking.k8s.io
+                kind: HTTPRoute
+                name: mcp
+
+    - title: Deploy stock ADK agent
+      description: >
+        Deploy the stock ADK agent (from extras/stock-agent/) as a long-running
+        Deployment exposed through the gateway at /agent. The agent uses
+        ADKTokenPropagationPlugin from agentsts-adk to propagate the caller's
+        incoming JWT into every outbound MCP tool call. JWT validation is enforced
+        by the EnterpriseAgentgatewayPolicy on the AGW side — the agent holds no
+        long-lived credentials. LLM calls are routed through the agentgateway
+        provider endpoint (llmBaseUrl) so the gateway handles provider auth,
+        rate limiting, and telemetry.
+      features:
+        - name: agent
+          config:
+            image: stock-agent:latest
+            agentName: stock-agent
+            model: gpt-4o-mini
+            llmBaseUrl: http://agentgateway.agentgateway-system.svc.cluster.local:8080/openai
+            mcpUrl: http://agentgateway.agentgateway-system.svc.cluster.local:8080/mcp
+            pathPrefix: /agent
+            pathRewrite: /
+            routeName: stock-agent
+
+  tests:
+    - name: test-unauthenticated-mcp-blocked
+      description: Direct MCP call without a token is rejected with 401
+      steps:
+        - action: send-mcp-request
+          endpoint: /mcp
+          method: tools/list
+        - action: verify
+          expect:
+            status: error
+
+    - name: test-agent-calls-mcp-with-delegation
+      description: >
+        Caller JWT is propagated by the agent to the MCP server via AGW JWT policy.
+      steps:
+        - action: get-token
+          keycloak:
+            realm: agw-dev
+            clientId: agw-client
+            clientSecret: agw-client-secret
+            grantType: client_credentials
+            hostname: keycloak.keycloak.svc.cluster.local:8080
+            scheme: http
+        - action: call-agent
+          endpoint: /agent
+          auth: bearer
+          query: "What is the current stock price of AAPL?"
+          timeout: 60
+        - action: verify
+          expect:
+            status: success
+            contains: AAPL

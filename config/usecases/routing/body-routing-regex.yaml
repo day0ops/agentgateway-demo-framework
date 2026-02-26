@@ -12,6 +12,13 @@ metadata:
   references:
     - https://docs.solo.io/agentgateway/2.1.x/reference/api/solo/#enterpriseagentgatewaypolicyspec
 spec:
+  diagram: |
+    flowchart LR
+      Client -->|model in body| AGW[AgentGateway]
+      AGW -->|google/gemini-.*| VertexAI[Vertex AI]
+      AGW -->|local model| Ollama[Ollama]
+      AGW -->|no model| RR[Round-Robin all]
+
   features:
     - name: providers
       config:

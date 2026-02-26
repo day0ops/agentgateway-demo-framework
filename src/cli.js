@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { Command } from 'commander';
+import { join } from 'path';
 import chalk from 'chalk';
 import figlet from 'figlet';
 import { Lok8sManager } from './lib/lok8s.js';
@@ -116,8 +117,7 @@ base
       let profileData = null;
       
       if (options.profile) {
-        // Profile specified via command line
-        profileFile = `./config/profiles/${options.profile}.yaml`;
+        profileFile = join(ProfileManager.PROFILES_DIR, `${options.profile}.yaml`);
         Logger.info(`Using profile: ${options.profile}`);
         try {
           profileData = await ProfileManager.load(profileFile);
@@ -126,7 +126,6 @@ base
           throw error;
         }
       } else if (options.prompt !== false) {
-        // Interactive mode - prompt user to select profile
         try {
           const profile = await ProfileManager.select();
           Logger.info(`Selected profile: ${profile.name}`);
@@ -137,7 +136,6 @@ base
           throw error;
         }
       }
-      // else: no profile, use defaults
 
       if (profileData && profileData.addons.length > 0) {
         Logger.info(`Installing ${profileData.addons.length} prerequisite addon(s) from profile...`);
@@ -177,8 +175,7 @@ base
       let profileData = null;
       
       if (options.profile) {
-        // Profile specified via command line
-        profileFile = `./config/profiles/${options.profile}.yaml`;
+        profileFile = join(ProfileManager.PROFILES_DIR, `${options.profile}.yaml`);
         Logger.info(`Using profile: ${options.profile}`);
         try {
           profileData = await ProfileManager.load(profileFile);
@@ -187,7 +184,6 @@ base
           throw error;
         }
       } else if (options.prompt !== false) {
-        // Interactive mode - prompt user to select profile
         try {
           const profile = await ProfileManager.select();
           Logger.info(`Selected profile: ${profile.name}`);
@@ -198,14 +194,12 @@ base
           throw error;
         }
       }
-      // else: no profile, use defaults
 
       if (profileData && profileData.addons.length > 0) {
         Logger.info(`Installing ${profileData.addons.length} prerequisite addon(s) from profile...`);
         await AddonInstaller.installAddons(profileData.addons);
       }
       
-      // Install agentgateway with helm values from profile
       await AgentGatewayManager.install(profileFile);
       await AgentGatewayManager.installProxy();
       
@@ -482,6 +476,27 @@ usecase
       await UseCaseManager.cleanup(usecaseName);
     } catch (error) {
       // UseCaseManager already logged the error with spinner.fail()
+      process.exit(1);
+    }
+  });
+
+usecase
+  .command('generate-diagrams')
+  .description('Generate spec.diagram (Mermaid) for all use case YAML files')
+  .action(async () => {
+    try {
+      const { updated, skipped, errors } = await UseCaseManager.generateDiagramsForAll();
+      if (errors.length > 0) {
+        errors.forEach(({ file, error }) => Logger.error(`${file}: ${error}`));
+        process.exit(1);
+      }
+      console.log(chalk.green(`Updated ${updated.length} use case(s) with spec.diagram`));
+      updated.forEach((f) => console.log(chalk.gray('  ') + f));
+      if (skipped.length > 0) {
+        console.log(chalk.gray(`Skipped ${skipped.length} (no steps or no features)`));
+      }
+    } catch (error) {
+      Logger.error(error.message);
       process.exit(1);
     }
   });

@@ -6,6 +6,21 @@ metadata:
   docs: https://docs.solo.io/agentgateway/2.1.x/security/extauth/apikey/
 
 spec:
+  diagram: |
+    sequenceDiagram
+      participant Client
+      participant AGW as AgentGateway
+      participant EA as ExtAuth
+      participant LLM as OpenAI
+      Client->>AGW: POST /openai (no api key)
+      AGW->>EA: validate key
+      EA-->>AGW: missing/invalid
+      AGW-->>Client: 401 Unauthorized
+      Client->>AGW: POST /openai + x-ai-api-key
+      AGW->>EA: validate key vs K8s Secret
+      EA-->>AGW: valid
+      AGW->>LLM: forward request
+      LLM-->>Client: response
   steps:
     - title: Deploy OpenAI provider
       description: >

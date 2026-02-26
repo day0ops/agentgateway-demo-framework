@@ -6,6 +6,11 @@ metadata:
   docs: https://kgateway.dev/docs/agentgateway/latest/llm/providers/vertex-ai/
 
 spec:
+  diagram: |
+    flowchart LR
+      Client --> AGW[AgentGateway]
+      AGW --> VertexAI[Vertex AI Anthropic Claude]
+
   features:
     - name: providers
       config:
@@ -26,20 +31,30 @@ spec:
   tests:
     - name: test-anthropic-via-vertex
       description: Test Anthropic Claude model via Vertex AI endpoint
+      showTraffic: true
       steps:
         - action: send-request
           endpoint: /v1/messages
           prompt: "What is machine learning?"
+          extraFields:
+            anthropic_version: "vertex-2023-10-16"
+            max_tokens: 100
+            stream: false
         - action: verify
           expect:
             status: success
 
     - name: test-anthropic-via-vertex-simple
       description: Test Anthropic via Vertex AI with a simple query
+      showTraffic: true
       steps:
         - action: send-request
           endpoint: /v1/messages
           prompt: "Hello, how are you?"
+          extraFields:
+            anthropic_version: "vertex-2023-10-16"
+            max_tokens: 100
+            stream: false
         - action: verify
           expect:
             status: success

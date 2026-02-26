@@ -1,0 +1,19 @@
+## AgentGateway with custom version, OCI registry, and controller env
+
+agentgateway:
+  version: "2.1.1"
+  ociRegistry: "oci://us-docker.pkg.dev/solo-public/enterprise-agentgateway/charts"
+
+agentgateway-crds:
+  version: "2.1.1"
+  ociRegistry: "oci://us-docker.pkg.dev/solo-public/enterprise-agentgateway/charts"
+
+gatewayApi:
+  version: "v1.4.0"
+
+helmValues:
+  controller:
+    extraEnv:
+      KGW_ENABLE_GATEWAY_API_EXPERIMENTAL_FEATURES: "true"
+
+addons: []

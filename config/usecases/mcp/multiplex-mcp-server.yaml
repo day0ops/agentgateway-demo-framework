@@ -6,6 +6,20 @@ metadata:
   docs: https://docs.solo.io/agentgateway/2.1.x/mcp/multiplex/
 
 spec:
+  diagram: |
+    sequenceDiagram
+      participant Agent
+      participant AGW as AgentGateway
+      participant Stock as Stock MCP Server
+      participant Currency as Currency MCP Server
+      Agent->>AGW: MCP initialize (single /mcp)
+      AGW->>Stock: forward
+      Stock-->>Agent: stock tools
+      AGW->>Currency: forward
+      Currency-->>Agent: currency tools
+      Agent->>AGW: MCP tools/call get_stock_price
+      AGW->>Stock: route to stock server
+      Stock-->>Agent: tool result
   steps:
     - title: Deploy LLM provider and multiplexed MCP servers
       description: >
@@ -27,24 +41,24 @@ spec:
         - name: mcp-server
           config:
             servers:
-              - name: mcp-stock-server
-                image: mcp-stock-server:latest
+              - name: stock-server-mcp
+                image: stock-server-mcp:latest
                 serverPort: 8000
                 servicePort: 80
-              - name: mcp-currency-server
-                image: mcp-currency-server:latest
+              - name: currency-server-mcp
+                image: currency-server-mcp:latest
                 serverPort: 8000
                 servicePort: 80
             protocol: StreamableHTTP
             mcpPath: /mcp
             backendName: mcp-backend
             targets:
-              - name: mcp-stock-server
+              - name: stock-server-mcp
                 matchLabels:
-                  app: mcp-stock-server
-              - name: mcp-currency-server
+                  app: stock-server-mcp
+              - name: currency-server-mcp
                 matchLabels:
-                  app: mcp-currency-server
+                  app: currency-server-mcp
             routeName: mcp
 
   tests:
@@ -68,7 +82,7 @@ spec:
           endpoint: /mcp
           method: tools/call
           params:
-            name: mcp-stock-server-80_get_stock_price
+            name: stock-server-mcp-80_get_stock_price
             arguments:
               symbol: AAPL
         - action: verify
@@ -82,7 +96,7 @@ spec:
           endpoint: /mcp
           method: tools/call
           params:
-            name: mcp-currency-server-80_get_exchange_rate
+            name: currency-server-mcp-80_get_exchange_rate
             arguments:
               base: USD
               target: EUR

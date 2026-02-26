@@ -6,6 +6,11 @@ metadata:
   docs: https://docs.solo.io/agentgateway/2.1.x/llm/api-keys/#passthrough
 
 spec:
+  diagram: |
+    flowchart LR
+      Client -->|Bearer API-key| AGW[AgentGateway]
+      AGW -->|passthrough token| OpenAI[OpenAI]
+
   features:
     - name: providers
       config:

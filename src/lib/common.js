@@ -2,6 +2,7 @@ import chalk from 'chalk';
 import { execa } from 'execa';
 import ora from 'ora';
 import logSymbols from 'log-symbols';
+import stringWidth from 'string-width';
 
 /**
  * Common utilities for the agentgateway demo framework
@@ -433,5 +434,115 @@ export async function checkDependencies() {
 
 export function waitFor(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * Print a bordered box showing raw HTTP request and response details.
+ * @param {{ method: string, url: string, headers: Object, body: any }} request
+ * @param {{ status: number, headers: Object, body: any }} response
+ */
+export function printTrafficBox(request, response) {
+  const BOX_WIDTH = Math.min(process.stdout.columns || 100, 100);
+  const INNER = BOX_WIDTH - 2;
+  const CONTENT_MAX = INNER - 2;
+
+  const DIM = chalk.dim;
+
+  const padVisual = (str, width) => {
+    const w = stringWidth(str);
+    return w >= width ? str : str + ' '.repeat(width - w);
+  };
+
+  const top    = DIM('┌' + '─'.repeat(INNER) + '┐');
+  const bottom = DIM('└' + '─'.repeat(INNER) + '┘');
+  const mid    = DIM('├' + '─'.repeat(INNER) + '┤');
+
+  const row = (text = '') => {
+    const safe = String(text).replace(/\r?\n/g, ' ');
+    const visLen = stringWidth(safe);
+    const content = visLen > CONTENT_MAX
+      ? safe.replace(/\x1B\[[0-9;]*m/g, '').substring(0, CONTENT_MAX - 1) + '…'
+      : safe;
+    return DIM('│') + ' ' + padVisual(content, CONTENT_MAX) + ' ' + DIM('│');
+  };
+
+  const sectionRow = (label, colorFn) => {
+    const colored = colorFn(' ' + label);
+    return DIM('│') + padVisual(colored, INNER) + DIM('│');
+  };
+
+  const maskSensitive = (key, value) => {
+    const k = key.toLowerCase();
+    if (['authorization', 'x-ai-api-key', 'x-api-key', 'cookie'].includes(k)) {
+      const s = String(value);
+      return s.length > 20 ? s.substring(0, 12) + '…[masked]' : s;
+    }
+    return value;
+  };
+
+  const formatBodyLines = (body, maxLines = 30) => {
+    if (body == null || body === '') return ['(empty)'];
+    let str;
+    if (typeof body === 'object') {
+      try { str = JSON.stringify(body, null, 2); } catch { str = String(body); }
+    } else {
+      str = String(body);
+    }
+    const lines = str.split('\n');
+    return lines.length > maxLines
+      ? [...lines.slice(0, maxLines), chalk.dim(`… (${lines.length - maxLines} more lines)`)]
+      : lines;
+  };
+
+  const out = ['', top];
+
+  out.push(sectionRow('REQUEST', chalk.bold.cyan));
+  out.push(row());
+  out.push(row(`  ${chalk.bold(request.method)}  ${request.url}`));
+
+  if (request.headers && Object.keys(request.headers).length > 0) {
+    out.push(row());
+    out.push(row(chalk.dim('  Headers')));
+    for (const [k, v] of Object.entries(request.headers)) {
+      out.push(row(`    ${chalk.dim(k + ':')} ${maskSensitive(k, v)}`));
+    }
+  }
+
+  if (request.body != null) {
+    out.push(row());
+    out.push(row(chalk.dim('  Body')));
+    for (const l of formatBodyLines(request.body)) {
+      out.push(row('    ' + l));
+    }
+  }
+
+  out.push(mid);
+
+  out.push(sectionRow('RESPONSE', chalk.bold.magenta));
+  out.push(row());
+
+  const statusFn = response.status >= 200 && response.status < 300
+    ? chalk.green
+    : response.status >= 400 ? chalk.red : chalk.yellow;
+  out.push(row('  ' + chalk.dim('Status:') + ' ' + statusFn(String(response.status))));
+
+  if (response.headers && Object.keys(response.headers).length > 0) {
+    out.push(row());
+    out.push(row(chalk.dim('  Headers')));
+    for (const [k, v] of Object.entries(response.headers)) {
+      out.push(row(`    ${chalk.dim(k + ':')} ${v}`));
+    }
+  }
+
+  if (response.body != null) {
+    out.push(row());
+    out.push(row(chalk.dim('  Body')));
+    for (const l of formatBodyLines(response.body)) {
+      out.push(row('    ' + l));
+    }
+  }
+
+  out.push(bottom, '');
+  console.log(out.join('\n'));
 }
 

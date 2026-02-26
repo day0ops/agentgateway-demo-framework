@@ -6,6 +6,21 @@ metadata:
   docs: https://kgateway.dev/docs/main/reference/api/#prioritygroup
 
 spec:
+  diagram: |
+    sequenceDiagram
+      participant Client
+      participant AGW as AgentGateway
+      participant PG as Primary Group
+      participant FG as Fallback Group
+      Client->>AGW: request
+      AGW->>PG: try priority group 1 (load balanced)
+      PG-->>AGW: upstream unhealthy
+      AGW->>FG: failover to group 2
+      FG-->>Client: response
+      Client->>AGW: next request
+      AGW->>PG: primary group recovered
+      PG-->>Client: response
+
   features:
     - name: providers
       config:

@@ -1,13 +1,6 @@
 ## AgentGateway profile with full observability stack
 
-helmValues:
-  # enabled agentgateway
-  agentgateway:
-    enabled: true
-
-  # disabled envoy
-  envoy:
-    enabled: false
+helmValues: {}
 
 addons:
   - name: telemetry

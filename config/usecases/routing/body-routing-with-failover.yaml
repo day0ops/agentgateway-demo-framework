@@ -12,6 +12,21 @@ metadata:
   references:
     - https://docs.solo.io/agentgateway/2.1.x/reference/api/solo/#enterpriseagentgatewaypolicyspec
 spec:
+  diagram: |
+    sequenceDiagram
+      participant Client
+      participant AGW as AgentGateway
+      participant VA as Vertex AI
+      participant OL as Ollama
+      Client->>AGW: POST body model=google/gemini-2.5-flash
+      AGW->>VA: route by model name (regex match)
+      VA-->>AGW: upstream error (5xx/timeout)
+      AGW->>OL: failover to Ollama
+      OL-->>Client: response
+      Client->>AGW: POST body model=llama3
+      AGW->>OL: route by model name
+      OL-->>Client: response
+
   features:
     - name: providers
       config:

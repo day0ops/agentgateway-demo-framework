@@ -12,6 +12,19 @@ metadata:
   docs: https://docs.solo.io/agentgateway/2.1.x/traffic-management/rate-limiting/
 
 spec:
+  diagram: |
+    sequenceDiagram
+      participant Client
+      participant AGW as AgentGateway
+      participant RL as Local Token Counter
+      participant LLM as OpenAI
+      Client->>AGW: request
+      AGW->>RL: count input tokens
+      RL-->>AGW: budget exceeded (5 tokens/min)
+      AGW-->>Client: 429 Too Many Requests
+      RL-->>AGW: within budget, increment
+      AGW->>LLM: forward request
+      LLM-->>Client: response
   steps:
     - title: Add provider
       description: Configure the OpenAI LLM provider backend and route.

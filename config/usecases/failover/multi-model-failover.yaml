@@ -6,6 +6,18 @@ metadata:
   docs: https://docs.solo.io/gateway/2.0.x/ai/llm/failover/
 
 spec:
+  diagram: |
+    sequenceDiagram
+      participant Client
+      participant AGW as AgentGateway
+      participant Primary as gpt-4o / gpt-4-turbo / gpt-3.5
+      participant Fallback as Fallback Models
+      Client->>AGW: request
+      AGW->>Primary: try primary models (round-robin)
+      Primary-->>AGW: all models unhealthy
+      AGW->>Fallback: failover to fallback models
+      Fallback-->>Client: response
+
   features:
     - name: model-failover
       description: Configure failover with priority groups
@@ -33,6 +45,7 @@ spec:
           #   priority: 50
 
   # Test scenarios
+
   tests:
     - name: test-failover-endpoint
       description: Test model failover with automatic selection

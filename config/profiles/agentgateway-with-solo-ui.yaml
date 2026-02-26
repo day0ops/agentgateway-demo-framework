@@ -1,13 +1,6 @@
 ## AgentGateway profile with solo-ui
 
-helmValues:
-  # enabled agentgateway
-  agentgateway:
-    enabled: true
-
-  # disabled envoy
-  envoy:
-    enabled: false
+helmValues: {}
 
 addons:
   - name: solo-ui

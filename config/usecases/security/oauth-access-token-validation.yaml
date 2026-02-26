@@ -6,6 +6,21 @@ metadata:
   docs: https://docs.solo.io/agentgateway/2.1.x/security/extauth/oauth/access-token/
 
 spec:
+  diagram: |
+    sequenceDiagram
+      participant Client
+      participant KC as Keycloak
+      participant AGW as AgentGateway
+      participant LLM as OpenAI
+      Client->>KC: POST /token (out-of-band)
+      KC-->>Client: access token JWT
+      Client->>AGW: request + Bearer JWT
+      AGW->>KC: fetch JWKS + validate signature
+      KC-->>AGW: invalid
+      AGW-->>Client: 403 Forbidden
+      KC-->>AGW: valid
+      AGW->>LLM: forward request
+      LLM-->>Client: response
   steps:
     - title: Deploy OpenAI provider
       description: >

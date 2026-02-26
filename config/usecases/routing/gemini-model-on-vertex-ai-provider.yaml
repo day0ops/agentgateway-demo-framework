@@ -6,6 +6,11 @@ metadata:
   docs: https://kgateway.dev/docs/latest/agentgateway/llm/providers/vertex-ai/
 
 spec:
+  diagram: |
+    flowchart LR
+      Client --> AGW[AgentGateway]
+      AGW --> VertexAI[Vertex AI Gemini]
+
   features:
     - name: providers
       config:
@@ -14,8 +19,6 @@ spec:
             providerName: vertex-ai
             pathPrefix: /vertex-ai
             model: google/gemini-2.5-flash
-            # Required: GCP project ID. Can also be set via GCP_PROJECT env.
-            projectId: your-gcp-project-id
 
   tests:
     - name: test-vertex-ai-endpoint

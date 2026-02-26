@@ -6,6 +6,17 @@ metadata:
   docs: https://docs.solo.io/agentgateway/2.1.x/llm/prompt-enrichment/
 
 spec:
+  diagram: |
+    sequenceDiagram
+      participant Client
+      participant AGW as AgentGateway
+      participant LLM as OpenAI
+      Client->>AGW: user prompt
+      AGW->>AGW: inject system prompts (prepend/append)
+      AGW->>LLM: enriched request with context
+      LLM-->>AGW: response
+      AGW-->>Client: response
+
   features:
     - name: providers
       config:

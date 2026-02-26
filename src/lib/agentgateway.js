@@ -41,28 +41,36 @@ export class AgentGatewayManager {
       helmArgs.push('--set', `licensing.licenseKey=${ENTERPRISE_AGW_LICENSE_KEY}`);
     }
   }
-  static async installGatewayAPICRDs() {
+  static async installGatewayAPICRDs(gatewayApiVersion = GATEWAY_API_VERSION) {
     const spinner = new SpinnerLogger();
-    spinner.start(`Installing Gateway API CRDs ${GATEWAY_API_VERSION}...`);
+    spinner.start(`Installing Gateway API CRDs ${gatewayApiVersion}...`);
 
     try {
       await KubernetesHelper.kubectl([
         'apply', '-f',
-        `https://github.com/kubernetes-sigs/gateway-api/releases/download/${GATEWAY_API_VERSION}/standard-install.yaml`
+        `https://github.com/kubernetes-sigs/gateway-api/releases/download/${gatewayApiVersion}/standard-install.yaml`
       ]);
-      spinner.succeed(`Gateway API CRDs ${GATEWAY_API_VERSION} installed`);
+      spinner.succeed(`Gateway API CRDs ${gatewayApiVersion} installed`);
     } catch (error) {
       spinner.fail('Failed to install Gateway API CRDs');
       throw error;
     }
   }
 
-  static async installAgentGatewayCRDs() {
+  static resolveVersionAndRegistry(profile) {
+    const version = profile?.agentgateway?.version ?? AGENTGATEWAY_VERSION;
+    const ociRegistry = profile?.agentgateway?.ociRegistry ?? AGENTGATEWAY_OCI_REGISTRY;
+    const gatewayApiVersion = profile?.gatewayApi?.version ?? GATEWAY_API_VERSION;
+    const crdsVersion = profile?.['agentgateway-crds']?.version ?? version;
+    const crdsOciRegistry = profile?.['agentgateway-crds']?.ociRegistry ?? ociRegistry;
+    return { version, ociRegistry, gatewayApiVersion, crdsVersion, crdsOciRegistry };
+  }
+
+  static async installAgentGatewayCRDs(version = AGENTGATEWAY_VERSION, ociRegistry = AGENTGATEWAY_OCI_REGISTRY) {
     const spinner = new SpinnerLogger();
-    spinner.start(`Installing agentgateway CRDs ${AGENTGATEWAY_VERSION}...`);
+    spinner.start(`Installing agentgateway CRDs ${version}...`);
 
     try {
-      // Create namespace first
       await KubernetesHelper.ensureNamespace(AGENTGATEWAY_NAMESPACE, spinner);
 
       try {
@@ -70,11 +78,11 @@ export class AgentGatewayManager {
           'upgrade', '-i',
           '--create-namespace',
           '--namespace', AGENTGATEWAY_NAMESPACE,
-          '--version', AGENTGATEWAY_VERSION,
+          '--version', version,
           'enterprise-agentgateway-crds',
-          `${AGENTGATEWAY_OCI_REGISTRY}/enterprise-agentgateway-crds`
+          `${ociRegistry}/enterprise-agentgateway-crds`
         ]);
-        spinner.succeed(`agentgateway CRDs ${AGENTGATEWAY_VERSION} installed`);
+        spinner.succeed(`agentgateway CRDs ${version} installed`);
       } catch (error) {
         spinner.fail('Failed to install agentgateway CRDs');
         // Log the actual error for debugging
@@ -100,45 +108,38 @@ export class AgentGatewayManager {
     let tempValuesFile = null;
     let profile = null;
 
+    if (profileFile) {
+      const profileContent = await readFile(profileFile, 'utf8');
+      profile = yaml.load(profileContent);
+    }
+    const { version, ociRegistry, gatewayApiVersion, crdsVersion, crdsOciRegistry } = this.resolveVersionAndRegistry(profile);
+
     try {
-      // Pre-check: Verify license key is provided
       this.checkLicenseKey();
 
-      // Step 1: Install Gateway API CRDs
-      await this.installGatewayAPICRDs();
+      await this.installGatewayAPICRDs(gatewayApiVersion);
+      await this.installAgentGatewayCRDs(crdsVersion, crdsOciRegistry);
 
-      // Step 2: Install agentgateway CRDs
-      await this.installAgentGatewayCRDs();
-
-      // Step 3: Install agentgateway with profile or default settings
       const profileMsg = profileFile ? ` with profile` : '';
-      spinner.start(`Installing agentgateway ${AGENTGATEWAY_VERSION}${profileMsg}...`);
-      
+      spinner.start(`Installing agentgateway ${version}${profileMsg}...`);
+
       const helmArgs = [
         'upgrade', '-i',
         '-n', AGENTGATEWAY_NAMESPACE,
         AGENTGATEWAY_RELEASE,
-        `${AGENTGATEWAY_OCI_REGISTRY}/enterprise-agentgateway`,
-        '--version', AGENTGATEWAY_VERSION
+        `${ociRegistry}/enterprise-agentgateway`,
+        '--version', version
       ];
 
-      // Add license key to Helm arguments
       this.addLicenseKeyToHelmArgs(helmArgs);
 
-      // Add profile values file if provided
-      if (profileFile) {
-        // Parse profile file and extract helmValues
-        const profileContent = await readFile(profileFile, 'utf8');
-        profile = yaml.load(profileContent);
-        
+      if (profileFile && profile) {
         if (profile.helmValues) {
-          // Create temporary values file with just the helmValues content
           tempValuesFile = join(tmpdir(), `agentgateway-values-${Date.now()}.yaml`);
           const helmValuesYaml = yaml.dump(profile.helmValues);
           await writeFile(tempValuesFile, helmValuesYaml, 'utf8');
           helmArgs.push('-f', tempValuesFile);
         } else {
-          // Fallback: use profile file directly if no helmValues key
           helmArgs.push('-f', profileFile);
         }
       }
@@ -290,8 +291,8 @@ export class AgentGatewayManager {
   // ---------------------------------------------------------------------------
 
   static async processFeatureGates(featureGates, spinner) {
-    if (featureGates.injectCaCert) {
-      await this.processInjectCaCert(featureGates.injectCaCert, spinner);
+    if (featureGates.injectExtAuthCustomCaCert) {
+      await this.processInjectCaCert(featureGates.injectExtAuthCustomCaCert, spinner);
     }
   }
 
@@ -350,7 +351,7 @@ export class AgentGatewayManager {
         namespace: AGENTGATEWAY_NAMESPACE,
         labels: {
           'app.kubernetes.io/managed-by': 'agentgateway-demo',
-          'agentgateway.dev/feature-gate': 'injectCaCert',
+          'agentgateway.dev/feature-gate': 'injectExtAuthCustomCaCert',
         },
       },
       type: 'Opaque',

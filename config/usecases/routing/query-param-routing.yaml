@@ -13,6 +13,13 @@ metadata:
     - https://gateway-api.sigs.k8s.io/reference/spec/#gateway.networking.k8s.io/v1.HTTPQueryParamMatch
 
 spec:
+  diagram: |
+    flowchart LR
+      Client -->|"?model=X"| AGW[AgentGateway]
+      AGW -->|gpt-3.5| A[gpt-3.5-turbo]
+      AGW -->|gpt-4o-mini| B[gpt-4o-mini]
+      AGW -->|gpt-4o| C[gpt-4o]
+
   features:
     - name: providers
       config:

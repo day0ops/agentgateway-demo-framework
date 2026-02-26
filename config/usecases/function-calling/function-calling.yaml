@@ -6,6 +6,22 @@ metadata:
   docs: https://kgateway.dev/docs/latest/agentgateway/llm/functions/
 
 spec:
+  diagram: |
+    sequenceDiagram
+      participant Client
+      participant AGW as AgentGateway
+      participant LLM as OpenAI
+      participant Tool as External Tool
+      Client->>AGW: prompt + tool definitions
+      AGW->>LLM: forward request
+      LLM-->>AGW: tool_call (function + args)
+      AGW-->>Client: tool_call request
+      Client->>Tool: execute tool
+      Tool-->>Client: tool result
+      Client->>AGW: tool result message
+      AGW->>LLM: forward with result
+      LLM-->>Client: final answer
+
   features:
     - name: providers
       config:
