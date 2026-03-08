@@ -108,13 +108,17 @@ export class McpServerFeature extends Feature {
         const isSelector = !!t.matchLabels;
         const isStatic = !!t.host;
         if (!isSelector && !isStatic) {
-          throw new Error(`Target '${t.name}' must have either 'host' (static) or 'matchLabels' (dynamic)`);
+          throw new Error(
+            `Target '${t.name}' must have either 'host' (static) or 'matchLabels' (dynamic)`
+          );
         }
         if (isSelector && isStatic) {
           throw new Error(`Target '${t.name}' cannot have both 'host' and 'matchLabels'`);
         }
         if (isStatic && t.protocol && !validProtocols.includes(t.protocol)) {
-          throw new Error(`Target '${t.name}' protocol must be one of: ${validProtocols.join(', ')}`);
+          throw new Error(
+            `Target '${t.name}' protocol must be one of: ${validProtocols.join(', ')}`
+          );
         }
       }
     }
@@ -376,7 +380,10 @@ export class McpServerFeature extends Feature {
     const isDynamic = targets.some(t => t.selector);
     const mode = isDynamic ? 'dynamic' : 'static';
     await this.applyYamlFile('backend.yaml', overrides);
-    this.log(`AgentgatewayBackend '${this.backendName}' created with ${targets.length} ${mode} MCP target(s)`, 'info');
+    this.log(
+      `AgentgatewayBackend '${this.backendName}' created with ${targets.length} ${mode} MCP target(s)`,
+      'info'
+    );
   }
 
   async deployHTTPRoute() {

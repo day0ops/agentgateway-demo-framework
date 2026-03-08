@@ -1,18 +1,18 @@
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: "{{TLS_SECRET_NAME}}"
-  namespace: "{{NAMESPACE}}"
+  name: '{{TLS_SECRET_NAME}}'
+  namespace: '{{NAMESPACE}}'
 spec:
-  secretName: "{{TLS_SECRET_NAME}}"
+  secretName: '{{TLS_SECRET_NAME}}'
   issuerRef:
     name: selfsigned-issuer
     kind: ClusterIssuer
-  commonName: "{{HOSTNAME}}"
+  commonName: '{{HOSTNAME}}'
   dnsNames:
-    - "{{HOSTNAME}}"
-    - "keycloak.{{NAMESPACE}}.svc.cluster.local"
-    - "keycloak.{{NAMESPACE}}.svc"
+    - '{{HOSTNAME}}'
+    - 'keycloak.{{NAMESPACE}}.svc.cluster.local'
+    - 'keycloak.{{NAMESPACE}}.svc'
     - keycloak
   subject:
     organizations:

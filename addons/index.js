@@ -1,6 +1,6 @@
 /**
  * Addon Registry
- * 
+ *
  * Central registry for all profile-based addons.
  * Addons are infrastructure components installed alongside agentgateway
  * (e.g., telemetry, keycloak, argocd, cert-manager, etc.)
@@ -19,10 +19,4 @@ FeatureManager.register('solo-ui', SoloUIFeature);
 FeatureManager.register('keycloak', KeycloakFeature);
 
 // Export for direct use if needed
-export {
-  TelemetryFeature,
-  CertManagerFeature,
-  SoloUIFeature,
-  KeycloakFeature,
-};
-
+export { TelemetryFeature, CertManagerFeature, SoloUIFeature, KeycloakFeature };

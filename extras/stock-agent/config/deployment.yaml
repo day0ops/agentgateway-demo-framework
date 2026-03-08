@@ -26,18 +26,18 @@ spec:
             - containerPort: 8080
           env:
             - name: MODEL
-              value: "gemini-2.0-flash"
+              value: 'gemini-2.0-flash'
             - name: LLM_BASE_URL
-              value: "http://agentgateway.agentgateway-system.svc.cluster.local:8080/openai"
+              value: 'http://agentgateway.agentgateway-system.svc.cluster.local:8080/openai'
             - name: MCP_URL
-              value: "http://agentgateway.agentgateway-system.svc.cluster.local:8080/mcp"
+              value: 'http://agentgateway.agentgateway-system.svc.cluster.local:8080/mcp'
           resources:
             requests:
-              memory: "256Mi"
-              cpu: "100m"
+              memory: '256Mi'
+              cpu: '100m'
             limits:
-              memory: "512Mi"
-              cpu: "500m"
+              memory: '512Mi'
+              cpu: '500m'
           readinessProbe:
             httpGet:
               path: /health

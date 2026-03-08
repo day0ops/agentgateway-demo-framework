@@ -2,7 +2,14 @@ import { spawn } from 'child_process';
 import { createServer } from 'http';
 import { randomBytes, createHash } from 'crypto';
 import chalk from 'chalk';
-import { Logger, SpinnerLogger, KubernetesHelper, CommandRunner, printTrafficBox, wrapText } from './common.js';
+import {
+  Logger,
+  SpinnerLogger,
+  KubernetesHelper,
+  CommandRunner,
+  printTrafficBox,
+  wrapText,
+} from './common.js';
 
 /**
  * Use case test runner
@@ -26,7 +33,8 @@ export class UseCaseTestRunner {
         return;
       }
 
-      const testLine = '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━';
+      const testLine =
+        '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━';
       console.log('');
       console.log(chalk.cyan(chalk.bold(testLine)));
       console.log(chalk.cyan(chalk.bold(`  🧪 Running Tests -> (${spec.tests.length} test(s))`)));
@@ -60,7 +68,12 @@ export class UseCaseTestRunner {
 
           if (test.setup && test.setup.length > 0) {
             spinner.setText(`Running setup for: ${testName}`);
-            await this.executeTestSteps({ ...test, steps: test.setup }, metadata.name, spec, spinner);
+            await this.executeTestSteps(
+              { ...test, steps: test.setup },
+              metadata.name,
+              spec,
+              spinner
+            );
           }
 
           try {
@@ -68,7 +81,12 @@ export class UseCaseTestRunner {
           } finally {
             if (test.teardown && test.teardown.length > 0) {
               spinner.setText(`Running teardown for: ${testName}`);
-              await this.executeTestSteps({ ...test, steps: test.teardown }, metadata.name, spec, spinner);
+              await this.executeTestSteps(
+                { ...test, steps: test.teardown },
+                metadata.name,
+                spec,
+                spinner
+              );
             }
           }
 
@@ -88,14 +106,15 @@ export class UseCaseTestRunner {
       const summaryColor = failed > 0 ? chalk.red : chalk.green;
       const skippedPart = skipped > 0 ? chalk.yellow(` · ${skipped} skipped`) : '';
       console.log(summaryColor(chalk.bold(testLine)));
-      console.log(summaryColor(chalk.bold(`  Results: ${passed} passed · ${failed} failed${skippedPart}`)));
+      console.log(
+        summaryColor(chalk.bold(`  Results: ${passed} passed · ${failed} failed${skippedPart}`))
+      );
       console.log(summaryColor(chalk.bold(testLine)));
       console.log('');
 
       if (failed > 0) {
         throw new Error(`${failed} test(s) failed`);
       }
-
     } catch (error) {
       if (error.message.includes('test(s) failed')) {
         throw error;
@@ -115,7 +134,8 @@ export class UseCaseTestRunner {
    */
   static async executeTestSteps(test, usecaseName, spec, spinner) {
     const { namespace } = spec;
-    const gatewayNamespace = namespace || process.env.AGENTGATEWAY_NAMESPACE || 'agentgateway-system';
+    const gatewayNamespace =
+      namespace || process.env.AGENTGATEWAY_NAMESPACE || 'agentgateway-system';
 
     const gatewayFeature = (spec.features || []).find(f => f.name === 'gateway');
     const gatewayName = gatewayFeature?.config?.name || 'agentgateway';
@@ -186,13 +206,19 @@ export class UseCaseTestRunner {
 
           spinner.setText(`Reading API key from secret ${secretNs}/${secretName}...`);
           const result = await KubernetesHelper.kubectl([
-            'get', 'secret', secretName,
-            '-n', secretNs,
-            '-o', `jsonpath={.data.${secretKey.replace(/\./g, '\\.')}}`,
+            'get',
+            'secret',
+            secretName,
+            '-n',
+            secretNs,
+            '-o',
+            `jsonpath={.data.${secretKey.replace(/\./g, '\\.')}}`,
           ]);
           const b64 = (result.stdout || '').trim();
           if (!b64) {
-            throw new Error(`API key not found in secret ${secretNs}/${secretName} key=${secretKey}`);
+            throw new Error(
+              `API key not found in secret ${secretNs}/${secretName} key=${secretKey}`
+            );
           }
           apiKey = Buffer.from(b64, 'base64').toString('utf8');
           spinner.setText('API key retrieved from secret');
@@ -206,10 +232,17 @@ export class UseCaseTestRunner {
           const role = step.role || 'actor';
           spinner.setText(`Creating K8s SA token for ${ns}/${sa} (${role})...`);
           const ktResult = await KubernetesHelper.kubectl([
-            'create', 'token', sa, '-n', ns, '--duration', duration,
+            'create',
+            'token',
+            sa,
+            '-n',
+            ns,
+            '--duration',
+            duration,
           ]);
           const k8sToken = (ktResult.stdout || '').trim();
-          if (!k8sToken) throw new Error('get-k8s-token: kubectl create token returned empty output');
+          if (!k8sToken)
+            throw new Error('get-k8s-token: kubectl create token returned empty output');
           if (role === 'subject') {
             bearerToken = k8sToken;
           } else {
@@ -226,28 +259,43 @@ export class UseCaseTestRunner {
           const stsPort = stsConf.port || 7777;
           const localPort = stsConf.localPort || 17777;
 
-          spinner.setText(`Port-forwarding ${stsNs}/${stsService}:${stsPort} → localhost:${localPort}...`);
-          const pfProc = spawn('kubectl', [
-            'port-forward', '-n', stsNs, `svc/${stsService}`,
-            `${localPort}:${stsPort}`,
-          ], { stdio: 'pipe' });
+          spinner.setText(
+            `Port-forwarding ${stsNs}/${stsService}:${stsPort} → localhost:${localPort}...`
+          );
+          const pfProc = spawn(
+            'kubectl',
+            ['port-forward', '-n', stsNs, `svc/${stsService}`, `${localPort}:${stsPort}`],
+            { stdio: 'pipe' }
+          );
 
           await new Promise((resolve, reject) => {
-            const timer = setTimeout(() => reject(new Error('exchange-sts-token: port-forward timed out')), 10000);
-            pfProc.stdout.on('data', (data) => {
+            const timer = setTimeout(
+              () => reject(new Error('exchange-sts-token: port-forward timed out')),
+              10000
+            );
+            pfProc.stdout.on('data', data => {
               if (data.toString().includes('Forwarding from')) {
                 clearTimeout(timer);
                 resolve();
               }
             });
-            pfProc.on('error', (err) => { clearTimeout(timer); reject(err); });
-            pfProc.on('close', (code) => {
-              if (code !== null) { clearTimeout(timer); reject(new Error(`port-forward exited with code ${code}`)); }
+            pfProc.on('error', err => {
+              clearTimeout(timer);
+              reject(err);
+            });
+            pfProc.on('close', code => {
+              if (code !== null) {
+                clearTimeout(timer);
+                reject(new Error(`port-forward exited with code ${code}`));
+              }
             });
           });
 
           try {
-            if (!bearerToken) throw new Error('exchange-sts-token: no subject token — run get-token or get-k8s-token first');
+            if (!bearerToken)
+              throw new Error(
+                'exchange-sts-token: no subject token — run get-token or get-k8s-token first'
+              );
 
             const params = {
               grant_type: 'urn:ietf:params:oauth:grant-type:token-exchange',
@@ -261,12 +309,20 @@ export class UseCaseTestRunner {
             const tokenBody = new URLSearchParams(params).toString();
 
             const curlArgs = [
-              '-s', '--max-time', '10',
-              '-X', 'POST', `http://localhost:${localPort}/oauth2/token`,
-              '-H', 'Content-Type: application/x-www-form-urlencoded',
-              '-H', `Authorization: Bearer ${bearerToken}`,
-              '-d', tokenBody,
-              '-w', '\n%{http_code}',
+              '-s',
+              '--max-time',
+              '10',
+              '-X',
+              'POST',
+              `http://localhost:${localPort}/oauth2/token`,
+              '-H',
+              'Content-Type: application/x-www-form-urlencoded',
+              '-H',
+              `Authorization: Bearer ${bearerToken}`,
+              '-d',
+              tokenBody,
+              '-w',
+              '\n%{http_code}',
             ];
 
             spinner.setText('Exchanging token with AGW STS...');
@@ -291,7 +347,8 @@ export class UseCaseTestRunner {
             } catch (e) {
               throw new Error(`exchange-sts-token: failed to parse STS response: ${e.message}`);
             }
-            if (!parsed.access_token) throw new Error('exchange-sts-token: STS response missing access_token');
+            if (!parsed.access_token)
+              throw new Error('exchange-sts-token: STS response missing access_token');
 
             bearerToken = parsed.access_token;
             spinner.setText('Token exchanged successfully');
@@ -310,22 +367,32 @@ export class UseCaseTestRunner {
           const threadId = step.threadId || 'test-thread';
 
           spinner.setText(`Calling agent ${agentNs}/${agentName}...`);
-          const pfProc = spawn('kubectl', [
-            'port-forward', '-n', agentNs, `svc/${agentName}`,
-            `${localPort}:${agentPort}`,
-          ], { stdio: 'pipe' });
+          const pfProc = spawn(
+            'kubectl',
+            ['port-forward', '-n', agentNs, `svc/${agentName}`, `${localPort}:${agentPort}`],
+            { stdio: 'pipe' }
+          );
 
           await new Promise((resolve, reject) => {
-            const timer = setTimeout(() => reject(new Error('call-agent: port-forward timed out')), 10000);
-            pfProc.stdout.on('data', (data) => {
+            const timer = setTimeout(
+              () => reject(new Error('call-agent: port-forward timed out')),
+              10000
+            );
+            pfProc.stdout.on('data', data => {
               if (data.toString().includes('Forwarding from')) {
                 clearTimeout(timer);
                 resolve();
               }
             });
-            pfProc.on('error', (err) => { clearTimeout(timer); reject(err); });
-            pfProc.on('close', (code) => {
-              if (code !== null) { clearTimeout(timer); reject(new Error(`port-forward exited with code ${code}`)); }
+            pfProc.on('error', err => {
+              clearTimeout(timer);
+              reject(err);
+            });
+            pfProc.on('close', code => {
+              if (code !== null) {
+                clearTimeout(timer);
+                reject(new Error(`port-forward exited with code ${code}`));
+              }
             });
           });
 
@@ -341,11 +408,17 @@ export class UseCaseTestRunner {
             }
 
             const curlArgs = [
-              '-s', '--max-time', String(parseTimeoutSecs(step.timeout || testTimeout)),
-              '-X', 'POST', `http://localhost:${localPort}/chat`,
+              '-s',
+              '--max-time',
+              String(parseTimeoutSecs(step.timeout || testTimeout)),
+              '-X',
+              'POST',
+              `http://localhost:${localPort}/chat`,
               ...headers.flatMap(h => ['-H', h]),
-              '-d', payload,
-              '-w', '\n%{http_code}',
+              '-d',
+              payload,
+              '-w',
+              '\n%{http_code}',
             ];
 
             spinner.setText(`Sending message to ${agentName}...`);
@@ -364,8 +437,13 @@ export class UseCaseTestRunner {
               const prevText = spinner.spinner.text;
               spinner.stop();
               printTrafficBox(
-                { method: 'POST', url: `http://${agentName}/chat`, headers: Object.fromEntries(headers.map(h => h.split(': '))), body: payload },
-                { status: httpStatus, body: agentBody },
+                {
+                  method: 'POST',
+                  url: `http://${agentName}/chat`,
+                  headers: Object.fromEntries(headers.map(h => h.split(': '))),
+                  body: payload,
+                },
+                { status: httpStatus, body: agentBody }
               );
               spinner.start(prevText);
             }
@@ -403,7 +481,9 @@ export class UseCaseTestRunner {
             for (let attempt = 1; attempt <= maxRetries + 1; attempt++) {
               result = await this.sendHttpRequest(gateway, step, spinner, stepTimeout, gatewayPort);
               if (result.status < 500 || attempt > maxRetries) break;
-              spinner.setText(`Request returned ${result.status}, retrying in ${retryDelay / 1000}s (${attempt}/${maxRetries})...`);
+              spinner.setText(
+                `Request returned ${result.status}, retrying in ${retryDelay / 1000}s (${attempt}/${maxRetries})...`
+              );
               await new Promise(r => setTimeout(r, retryDelay));
             }
 
@@ -414,10 +494,11 @@ export class UseCaseTestRunner {
             if (step.showTraffic || test.showTraffic) {
               const prevText = spinner.spinner.text;
               spinner.stop();
-              printTrafficBox(
-                result.requestInfo,
-                { status: result.status, headers: result.responseHeaders, body: result.body },
-              );
+              printTrafficBox(result.requestInfo, {
+                status: result.status,
+                headers: result.responseHeaders,
+                body: result.body,
+              });
               spinner.start(prevText);
             }
 
@@ -435,7 +516,13 @@ export class UseCaseTestRunner {
             throw new Error('No response to verify - send-request must come before verify');
           }
 
-          await this.verifyResponse(lastResponse, lastResponseBody, lastResponseStatus, step, spinner);
+          await this.verifyResponse(
+            lastResponse,
+            lastResponseBody,
+            lastResponseStatus,
+            step,
+            spinner
+          );
           break;
 
         case 'send-mcp-request': {
@@ -457,9 +544,17 @@ export class UseCaseTestRunner {
             let result;
 
             for (let attempt = 1; attempt <= maxRetries + 1; attempt++) {
-              result = await this.sendMcpRequest(mcpGateway, step, spinner, stepTimeout, gatewayPort);
+              result = await this.sendMcpRequest(
+                mcpGateway,
+                step,
+                spinner,
+                stepTimeout,
+                gatewayPort
+              );
               if (result.status < 500 || attempt > maxRetries) break;
-              spinner.setText(`MCP request returned ${result.status}, retrying in ${retryDelay / 1000}s (${attempt}/${maxRetries})...`);
+              spinner.setText(
+                `MCP request returned ${result.status}, retrying in ${retryDelay / 1000}s (${attempt}/${maxRetries})...`
+              );
               await new Promise(r => setTimeout(r, retryDelay));
             }
 
@@ -470,10 +565,11 @@ export class UseCaseTestRunner {
             if (step.showTraffic || test.showTraffic) {
               const prevText = spinner.spinner.text;
               spinner.stop();
-              printTrafficBox(
-                result.requestInfo,
-                { status: result.status, headers: result.responseHeaders, body: result.body },
-              );
+              printTrafficBox(result.requestInfo, {
+                status: result.status,
+                headers: result.responseHeaders,
+                body: result.body,
+              });
               spinner.start(prevText);
             }
 
@@ -490,11 +586,10 @@ export class UseCaseTestRunner {
           spinner.setText(`Verifying ${kind} '${resName}' in ${ns}...`);
 
           for (const check of resExpect) {
-            const result = await KubernetesHelper.kubectl([
-              'get', kind, resName,
-              '-n', ns,
-              '-o', `jsonpath=${check.jsonpath}`,
-            ], { ignoreError: true });
+            const result = await KubernetesHelper.kubectl(
+              ['get', kind, resName, '-n', ns, '-o', `jsonpath=${check.jsonpath}`],
+              { ignoreError: true }
+            );
 
             const actual = result.stdout.trim();
             const expected = String(check.value);
@@ -526,8 +621,18 @@ export class UseCaseTestRunner {
           const sqlCmd = `UPDATE budget_definitions SET current_usage_usd = ${usage} WHERE entity_type = '${entityType}' AND name = '${name}'`;
 
           await KubernetesHelper.kubectl([
-            'exec', '-n', budgetNs, 'budget-limiter-postgres-0', '--',
-            'psql', '-U', 'budget', '-d', 'budget_limiter', '-c', sqlCmd,
+            'exec',
+            '-n',
+            budgetNs,
+            'budget-management-postgres-0',
+            '--',
+            'psql',
+            '-U',
+            'budget',
+            '-d',
+            'budget_management',
+            '-c',
+            sqlCmd,
           ]);
 
           spinner.setText(`Budget usage set to $${usage} for ${entityType}/${name}`);
@@ -538,19 +643,26 @@ export class UseCaseTestRunner {
           const entityType = step.entityType || 'provider';
           const name = step.name || 'openai';
           const budgetNs = step.namespace || 'agentgateway-system';
-          const budgetService = step.service || 'budget-limiter';
+          const budgetService = step.service || 'budget-management';
           const budgetPort = step.port || 8080;
           const localPort = step.localPort || 18081;
 
           spinner.setText(`Resetting budget usage for ${entityType}/${name}...`);
 
-          const { cleanup } = await this.startPortForward(budgetNs, budgetService, localPort, budgetPort, 'reset-budget-usage');
+          const { cleanup } = await this.startPortForward(
+            budgetNs,
+            budgetService,
+            localPort,
+            budgetPort,
+            'reset-budget-usage'
+          );
 
           try {
-            const listResult = await CommandRunner.run('curl', [
-              '-s', '--max-time', '10',
-              `http://localhost:${localPort}/api/v1/budgets`,
-            ], { ignoreError: true });
+            const listResult = await CommandRunner.run(
+              'curl',
+              ['-s', '--max-time', '10', `http://localhost:${localPort}/api/v1/budgets`],
+              { ignoreError: true }
+            );
 
             const response = JSON.parse(listResult.stdout || '{"budgets":[]}');
             const budgets = response.budgets || [];
@@ -560,11 +672,18 @@ export class UseCaseTestRunner {
               throw new Error(`reset-budget-usage: budget not found for ${entityType}/${name}`);
             }
 
-            await CommandRunner.run('curl', [
-              '-s', '--max-time', '10',
-              '-X', 'POST',
-              `http://localhost:${localPort}/api/v1/budgets/${budget.id}/reset`,
-            ], { ignoreError: true });
+            await CommandRunner.run(
+              'curl',
+              [
+                '-s',
+                '--max-time',
+                '10',
+                '-X',
+                'POST',
+                `http://localhost:${localPort}/api/v1/budgets/${budget.id}/reset`,
+              ],
+              { ignoreError: true }
+            );
 
             spinner.setText(`Budget usage reset for ${entityType}/${name}`);
           } finally {
@@ -578,19 +697,26 @@ export class UseCaseTestRunner {
           const name = step.name || 'openai';
           const amount = step.amount != null ? step.amount : 5.0;
           const budgetNs = step.namespace || 'agentgateway-system';
-          const budgetService = step.service || 'budget-limiter';
+          const budgetService = step.service || 'budget-management';
           const budgetPort = step.port || 8080;
           const localPort = step.localPort || 18080;
 
           spinner.setText(`Setting budget for ${entityType}/${name} to $${amount}...`);
 
-          const { cleanup } = await this.startPortForward(budgetNs, budgetService, localPort, budgetPort, 'set-budget');
+          const { cleanup } = await this.startPortForward(
+            budgetNs,
+            budgetService,
+            localPort,
+            budgetPort,
+            'set-budget'
+          );
 
           try {
-            const listResult = await CommandRunner.run('curl', [
-              '-s', '--max-time', '10',
-              `http://localhost:${localPort}/api/v1/budgets`,
-            ], { ignoreError: true });
+            const listResult = await CommandRunner.run(
+              'curl',
+              ['-s', '--max-time', '10', `http://localhost:${localPort}/api/v1/budgets`],
+              { ignoreError: true }
+            );
 
             const response = JSON.parse(listResult.stdout || '{"budgets":[]}');
             const budgets = response.budgets || [];
@@ -609,13 +735,22 @@ export class UseCaseTestRunner {
               warning_threshold_pct: budget.warning_threshold_pct || 80,
             });
 
-            const updateResult = await CommandRunner.run('curl', [
-              '-s', '--max-time', '10',
-              '-X', 'PUT',
-              `http://localhost:${localPort}/api/v1/budgets/${budget.id}`,
-              '-H', 'Content-Type: application/json',
-              '-d', updateBody,
-            ], { ignoreError: true });
+            const updateResult = await CommandRunner.run(
+              'curl',
+              [
+                '-s',
+                '--max-time',
+                '10',
+                '-X',
+                'PUT',
+                `http://localhost:${localPort}/api/v1/budgets/${budget.id}`,
+                '-H',
+                'Content-Type: application/json',
+                '-d',
+                updateBody,
+              ],
+              { ignoreError: true }
+            );
 
             const updateStatus = updateResult.stdout ? JSON.parse(updateResult.stdout) : {};
             if (updateStatus.error) {
@@ -638,7 +773,7 @@ export class UseCaseTestRunner {
           const warningThresholdPct = step.warningThresholdPct || 80;
           const description = step.description || `Budget for ${entityType}:${name}`;
           const budgetNs = step.namespace || 'agentgateway-system';
-          const budgetService = step.service || 'budget-limiter';
+          const budgetService = step.service || 'budget-management';
           const budgetPort = step.port || 8080;
           const localPort = step.localPort || 18082;
 
@@ -648,7 +783,13 @@ export class UseCaseTestRunner {
 
           spinner.setText(`Creating budget for ${entityType}/${name} ($${amount}/${period})...`);
 
-          const { cleanup } = await this.startPortForward(budgetNs, budgetService, localPort, budgetPort, 'create-budget');
+          const { cleanup } = await this.startPortForward(
+            budgetNs,
+            budgetService,
+            localPort,
+            budgetPort,
+            'create-budget'
+          );
 
           try {
             const createBody = JSON.stringify({
@@ -661,13 +802,22 @@ export class UseCaseTestRunner {
               description: description,
             });
 
-            const createResult = await CommandRunner.run('curl', [
-              '-s', '--max-time', '10',
-              '-X', 'POST',
-              `http://localhost:${localPort}/api/v1/budgets`,
-              '-H', 'Content-Type: application/json',
-              '-d', createBody,
-            ], { ignoreError: true });
+            const createResult = await CommandRunner.run(
+              'curl',
+              [
+                '-s',
+                '--max-time',
+                '10',
+                '-X',
+                'POST',
+                `http://localhost:${localPort}/api/v1/budgets`,
+                '-H',
+                'Content-Type: application/json',
+                '-d',
+                createBody,
+              ],
+              { ignoreError: true }
+            );
 
             const result = createResult.stdout ? JSON.parse(createResult.stdout) : {};
             if (result.error) {
@@ -685,7 +835,7 @@ export class UseCaseTestRunner {
           const entityType = step.entityType || 'provider';
           const name = step.name;
           const budgetNs = step.namespace || 'agentgateway-system';
-          const budgetService = step.service || 'budget-limiter';
+          const budgetService = step.service || 'budget-management';
           const budgetPort = step.port || 8080;
           const localPort = step.localPort || 18083;
 
@@ -695,24 +845,38 @@ export class UseCaseTestRunner {
 
           spinner.setText(`Deleting budget for ${entityType}/${name}...`);
 
-          const { cleanup } = await this.startPortForward(budgetNs, budgetService, localPort, budgetPort, 'delete-budget');
+          const { cleanup } = await this.startPortForward(
+            budgetNs,
+            budgetService,
+            localPort,
+            budgetPort,
+            'delete-budget'
+          );
 
           try {
-            const listResult = await CommandRunner.run('curl', [
-              '-s', '--max-time', '10',
-              `http://localhost:${localPort}/api/v1/budgets`,
-            ], { ignoreError: true });
+            const listResult = await CommandRunner.run(
+              'curl',
+              ['-s', '--max-time', '10', `http://localhost:${localPort}/api/v1/budgets`],
+              { ignoreError: true }
+            );
 
             const response = JSON.parse(listResult.stdout || '{"budgets":[]}');
             const budgets = response.budgets || [];
             const budget = budgets.find(b => b.entity_type === entityType && b.name === name);
 
             if (budget) {
-              await CommandRunner.run('curl', [
-                '-s', '--max-time', '10',
-                '-X', 'DELETE',
-                `http://localhost:${localPort}/api/v1/budgets/${budget.id}`,
-              ], { ignoreError: true });
+              await CommandRunner.run(
+                'curl',
+                [
+                  '-s',
+                  '--max-time',
+                  '10',
+                  '-X',
+                  'DELETE',
+                  `http://localhost:${localPort}/api/v1/budgets/${budget.id}`,
+                ],
+                { ignoreError: true }
+              );
               spinner.setText(`Budget deleted: ${entityType}/${name}`);
             } else {
               spinner.setText(`Budget not found: ${entityType}/${name} (skipping delete)`);
@@ -749,7 +913,8 @@ export class UseCaseTestRunner {
     const { callbackPort, codePromise, server } = await this.startCallbackServer(loginTimeout);
 
     const redirectUri = `http://localhost:${callbackPort}/callback`;
-    const authorizeUrl = `${keycloakBase}/realms/${realm}/protocol/openid-connect/auth?` +
+    const authorizeUrl =
+      `${keycloakBase}/realms/${realm}/protocol/openid-connect/auth?` +
       `client_id=${encodeURIComponent(clientId)}` +
       `&response_type=code` +
       `&scope=openid` +
@@ -757,9 +922,8 @@ export class UseCaseTestRunner {
       `&code_challenge=${codeChallenge}` +
       `&code_challenge_method=S256`;
 
-    const openCmd = process.platform === 'darwin' ? 'open'
-      : process.platform === 'win32' ? 'start'
-      : 'xdg-open';
+    const openCmd =
+      process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'start' : 'xdg-open';
     spawn(openCmd, [authorizeUrl], { stdio: 'ignore', detached: true }).unref();
 
     Logger.info(`Waiting for login (timeout: ${loginTimeout / 1000}s)...`);
@@ -786,12 +950,22 @@ export class UseCaseTestRunner {
     Logger.debug(`Token URL: ${tokenUrl}`);
     Logger.debug(`Token body: ${tokenBody.substring(0, 200)}...`);
 
-    const result = await CommandRunner.run('curl', [
-      '-sSk', '--max-time', '10',
-      '-X', 'POST', tokenUrl,
-      '-H', 'Content-Type: application/x-www-form-urlencoded',
-      '-d', tokenBody,
-    ], { ignoreError: true });
+    const result = await CommandRunner.run(
+      'curl',
+      [
+        '-sSk',
+        '--max-time',
+        '10',
+        '-X',
+        'POST',
+        tokenUrl,
+        '-H',
+        'Content-Type: application/x-www-form-urlencoded',
+        '-d',
+        tokenBody,
+      ],
+      { ignoreError: true }
+    );
 
     const body = (result.stdout || '').trim();
     const curlErr = (result.stderr || '').trim();
@@ -807,7 +981,9 @@ export class UseCaseTestRunner {
     try {
       tokenResp = JSON.parse(body);
     } catch (e) {
-      throw new Error(`Token exchange: invalid JSON response from Keycloak: ${body.substring(0, 200)}`);
+      throw new Error(
+        `Token exchange: invalid JSON response from Keycloak: ${body.substring(0, 200)}`
+      );
     }
 
     if (tokenResp.error) {
@@ -840,7 +1016,9 @@ export class UseCaseTestRunner {
       const username = kc.username || process.env.KEYCLOAK_USERNAME;
       const password = kc.password || process.env.KEYCLOAK_PASSWORD;
       if (!username || !password) {
-        throw new Error('password grant requires username and password (set via step config or KEYCLOAK_USERNAME/KEYCLOAK_PASSWORD env vars)');
+        throw new Error(
+          'password grant requires username and password (set via step config or KEYCLOAK_USERNAME/KEYCLOAK_PASSWORD env vars)'
+        );
       }
       tokenParts.push(`username=${encodeURIComponent(username)}`);
       tokenParts.push(`password=${encodeURIComponent(password)}`);
@@ -853,12 +1031,22 @@ export class UseCaseTestRunner {
 
     const tokenBody = tokenParts.join('&');
 
-    const result = await CommandRunner.run('curl', [
-      '-sSk', '--max-time', '10',
-      '-X', 'POST', tokenUrl,
-      '-H', 'Content-Type: application/x-www-form-urlencoded',
-      '-d', tokenBody,
-    ], { ignoreError: true });
+    const result = await CommandRunner.run(
+      'curl',
+      [
+        '-sSk',
+        '--max-time',
+        '10',
+        '-X',
+        'POST',
+        tokenUrl,
+        '-H',
+        'Content-Type: application/x-www-form-urlencoded',
+        '-d',
+        tokenBody,
+      ],
+      { ignoreError: true }
+    );
 
     const body = (result.stdout || '').trim();
     if (!body) {
@@ -873,7 +1061,9 @@ export class UseCaseTestRunner {
     }
 
     if (tokenResp.error) {
-      throw new Error(`${grantType} grant failed: ${tokenResp.error_description || tokenResp.error}`);
+      throw new Error(
+        `${grantType} grant failed: ${tokenResp.error_description || tokenResp.error}`
+      );
     }
 
     if (!tokenResp.access_token) {
@@ -895,14 +1085,15 @@ export class UseCaseTestRunner {
     const startPath = oauth.startPath || '/openai/v1/chat/completions';
     const startUrl = `${gatewayBase}${startPath}`;
 
-    const openCmd = process.platform === 'darwin' ? 'open'
-      : process.platform === 'win32' ? 'start'
-      : 'xdg-open';
+    const openCmd =
+      process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'start' : 'xdg-open';
 
     Logger.info(`Opening browser to initiate OAuth2 flow: ${startUrl}`);
     spawn(openCmd, [startUrl], { stdio: 'ignore', detached: true }).unref();
 
-    Logger.info(`Waiting for OAuth2 callback at ${callbackPath} (timeout: ${loginTimeout / 1000}s)...`);
+    Logger.info(
+      `Waiting for OAuth2 callback at ${callbackPath} (timeout: ${loginTimeout / 1000}s)...`
+    );
 
     return new Promise((resolve, reject) => {
       const server = createServer((req, res) => {
@@ -1006,13 +1197,18 @@ export class UseCaseTestRunner {
 
     const curlArgs = [
       '-s',
-      '--max-time', String(Math.ceil(timeout / 1000)),
-      '-X', method,
+      '--max-time',
+      String(Math.ceil(timeout / 1000)),
+      '-X',
+      method,
       url,
       ...headerArgs,
-      '-d', body,
-      '-w', '\n%{http_code}',
-      '-D', '/dev/stderr',
+      '-d',
+      body,
+      '-w',
+      '\n%{http_code}',
+      '-D',
+      '/dev/stderr',
     ];
 
     Logger.debug(`curl command: curl ${curlArgs.join(' ')}`);
@@ -1041,7 +1237,9 @@ export class UseCaseTestRunner {
     if (headerKeys.length > 0) {
       Logger.debug(`Captured response headers: ${headerKeys.join(', ')}`);
     } else {
-      Logger.debug(`No response headers captured. stderr: ${(result.stderr || '').substring(0, 200)}`);
+      Logger.debug(
+        `No response headers captured. stderr: ${(result.stderr || '').substring(0, 200)}`
+      );
     }
 
     return {
@@ -1085,13 +1283,18 @@ export class UseCaseTestRunner {
 
     const curlArgs = [
       '-s',
-      '--max-time', String(Math.ceil(timeout / 1000)),
-      '-X', 'POST',
+      '--max-time',
+      String(Math.ceil(timeout / 1000)),
+      '-X',
+      'POST',
       url,
       ...headerArgs,
-      '-d', body,
-      '-w', '\n%{http_code}',
-      '-D', '/dev/stderr',
+      '-d',
+      body,
+      '-w',
+      '\n%{http_code}',
+      '-D',
+      '/dev/stderr',
     ];
 
     Logger.debug(`MCP curl command: curl ${curlArgs.join(' ')}`);
@@ -1184,7 +1387,7 @@ export class UseCaseTestRunner {
       const piiPatterns = [
         /\d{3}-\d{2}-\d{4}/,
         /\d{4}[- ]?\d{4}[- ]?\d{4}[- ]?\d{4}/,
-        /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/
+        /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/,
       ];
 
       for (const pattern of piiPatterns) {
@@ -1221,7 +1424,10 @@ export class UseCaseTestRunner {
 
       if (expect.mcpResult.content) {
         const content = result.result.content || [];
-        const contentText = content.map(c => c.text || '').join(' ').toLowerCase();
+        const contentText = content
+          .map(c => c.text || '')
+          .join(' ')
+          .toLowerCase();
         for (const expectedContent of expect.mcpResult.content) {
           if (!contentText.includes(expectedContent.toLowerCase())) {
             throw new Error(`Expected content '${expectedContent}' not found in MCP response`);
@@ -1255,25 +1461,32 @@ export class UseCaseTestRunner {
    */
   static async startPortForward(namespace, service, localPort, remotePort, actionName) {
     let stderrOutput = '';
-    const pfProc = spawn('kubectl', [
-      'port-forward', '-n', namespace, `svc/${service}`,
-      `${localPort}:${remotePort}`,
-    ], { stdio: 'pipe' });
+    const pfProc = spawn(
+      'kubectl',
+      ['port-forward', '-n', namespace, `svc/${service}`, `${localPort}:${remotePort}`],
+      { stdio: 'pipe' }
+    );
 
-    pfProc.stderr.on('data', (data) => {
+    pfProc.stderr.on('data', data => {
       stderrOutput += data.toString();
     });
 
     await new Promise((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error(`${actionName}: port-forward timed out`)), 15000);
-      pfProc.stdout.on('data', (data) => {
+      const timer = setTimeout(
+        () => reject(new Error(`${actionName}: port-forward timed out`)),
+        15000
+      );
+      pfProc.stdout.on('data', data => {
         if (data.toString().includes('Forwarding from')) {
           clearTimeout(timer);
           resolve();
         }
       });
-      pfProc.on('error', (err) => { clearTimeout(timer); reject(err); });
-      pfProc.on('close', (code) => {
+      pfProc.on('error', err => {
+        clearTimeout(timer);
+        reject(err);
+      });
+      pfProc.on('close', code => {
         if (code !== null) {
           clearTimeout(timer);
           const detail = stderrOutput.trim() || `exit code ${code}`;
@@ -1296,20 +1509,34 @@ export class UseCaseTestRunner {
    */
   static async getGatewayAddress(namespace, gatewayName = 'agentgateway') {
     try {
-      const result = await KubernetesHelper.kubectl([
-        'get', 'svc', gatewayName,
-        '-n', namespace,
-        '-o', 'jsonpath={.status.loadBalancer.ingress[0].ip}',
-      ], { ignoreError: true });
+      const result = await KubernetesHelper.kubectl(
+        [
+          'get',
+          'svc',
+          gatewayName,
+          '-n',
+          namespace,
+          '-o',
+          'jsonpath={.status.loadBalancer.ingress[0].ip}',
+        ],
+        { ignoreError: true }
+      );
 
       let address = (result.stdout || '').trim();
 
       if (!address) {
-        const hostnameResult = await KubernetesHelper.kubectl([
-          'get', 'svc', gatewayName,
-          '-n', namespace,
-          '-o', 'jsonpath={.status.loadBalancer.ingress[0].hostname}',
-        ], { ignoreError: true });
+        const hostnameResult = await KubernetesHelper.kubectl(
+          [
+            'get',
+            'svc',
+            gatewayName,
+            '-n',
+            namespace,
+            '-o',
+            'jsonpath={.status.loadBalancer.ingress[0].hostname}',
+          ],
+          { ignoreError: true }
+        );
         address = (hostnameResult.stdout || '').trim();
       }
 

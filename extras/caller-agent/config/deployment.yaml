@@ -26,30 +26,30 @@ spec:
             - containerPort: 8080
           env:
             - name: KEYCLOAK_URL
-              value: "http://keycloak.keycloak.svc.cluster.local:8080"
+              value: 'http://keycloak.keycloak.svc.cluster.local:8080'
             - name: KEYCLOAK_REALM
-              value: "agw-dev"
+              value: 'agw-dev'
             - name: CLIENT_ID
-              value: "caller-agent"
+              value: 'caller-agent'
             - name: CLIENT_SECRET
               valueFrom:
                 secretKeyRef:
                   name: caller-agent-credentials
                   key: client_secret
             - name: AUDIENCE
-              value: "agentgateway"
+              value: 'agentgateway'
             - name: STOCK_AGENT_URL
-              value: "http://agentgateway.agentgateway-system.svc.cluster.local:8080/agent/run"
+              value: 'http://agentgateway.agentgateway-system.svc.cluster.local:8080/agent/run'
             # Set USE_TOKEN_EXCHANGE=true and add the projected volume below for Phase 2
             - name: USE_TOKEN_EXCHANGE
-              value: "false"
+              value: 'false'
           resources:
             requests:
-              memory: "128Mi"
-              cpu: "50m"
+              memory: '128Mi'
+              cpu: '50m'
             limits:
-              memory: "256Mi"
-              cpu: "200m"
+              memory: '256Mi'
+              cpu: '200m'
           readinessProbe:
             httpGet:
               path: /health

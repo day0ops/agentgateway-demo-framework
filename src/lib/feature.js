@@ -179,11 +179,10 @@ export class Feature {
    */
   async applyYamlFile(filename, overrides = {}) {
     // Use getFeaturePath() if available, otherwise use just the feature name
-    const featurePath = typeof this.getFeaturePath === 'function' 
-      ? this.getFeaturePath() 
-      : this.name;
+    const featurePath =
+      typeof this.getFeaturePath === 'function' ? this.getFeaturePath() : this.name;
     const configPath = join(PROJECT_ROOT, 'features', featurePath, 'config', filename);
-    
+
     try {
       const content = await readFile(configPath, 'utf8');
       let resource = yaml.load(content);
@@ -236,8 +235,8 @@ export class Feature {
  * When disabled, each feature applies its own EnterpriseAgentgatewayPolicy directly.
  */
 export class PolicyRegistry {
-  static policies = new Map();      // Map<targetRefKey, policyEntry>
-  static contributors = new Map();  // Map<targetRefKey, Set<featureName>>
+  static policies = new Map(); // Map<targetRefKey, policyEntry>
+  static contributors = new Map(); // Map<targetRefKey, Set<featureName>>
   static enabled = false;
 
   /**
@@ -261,9 +260,16 @@ export class PolicyRegistry {
       this.clear();
     }
   }
-  static disable() { this.enabled = false; }
-  static isEnabled() { return this.enabled && this.isCoalescingEnabled(); }
-  static clear() { this.policies.clear(); this.contributors.clear(); }
+  static disable() {
+    this.enabled = false;
+  }
+  static isEnabled() {
+    return this.enabled && this.isCoalescingEnabled();
+  }
+  static clear() {
+    this.policies.clear();
+    this.contributors.clear();
+  }
 
   static register(policy, featureName, defaultNamespace) {
     // Returns true if registered (deferred), false if should apply immediately
@@ -304,14 +310,20 @@ export class PolicyRegistry {
     // Merge spec.traffic
     if (incoming.spec?.traffic) {
       merged.spec.traffic = this.mergeSection(
-        merged.spec.traffic || {}, incoming.spec.traffic, 'spec.traffic', featureName
+        merged.spec.traffic || {},
+        incoming.spec.traffic,
+        'spec.traffic',
+        featureName
       );
     }
 
     // Merge spec.backend
     if (incoming.spec?.backend) {
       merged.spec.backend = this.mergeSection(
-        merged.spec.backend || {}, incoming.spec.backend, 'spec.backend', featureName
+        merged.spec.backend || {},
+        incoming.spec.backend,
+        'spec.backend',
+        featureName
       );
     }
 
@@ -332,7 +344,7 @@ export class PolicyRegistry {
       } else {
         throw new Error(
           `Policy conflict at ${path}.${key}: feature '${featureName}' cannot set this field - ` +
-          'already set by previous feature(s). Only one feature can configure each policy field.'
+            'already set by previous feature(s). Only one feature can configure each policy field.'
         );
       }
     }
@@ -368,7 +380,9 @@ export class PolicyRegistry {
     return yamlDocs;
   }
 
-  static getMergedPolicyCount() { return this.policies.size; }
+  static getMergedPolicyCount() {
+    return this.policies.size;
+  }
 }
 
 /**
@@ -481,9 +495,8 @@ export class FeatureManager {
         return feature._dryRunYaml || [];
       }
 
-      const namespaceMsg = feature.namespace !== this.defaultNamespace 
-        ? ` (namespace: ${feature.namespace})` 
-        : '';
+      const namespaceMsg =
+        feature.namespace !== this.defaultNamespace ? ` (namespace: ${feature.namespace})` : '';
       spinner.start(`Deploying: ${name}${namespaceMsg}...`);
 
       // Pass spinner to feature
@@ -523,9 +536,8 @@ export class FeatureManager {
     const spinner = new SpinnerLogger();
 
     try {
-      const namespaceMsg = feature.namespace !== this.defaultNamespace 
-        ? ` (namespace: ${feature.namespace})` 
-        : '';
+      const namespaceMsg =
+        feature.namespace !== this.defaultNamespace ? ` (namespace: ${feature.namespace})` : '';
       spinner.start(`Cleaning up feature: ${name}${namespaceMsg}...`);
 
       // Pass spinner so feature can update text instead of logging (avoids interleaved output)
@@ -574,4 +586,3 @@ export class FeatureManager {
     return Array.from(this.features.keys());
   }
 }
-

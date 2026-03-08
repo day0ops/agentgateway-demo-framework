@@ -93,10 +93,7 @@ export const SettingsPage: React.FC = () => {
 
   return (
     <PageContainer>
-      <PageHeader
-        title="Settings"
-        description="Configure connection settings and variables"
-      >
+      <PageHeader title="Settings" description="Configure connection settings and variables">
         <Button variant="secondary" onClick={handleReset}>
           Reset to Defaults
         </Button>
@@ -113,7 +110,7 @@ export const SettingsPage: React.FC = () => {
                 <FormField label="Agentgateway URL" fullWidth>
                   <Input
                     value={config.agentgatewayUrl}
-                    onChange={(e) => updateConfig({ agentgatewayUrl: e.target.value })}
+                    onChange={e => updateConfig({ agentgatewayUrl: e.target.value })}
                     placeholder="http://localhost:8080"
                   />
                 </FormField>
@@ -121,7 +118,7 @@ export const SettingsPage: React.FC = () => {
                   <Input
                     type="number"
                     value={config.stsPort}
-                    onChange={(e) => updateConfig({ stsPort: parseInt(e.target.value) || 7777 })}
+                    onChange={e => updateConfig({ stsPort: parseInt(e.target.value) || 7777 })}
                     placeholder="7777"
                   />
                 </FormField>
@@ -140,14 +137,14 @@ export const SettingsPage: React.FC = () => {
                 <FormField label="Keycloak URL" fullWidth>
                   <Input
                     value={config.keycloakUrl}
-                    onChange={(e) => updateConfig({ keycloakUrl: e.target.value })}
+                    onChange={e => updateConfig({ keycloakUrl: e.target.value })}
                     placeholder="http://localhost:9000"
                   />
                 </FormField>
                 <FormField label="Default Realm" fullWidth>
                   <Input
                     value={config.defaultRealm}
-                    onChange={(e) => updateConfig({ defaultRealm: e.target.value })}
+                    onChange={e => updateConfig({ defaultRealm: e.target.value })}
                     placeholder="agw-dev"
                   />
                 </FormField>
@@ -156,7 +153,7 @@ export const SettingsPage: React.FC = () => {
                 <FormField label="Client ID" fullWidth>
                   <Input
                     value={config.clientId}
-                    onChange={(e) => updateConfig({ clientId: e.target.value })}
+                    onChange={e => updateConfig({ clientId: e.target.value })}
                     placeholder="agw-client"
                   />
                 </FormField>
@@ -164,7 +161,7 @@ export const SettingsPage: React.FC = () => {
                   <Input
                     type="password"
                     value={config.clientSecret}
-                    onChange={(e) => updateConfig({ clientSecret: e.target.value })}
+                    onChange={e => updateConfig({ clientSecret: e.target.value })}
                     placeholder="Enter client secret"
                   />
                 </FormField>
@@ -193,10 +190,7 @@ export const SettingsPage: React.FC = () => {
                     </VariableInput>
                     <VariableInput>
                       <FormField label="Value" fullWidth>
-                        <Input
-                          value={value}
-                          onChange={(e) => setVariable(key, e.target.value)}
-                        />
+                        <Input value={value} onChange={e => setVariable(key, e.target.value)} />
                       </FormField>
                     </VariableInput>
                     <RemoveButton onClick={() => deleteVariable(key)}>
@@ -211,14 +205,14 @@ export const SettingsPage: React.FC = () => {
                 <VariableInput>
                   <Input
                     value={newVarKey}
-                    onChange={(e) => setNewVarKey(e.target.value)}
+                    onChange={e => setNewVarKey(e.target.value)}
                     placeholder="Variable name"
                   />
                 </VariableInput>
                 <VariableInput>
                   <Input
                     value={newVarValue}
-                    onChange={(e) => setNewVarValue(e.target.value)}
+                    onChange={e => setNewVarValue(e.target.value)}
                     placeholder="Variable value"
                   />
                 </VariableInput>

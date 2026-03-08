@@ -39,8 +39,8 @@ spec:
                   name: openai-secret
               ai:
                 routes:
-                  "/v1/embeddings": Passthrough
-                  "*": Passthrough
+                  '/v1/embeddings': Passthrough
+                  '*': Passthrough
           - name: local-ollama
             providerName: openai-compatible
             model: bge-m3
@@ -51,8 +51,8 @@ spec:
             policies:
               ai:
                 routes:
-                  "/api/embed": Passthrough
-                  "*": Passthrough
+                  '/api/embed': Passthrough
+                  '*': Passthrough
             path:
               full: /api/embed
 
@@ -63,7 +63,7 @@ spec:
         - action: send-request
           endpoint: /embeddings/v1/embeddings
           model: text-embedding-3-small
-          input: "What is Kubernetes?"
+          input: 'What is Kubernetes?'
         - action: verify
           expect:
             status: success
@@ -74,7 +74,7 @@ spec:
         - action: send-request
           endpoint: /embeddings/v1/embeddings
           model: text-embedding-3-small
-          input: "What is Kubernetes?"
+          input: 'What is Kubernetes?'
           simulateFailure: true
         - action: verify
           expect:
@@ -87,7 +87,7 @@ spec:
         - action: send-request
           endpoint: /embeddings
           model: bge-m3
-          input: "Say hello in one word."
+          input: 'Say hello in one word.'
         - action: verify
           expect:
             status: success
@@ -98,7 +98,7 @@ spec:
         - action: send-request
           endpoint: /embeddings
           model: unknown-embedding-model
-          input: "Hello"
+          input: 'Hello'
         - action: verify
           expect:
             statusCode: 404

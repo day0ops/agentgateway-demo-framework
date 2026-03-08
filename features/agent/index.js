@@ -9,7 +9,7 @@ function envToArray(env) {
 
 function envHasKey(env, key) {
   if (!env) return false;
-  if (Array.isArray(env)) return env.some((e) => e.name === key);
+  if (Array.isArray(env)) return env.some(e => e.name === key);
   return key in env;
 }
 
@@ -74,8 +74,8 @@ export class AgentFeature extends Feature {
       baseEnv.push({ name: 'MODEL', value: config.model });
     }
     const configEnv = envToArray(config.env);
-    const envKeys = new Set(configEnv.map((e) => e.name));
-    baseEnv.forEach((e) => {
+    const envKeys = new Set(configEnv.map(e => e.name));
+    baseEnv.forEach(e => {
       if (!envKeys.has(e.name)) {
         configEnv.push(e);
         envKeys.add(e.name);
@@ -203,9 +203,7 @@ export class AgentFeature extends Feature {
         },
       },
       spec: {
-        parentRefs: [
-          { name: gatewayRef.name, namespace: gatewayRef.namespace || this.namespace },
-        ],
+        parentRefs: [{ name: gatewayRef.name, namespace: gatewayRef.namespace || this.namespace }],
         rules: [
           {
             matches: [{ path: { type: 'PathPrefix', value: this.pathPrefix } }],
@@ -219,9 +217,7 @@ export class AgentFeature extends Feature {
                 },
               ],
             }),
-            backendRefs: [
-              { name: this.agentName, namespace: this.namespace, port: this.port },
-            ],
+            backendRefs: [{ name: this.agentName, namespace: this.namespace, port: this.port }],
           },
         ],
       },
@@ -234,8 +230,11 @@ export class AgentFeature extends Feature {
     this.log(`Waiting for ${this.agentName} to be ready...`, 'info');
     try {
       await KubernetesHelper.kubectl([
-        'rollout', 'status', `deployment/${this.agentName}`,
-        '-n', this.namespace,
+        'rollout',
+        'status',
+        `deployment/${this.agentName}`,
+        '-n',
+        this.namespace,
         '--timeout=120s',
       ]);
     } catch {

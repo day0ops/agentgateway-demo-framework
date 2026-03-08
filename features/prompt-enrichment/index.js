@@ -3,25 +3,25 @@ import { Logger } from '../../src/lib/common.js';
 
 /**
  * Prompt Enrichment Feature
- * 
+ *
  * Enriches LLM prompts by prepending or appending messages using the
  * EnterpriseAgentgatewayPolicy API (spec.backend.ai.prompt).
- * 
+ *
  * Reference: https://docs.solo.io/agentgateway/2.1.x/llm/prompt-enrichment/
  * API Reference: https://docs.solo.io/agentgateway/2.1.x/reference/api/solo/
- * 
+ *
  * This feature:
  * - Prepends system prompts/instructions to all requests
  * - Appends additional context or guidelines
  * - Separates system prompts from user prompts for centralized management
  * - Targets HTTPRoute resources created by the providers feature
- * 
+ *
  * Providers dependency:
  * When used alongside the providers feature, targetRefs are automatically
  * injected to point at each provider's HTTPRoute. Without providers, you must
  * supply targetRefs explicitly so the policy knows which routes to attach to.
  * See: features/providers/index.js
- * 
+ *
  * Configuration:
  * {
  *   prepend: [
@@ -34,7 +34,7 @@ import { Logger } from '../../src/lib/common.js';
  *     { group: "gateway.networking.k8s.io", kind: "HTTPRoute", name: string }
  *   ]
  * }
- * 
+ *
  * Example:
  * {
  *   prepend: [
@@ -45,7 +45,7 @@ import { Logger } from '../../src/lib/common.js';
  *     { role: "SYSTEM", content: "Always ask for feedback at the end." }
  *   ]
  * }
- * 
+ *
  * Note on Anthropic: Anthropic does not support SYSTEM role messages the same
  * way. Use the `defaults` setting on the backend to set the system field instead.
  * See: https://docs.solo.io/agentgateway/2.1.x/reference/api/api/
@@ -56,20 +56,16 @@ export class PromptEnrichmentFeature extends Feature {
   }
 
   async deploy() {
-    const {
-      prepend = [],
-      append = [],
-      targetRefs = null
-    } = this.config;
+    const { prepend = [], append = [], targetRefs = null } = this.config;
 
     const policyOverrides = {
       spec: {
         backend: {
           ai: {
-            prompt: {}
-          }
-        }
-      }
+            prompt: {},
+          },
+        },
+      },
     };
 
     if (targetRefs) {
@@ -79,14 +75,14 @@ export class PromptEnrichmentFeature extends Feature {
     if (prepend.length > 0) {
       policyOverrides.spec.backend.ai.prompt.prepend = prepend.map(msg => ({
         role: msg.role.toLowerCase(),
-        content: msg.content
+        content: msg.content,
       }));
     }
 
     if (append.length > 0) {
       policyOverrides.spec.backend.ai.prompt.append = append.map(msg => ({
         role: msg.role.toLowerCase(),
-        content: msg.content
+        content: msg.content,
       }));
     }
 
@@ -102,4 +98,3 @@ export class PromptEnrichmentFeature extends Feature {
 export function createPromptEnrichmentFeature(config) {
   return new PromptEnrichmentFeature('prompt-enrichment', config);
 }
-

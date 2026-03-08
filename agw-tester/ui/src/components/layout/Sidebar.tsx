@@ -128,18 +128,17 @@ const SettingsIcon = () => (
 );
 
 export const Sidebar: React.FC<SidebarProps> = ({ connectionStatus }) => {
-  const statusText = connectionStatus === 'online'
-    ? 'Gateway connected'
-    : connectionStatus === 'offline'
-      ? 'Gateway disconnected'
-      : 'Checking connection...';
+  const statusText =
+    connectionStatus === 'online'
+      ? 'Gateway connected'
+      : connectionStatus === 'offline'
+        ? 'Gateway disconnected'
+        : 'Checking connection...';
 
   return (
     <SidebarContainer>
       <LogoSection>
-        <LogoTitle>
-          Agent Gateway Tester
-        </LogoTitle>
+        <LogoTitle>Agent Gateway Tester</LogoTitle>
         <LogoSubtext>Testing UI</LogoSubtext>
       </LogoSection>
 

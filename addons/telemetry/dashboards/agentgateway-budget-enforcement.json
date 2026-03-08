@@ -39,7 +39,7 @@
           "showLineNumbers": false,
           "showMiniMap": false
         },
-        "content": "## Budget Enforcement\n\nReal-time budget enforcement metrics from the budget limiter service. Monitor budget utilization, enforcement decisions (allowed vs denied), and track spending limits by entity (provider, organization, team).",
+        "content": "## Budget Enforcement\n\nReal-time budget enforcement metrics from the budget management service. Monitor budget utilization, enforcement decisions (allowed vs denied), and track spending limits by entity (provider, organization, team).",
         "mode": "markdown"
       },
       "pluginVersion": "12.3.0",
@@ -91,7 +91,7 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "description": "Actual cost charged and tracked by the budget limiter service.",
+      "description": "Actual cost charged and tracked by the budget management service.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -138,9 +138,7 @@
         "orientation": "auto",
         "percentChangeColorMode": "standard",
         "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
+          "calcs": ["lastNotNull"],
           "fields": "",
           "values": false
         },
@@ -151,7 +149,7 @@
       "pluginVersion": "12.3.0",
       "targets": [
         {
-          "expr": "sum(budget_limiter_cost_charged_usd_total{entity_type=~\"$entity_type\", name=~\"$name\"})",
+          "expr": "sum(budget_management_cost_charged_usd_total{entity_type=~\"$entity_type\", name=~\"$name\"})",
           "legendFormat": "Total",
           "refId": "A"
         }
@@ -198,9 +196,7 @@
         "orientation": "auto",
         "percentChangeColorMode": "standard",
         "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
+          "calcs": ["lastNotNull"],
           "fields": "",
           "values": false
         },
@@ -211,7 +207,7 @@
       "pluginVersion": "12.3.0",
       "targets": [
         {
-          "expr": "sum(budget_limiter_checks_total{result=\"allowed\"})",
+          "expr": "sum(budget_management_checks_total{result=\"allowed\"})",
           "legendFormat": "Allowed",
           "refId": "A"
         }
@@ -262,9 +258,7 @@
         "orientation": "auto",
         "percentChangeColorMode": "standard",
         "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
+          "calcs": ["lastNotNull"],
           "fields": "",
           "values": false
         },
@@ -275,7 +269,7 @@
       "pluginVersion": "12.3.0",
       "targets": [
         {
-          "expr": "sum(budget_limiter_checks_total{result=\"denied\"})",
+          "expr": "sum(budget_management_checks_total{result=\"denied\"})",
           "legendFormat": "Denied",
           "refId": "A"
         }
@@ -322,9 +316,7 @@
         "orientation": "auto",
         "percentChangeColorMode": "standard",
         "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
+          "calcs": ["lastNotNull"],
           "fields": "",
           "values": false
         },
@@ -335,7 +327,7 @@
       "pluginVersion": "12.3.0",
       "targets": [
         {
-          "expr": "sum(budget_limiter_active_reservations)",
+          "expr": "sum(budget_management_active_reservations)",
           "legendFormat": "Active",
           "refId": "A"
         }
@@ -406,9 +398,7 @@
       "id": 44,
       "options": {
         "legend": {
-          "calcs": [
-            "lastNotNull"
-          ],
+          "calcs": ["lastNotNull"],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -420,7 +410,7 @@
       },
       "targets": [
         {
-          "expr": "max by (entity_type, name, period) (budget_limiter_utilization_pct{entity_type=~\"$entity_type\", name=~\"$name\"})",
+          "expr": "max by (entity_type, name, period) (budget_management_utilization_pct{entity_type=~\"$entity_type\", name=~\"$name\"})",
           "legendFormat": "{{entity_type}}:{{name}} ({{period}})",
           "refId": "A"
         }
@@ -501,9 +491,7 @@
       "id": 45,
       "options": {
         "legend": {
-          "calcs": [
-            "lastNotNull"
-          ],
+          "calcs": ["lastNotNull"],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -517,7 +505,7 @@
       "pluginVersion": "12.3.0",
       "targets": [
         {
-          "expr": "max by (entity_type, name, period) (budget_limiter_remaining_usd{entity_type=~\"$entity_type\", name=~\"$name\"})",
+          "expr": "max by (entity_type, name, period) (budget_management_remaining_usd{entity_type=~\"$entity_type\", name=~\"$name\"})",
           "legendFormat": "{{entity_type}}:{{name}} ({{period}})",
           "refId": "A"
         }
@@ -598,9 +586,7 @@
       "id": 46,
       "options": {
         "legend": {
-          "calcs": [
-            "lastNotNull"
-          ],
+          "calcs": ["lastNotNull"],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -614,7 +600,7 @@
       "pluginVersion": "12.3.0",
       "targets": [
         {
-          "expr": "max by (entity_type, name, period) (budget_limiter_usage_usd{entity_type=~\"$entity_type\", name=~\"$name\"})",
+          "expr": "max by (entity_type, name, period) (budget_management_usage_usd{entity_type=~\"$entity_type\", name=~\"$name\"})",
           "legendFormat": "{{entity_type}}:{{name}} ({{period}})",
           "refId": "A"
         }
@@ -627,7 +613,7 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "description": "Actual cost charged by the budget limiter, broken down by model.",
+      "description": "Actual cost charged by the budget management, broken down by model.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -695,10 +681,7 @@
       "id": 47,
       "options": {
         "legend": {
-          "calcs": [
-            "sum",
-            "mean"
-          ],
+          "calcs": ["sum", "mean"],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -712,7 +695,7 @@
       "pluginVersion": "12.3.0",
       "targets": [
         {
-          "expr": "sum by (model) (rate(budget_limiter_cost_charged_usd_total{entity_type=~\"$entity_type\", name=~\"$name\"}[$__rate_interval]))",
+          "expr": "sum by (model) (rate(budget_management_cost_charged_usd_total{entity_type=~\"$entity_type\", name=~\"$name\"}[$__rate_interval]))",
           "legendFormat": "{{model}}",
           "refId": "A"
         }
@@ -725,7 +708,7 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "description": "Actual cost charged by the budget limiter, broken down by entity.",
+      "description": "Actual cost charged by the budget management, broken down by entity.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -793,10 +776,7 @@
       "id": 48,
       "options": {
         "legend": {
-          "calcs": [
-            "sum",
-            "mean"
-          ],
+          "calcs": ["sum", "mean"],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -810,7 +790,7 @@
       "pluginVersion": "12.3.0",
       "targets": [
         {
-          "expr": "sum by (entity_type, name) (rate(budget_limiter_cost_charged_usd_total{entity_type=~\"$entity_type\", name=~\"$name\"}[$__rate_interval]))",
+          "expr": "sum by (entity_type, name) (rate(budget_management_cost_charged_usd_total{entity_type=~\"$entity_type\", name=~\"$name\"}[$__rate_interval]))",
           "legendFormat": "{{entity_type}}:{{name}}",
           "refId": "A"
         }
@@ -921,9 +901,7 @@
       "id": 49,
       "options": {
         "legend": {
-          "calcs": [
-            "sum"
-          ],
+          "calcs": ["sum"],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -937,7 +915,7 @@
       "pluginVersion": "12.3.0",
       "targets": [
         {
-          "expr": "sum by (result) (rate(budget_limiter_checks_total[$__rate_interval]))",
+          "expr": "sum by (result) (rate(budget_management_checks_total[$__rate_interval]))",
           "legendFormat": "{{result}}",
           "refId": "A"
         }
@@ -950,7 +928,7 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "description": "Token usage tracked by budget limiter, split by input vs output.",
+      "description": "Token usage tracked by budget management, split by input vs output.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1017,9 +995,7 @@
       "id": 56,
       "options": {
         "legend": {
-          "calcs": [
-            "sum"
-          ],
+          "calcs": ["sum"],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -1033,7 +1009,7 @@
       "pluginVersion": "12.3.0",
       "targets": [
         {
-          "expr": "sum by (direction) (rate(budget_limiter_tokens_total{entity_type=~\"$entity_type\", name=~\"$name\"}[$__rate_interval]))",
+          "expr": "sum by (direction) (rate(budget_management_tokens_total{entity_type=~\"$entity_type\", name=~\"$name\"}[$__rate_interval]))",
           "legendFormat": "{{direction}}",
           "refId": "A"
         }
@@ -1046,7 +1022,7 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "description": "Requests blocked by budget limiter due to budget exhaustion.",
+      "description": "Requests blocked by budget management due to budget exhaustion.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1113,9 +1089,7 @@
       "id": 57,
       "options": {
         "legend": {
-          "calcs": [
-            "sum"
-          ],
+          "calcs": ["sum"],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -1129,7 +1103,7 @@
       "pluginVersion": "12.3.0",
       "targets": [
         {
-          "expr": "sum by (entity_type, name) (rate(budget_limiter_requests_rate_limited_total{entity_type=~\"$entity_type\", name=~\"$name\"}[$__rate_interval]))",
+          "expr": "sum by (entity_type, name) (rate(budget_management_requests_rate_limited_total{entity_type=~\"$entity_type\", name=~\"$name\"}[$__rate_interval]))",
           "legendFormat": "{{entity_type}}:{{name}}",
           "refId": "A"
         }
@@ -1252,21 +1226,21 @@
       "pluginVersion": "12.3.0",
       "targets": [
         {
-          "expr": "max by (entity_type, name, period) (budget_limiter_usage_usd{entity_type=~\"$entity_type\", name=~\"$name\"})",
+          "expr": "max by (entity_type, name, period) (budget_management_usage_usd{entity_type=~\"$entity_type\", name=~\"$name\"})",
           "format": "table",
           "instant": true,
           "legendFormat": "",
           "refId": "A"
         },
         {
-          "expr": "max by (entity_type, name, period) (budget_limiter_remaining_usd{entity_type=~\"$entity_type\", name=~\"$name\"})",
+          "expr": "max by (entity_type, name, period) (budget_management_remaining_usd{entity_type=~\"$entity_type\", name=~\"$name\"})",
           "format": "table",
           "instant": true,
           "legendFormat": "",
           "refId": "B"
         },
         {
-          "expr": "max by (entity_type, name, period) (budget_limiter_utilization_pct{entity_type=~\"$entity_type\", name=~\"$name\"})",
+          "expr": "max by (entity_type, name, period) (budget_management_utilization_pct{entity_type=~\"$entity_type\", name=~\"$name\"})",
           "format": "table",
           "instant": true,
           "legendFormat": "",
@@ -1426,9 +1400,7 @@
       "id": 30,
       "options": {
         "legend": {
-          "calcs": [
-            "sum"
-          ],
+          "calcs": ["sum"],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -1501,9 +1473,7 @@
         "minVizWidth": 75,
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
+          "calcs": ["lastNotNull"],
           "fields": "",
           "values": false
         },
@@ -1556,15 +1526,11 @@
           "displayMode": "table",
           "placement": "right",
           "showLegend": true,
-          "values": [
-            "value"
-          ]
+          "values": ["value"]
         },
         "pieType": "pie",
         "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
+          "calcs": ["lastNotNull"],
           "fields": "",
           "values": false
         },
@@ -1578,12 +1544,12 @@
       "pluginVersion": "12.3.0",
       "targets": [
         {
-          "expr": "sum(budget_limiter_checks_total{result=\"denied\"})",
+          "expr": "sum(budget_management_checks_total{result=\"denied\"})",
           "legendFormat": "Budget (cost)",
           "refId": "A"
         },
         {
-          "expr": "sum(agentgateway_requests_total{namespace=~\"$namespace\", gateway=~\"$gateway\", status=\"429\", reason=\"DirectResponse\"}) - sum(budget_limiter_checks_total{result=\"denied\"}) > 0 or vector(0)",
+          "expr": "sum(agentgateway_requests_total{namespace=~\"$namespace\", gateway=~\"$gateway\", status=\"429\", reason=\"DirectResponse\"}) - sum(budget_management_checks_total{result=\"denied\"}) > 0 or vector(0)",
           "legendFormat": "Token/Request",
           "refId": "B"
         },
@@ -1714,9 +1680,7 @@
       "id": 33,
       "options": {
         "legend": {
-          "calcs": [
-            "sum"
-          ],
+          "calcs": ["sum"],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -1730,12 +1694,12 @@
       "pluginVersion": "12.3.0",
       "targets": [
         {
-          "expr": "sum(rate(budget_limiter_checks_total{result=\"denied\"}[$__rate_interval]))",
+          "expr": "sum(rate(budget_management_checks_total{result=\"denied\"}[$__rate_interval]))",
           "legendFormat": "Budget (cost)",
           "refId": "A"
         },
         {
-          "expr": "(sum(rate(agentgateway_requests_total{namespace=~\"$namespace\", gateway=~\"$gateway\", status=\"429\", reason=\"DirectResponse\"}[$__rate_interval])) - sum(rate(budget_limiter_checks_total{result=\"denied\"}[$__rate_interval]))) > 0 or vector(0)",
+          "expr": "(sum(rate(agentgateway_requests_total{namespace=~\"$namespace\", gateway=~\"$gateway\", status=\"429\", reason=\"DirectResponse\"}[$__rate_interval])) - sum(rate(budget_management_checks_total{result=\"denied\"}[$__rate_interval]))) > 0 or vector(0)",
           "legendFormat": "Token/Request",
           "refId": "B"
         },
@@ -1808,9 +1772,7 @@
         "orientation": "auto",
         "percentChangeColorMode": "standard",
         "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
+          "calcs": ["lastNotNull"],
           "fields": "",
           "values": false
         },
@@ -1821,7 +1783,7 @@
       "pluginVersion": "12.3.0",
       "targets": [
         {
-          "expr": "sum(budget_limiter_fallbacks_total)",
+          "expr": "sum(budget_management_fallbacks_total)",
           "legendFormat": "Total",
           "refId": "A"
         }
@@ -1896,10 +1858,7 @@
       "id": 61,
       "options": {
         "legend": {
-          "calcs": [
-            "sum",
-            "mean"
-          ],
+          "calcs": ["sum", "mean"],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -1913,7 +1872,7 @@
       "pluginVersion": "12.3.0",
       "targets": [
         {
-          "expr": "sum by (child_name, parent_name) (rate(budget_limiter_fallbacks_total[$__rate_interval]))",
+          "expr": "sum by (child_name, parent_name) (rate(budget_management_fallbacks_total[$__rate_interval]))",
           "legendFormat": "{{child_name}} → {{parent_name}}",
           "refId": "A"
         }
@@ -1925,12 +1884,7 @@
   "preload": false,
   "refresh": "5s",
   "schemaVersion": 42,
-  "tags": [
-    "agentgateway",
-    "budget",
-    "enforcement",
-    "budget-limiter"
-  ],
+  "tags": ["agentgateway", "budget", "enforcement", "budget-management"],
   "templating": {
     "list": [
       {
@@ -1978,13 +1932,13 @@
           "type": "prometheus",
           "uid": "prometheus"
         },
-        "definition": "label_values(budget_limiter_usage_usd, entity_type)",
+        "definition": "label_values(budget_management_usage_usd, entity_type)",
         "description": "Budget scope level: 'provider' for LLM provider budgets (e.g., OpenAI, Anthropic), 'org' for organization-level budgets (matched via jwt.claims.org), 'team' for team-level budgets (matched via jwt.claims.team). Hierarchically: team budgets are most specific, provider budgets are most general.",
         "includeAll": true,
         "multi": true,
         "name": "entity_type",
         "options": [],
-        "query": "label_values(budget_limiter_usage_usd, entity_type)",
+        "query": "label_values(budget_management_usage_usd, entity_type)",
         "refresh": 2,
         "type": "query"
       },
@@ -1997,13 +1951,13 @@
           "type": "prometheus",
           "uid": "prometheus"
         },
-        "definition": "label_values(budget_limiter_usage_usd{entity_type=~\"$entity_type\"}, name)",
+        "definition": "label_values(budget_management_usage_usd{entity_type=~\"$entity_type\"}, name)",
         "description": "Budget name identifier (e.g., 'openai' for a provider budget, 'acme-corp' for an org budget, 'ml-platform' for a team budget)",
         "includeAll": true,
         "multi": true,
         "name": "name",
         "options": [],
-        "query": "label_values(budget_limiter_usage_usd{entity_type=~\"$entity_type\"}, name)",
+        "query": "label_values(budget_management_usage_usd{entity_type=~\"$entity_type\"}, name)",
         "refresh": 2,
         "type": "query"
       }

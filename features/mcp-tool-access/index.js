@@ -77,7 +77,10 @@ export class McpToolAccessFeature extends Feature {
     };
 
     await this.applyResource(policy);
-    this.log(`EnterpriseAgentgatewayPolicy '${this.policyName}' (tool access) applied to backend '${this.backendName}'`, 'success');
+    this.log(
+      `EnterpriseAgentgatewayPolicy '${this.policyName}' (tool access) applied to backend '${this.backendName}'`,
+      'success'
+    );
   }
 
   async cleanup() {

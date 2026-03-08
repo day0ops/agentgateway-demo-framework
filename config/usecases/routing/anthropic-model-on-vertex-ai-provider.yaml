@@ -24,9 +24,9 @@ spec:
               ai:
                 routes:
                   #/v1/messages: Messages
-                  ":rawPredict": Messages
-                  ":streamRawPredict": Messages
-                  "*": Passthrough
+                  ':rawPredict': Messages
+                  ':streamRawPredict': Messages
+                  '*': Passthrough
 
   tests:
     - name: test-anthropic-via-vertex
@@ -35,9 +35,9 @@ spec:
       steps:
         - action: send-request
           endpoint: /v1/messages
-          prompt: "What is machine learning?"
+          prompt: 'What is machine learning?'
           extraFields:
-            anthropic_version: "vertex-2023-10-16"
+            anthropic_version: 'vertex-2023-10-16'
             max_tokens: 100
             stream: false
         - action: verify
@@ -50,9 +50,9 @@ spec:
       steps:
         - action: send-request
           endpoint: /v1/messages
-          prompt: "Hello, how are you?"
+          prompt: 'Hello, how are you?'
           extraFields:
-            anthropic_version: "vertex-2023-10-16"
+            anthropic_version: 'vertex-2023-10-16'
             max_tokens: 100
             stream: false
         - action: verify

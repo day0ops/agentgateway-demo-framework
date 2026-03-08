@@ -3,34 +3,33 @@
 ## Reference: https://docs.solo.io/agentgateway/latest/security/
 
 agentgateway:
-  version: "v2.2.0-beta.1"
-  ociRegistry: "oci://us-central1-docker.pkg.dev/developers-369321/enterprise-agentgateway-public-nonprod/charts"
+  version: 'v2.2.0-beta.1'
+  ociRegistry: 'oci://us-central1-docker.pkg.dev/developers-369321/enterprise-agentgateway-public-nonprod/charts'
 
 agentgateway-crds:
-  version: "v2.2.0-beta.1"
-  ociRegistry: "oci://us-central1-docker.pkg.dev/developers-369321/enterprise-agentgateway-public-nonprod/charts"
+  version: 'v2.2.0-beta.1'
+  ociRegistry: 'oci://us-central1-docker.pkg.dev/developers-369321/enterprise-agentgateway-public-nonprod/charts'
 
 helmValues:
-
   controller:
     extraEnv:
-      KGW_ENABLE_GATEWAY_API_EXPERIMENTAL_FEATURES: "true"
+      KGW_ENABLE_GATEWAY_API_EXPERIMENTAL_FEATURES: 'true'
 
   # STS token exchange configuration
   tokenExchange:
     enabled: true
-    issuer: "enterprise-agentgateway.agentgateway-system.svc.cluster.local:7777"
+    issuer: 'enterprise-agentgateway.agentgateway-system.svc.cluster.local:7777'
     tokenExpiration: 24h
     subjectValidator:
       validatorType: remote
       remoteConfig:
-        url: "https://keycloak.keycloak.svc.cluster.local/realms/agw-dev/protocol/openid-connect/certs"
+        url: 'https://keycloak.keycloak.svc.cluster.local/realms/agw-dev/protocol/openid-connect/certs'
     actorValidator:
       validatorType: k8s
     apiValidator:
       validatorType: remote
       remoteConfig:
-        url: "https://keycloak.keycloak.svc.cluster.local/realms/agw-dev/protocol/openid-connect/certs"
+        url: 'https://keycloak.keycloak.svc.cluster.local/realms/agw-dev/protocol/openid-connect/certs'
 
 resources:
   - agentgateway-with-keycloak/enterprise-agentgateway-parameters.yaml

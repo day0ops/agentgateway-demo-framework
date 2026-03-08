@@ -58,11 +58,11 @@ The Keycloak access token contains:
 }
 ```
 
-| Claim | Value | Notes |
-|-------|-------|-------|
-| `iss` | Keycloak realm URL | Used by AGW to fetch JWKS for signature validation |
-| `sub` | Opaque UUID | Keycloak's internal ID for the service account user — stable but not human-readable |
-| `azp` | `caller-agent` | **The workload identity claim.** Equals the `client_id`. Human-readable and predictable. |
+| Claim | Value              | Notes                                                                                    |
+| ----- | ------------------ | ---------------------------------------------------------------------------------------- |
+| `iss` | Keycloak realm URL | Used by AGW to fetch JWKS for signature validation                                       |
+| `sub` | Opaque UUID        | Keycloak's internal ID for the service account user — stable but not human-readable      |
+| `azp` | `caller-agent`     | **The workload identity claim.** Equals the `client_id`. Human-readable and predictable. |
 | `aud` | `["agentgateway"]` | Added by the hardcoded audience mapper on the Keycloak client. AGW policy requires this. |
 
 ### Why `azp` and not `sub`?
@@ -71,12 +71,12 @@ Unlike Microsoft Entra (where `sub` is the service principal's OID, or `appid` i
 
 `azp` (authorized party, RFC 7519) contains the `client_id` of the client that requested the token. For workload identity, `azp` is the correct claim for policy checks:
 
-| IdP | Workload identifier claim |
-|-----|--------------------------|
+| IdP      | Workload identifier claim               |
+| -------- | --------------------------------------- |
 | Keycloak | `azp` = client_id (e.g. `caller-agent`) |
-| Entra | `appid` = application (client) ID |
-| GCP | `email` in the service account token |
-| AWS | `client_id` in the STS token |
+| Entra    | `appid` = application (client) ID       |
+| GCP      | `email` in the service account token    |
+| AWS      | `client_id` in the STS token            |
 
 ## What This Demonstrates
 
@@ -103,9 +103,9 @@ This allows future policies like: "batch-agent can call all tools, but caller-ag
 
 ### Autonomous vs Delegated Identity
 
-The existing [agent-to-mcp-authentication](agent-to-mcp-authentication.md) use case demonstrates **delegation**: the stock agent forwards a *human user's* JWT to the MCP route.
+The existing [agent-to-mcp-authentication](agent-to-mcp-authentication.md) use case demonstrates **delegation**: the stock agent forwards a _human user's_ JWT to the MCP route.
 
-This use case demonstrates **autonomous workload identity**: the caller agent *generates its own token* and authenticates as itself, not on behalf of any user. This is the correct pattern for:
+This use case demonstrates **autonomous workload identity**: the caller agent _generates its own token_ and authenticates as itself, not on behalf of any user. This is the correct pattern for:
 
 - Scheduled/batch agents that run without user interaction
 - Agent pipelines where one agent calls another as a backend service
@@ -114,6 +114,7 @@ This use case demonstrates **autonomous workload identity**: the caller agent *g
 ### AGW as the Enforcement Point
 
 The AgentGateway enforces on the `/mcp` route:
+
 1. Token signature is valid (Keycloak JWKS)
 2. Token is not expired
 3. `aud` contains `agentgateway` — the token was explicitly requested for this gateway
@@ -123,15 +124,15 @@ The stock agent itself requires no auth logic. It simply propagates the incoming
 
 ## Architecture: Steps and Resources
 
-| Step | Feature | Resources Created |
-|------|---------|-------------------|
-| 1 | `providers` | HTTPRoute `/openai`, provider config |
-| 2 | `mcp-server` | Deployment `stock-server-mcp`, AgentgatewayBackend `mcp-backend`, HTTPRoute `/mcp` |
-| 3 | `workload-identity` | Keycloak client `caller-agent` + audience mapper, K8s Secret `caller-agent-credentials` |
-| 4 | `obo-token-exchange` | `EnterpriseAgentgatewayPolicy` — JWT auth (aud=agentgateway) on HTTPRoute `mcp` |
-| 5 | `mcp-tool-access` | `EnterpriseAgentgatewayPolicy` — CEL RBAC on AgentgatewayBackend `mcp-backend` |
-| 6 | `agent` | Deployment `stock-agent`, Service, ServiceAccount, HTTPRoute `/agent` |
-| 7 | `workload-agent` | Deployment `caller-agent`, Service, ServiceAccount, HTTPRoute `/caller-agent` |
+| Step | Feature              | Resources Created                                                                       |
+| ---- | -------------------- | --------------------------------------------------------------------------------------- |
+| 1    | `providers`          | HTTPRoute `/openai`, provider config                                                    |
+| 2    | `mcp-server`         | Deployment `stock-server-mcp`, AgentgatewayBackend `mcp-backend`, HTTPRoute `/mcp`      |
+| 3    | `workload-identity`  | Keycloak client `caller-agent` + audience mapper, K8s Secret `caller-agent-credentials` |
+| 4    | `obo-token-exchange` | `EnterpriseAgentgatewayPolicy` — JWT auth (aud=agentgateway) on HTTPRoute `mcp`         |
+| 5    | `mcp-tool-access`    | `EnterpriseAgentgatewayPolicy` — CEL RBAC on AgentgatewayBackend `mcp-backend`          |
+| 6    | `agent`              | Deployment `stock-agent`, Service, ServiceAccount, HTTPRoute `/agent`                   |
+| 7    | `workload-agent`     | Deployment `caller-agent`, Service, ServiceAccount, HTTPRoute `/caller-agent`           |
 
 ## Running
 
@@ -178,18 +179,19 @@ Can OAuth2 Refresh Token Be Implemented?
 Yes, but it may not be the best approach for this use case:
 
 ┌───────────────────┬───────────────────────────┬──────────────────────────────────────────────────────┐
-│     Approach      │ Current (re-authenticate) │                 OAuth2 refresh_token                 │
+│ Approach │ Current (re-authenticate) │ OAuth2 refresh_token │
 ├───────────────────┼───────────────────────────┼──────────────────────────────────────────────────────┤
-│ Complexity        │ Simple                    │ Requires storing refresh_token                       │
+│ Complexity │ Simple │ Requires storing refresh_token │
 ├───────────────────┼───────────────────────────┼──────────────────────────────────────────────────────┤
-│ Network calls     │ 1 call to token endpoint  │ 1 call (refresh) or 2 (refresh + re-auth if expired) │
+│ Network calls │ 1 call to token endpoint │ 1 call (refresh) or 2 (refresh + re-auth if expired) │
 ├───────────────────┼───────────────────────────┼──────────────────────────────────────────────────────┤
-│ Keycloak config   │ None                      │ Must enable "refresh token" on client                │
+│ Keycloak config │ None │ Must enable "refresh token" on client │
 ├───────────────────┼───────────────────────────┼──────────────────────────────────────────────────────┤
-│ M2M best practice │ ✅ Recommended            │ Not typical for machine-to-machine                   │
+│ M2M best practice │ ✅ Recommended │ Not typical for machine-to-machine │
 └───────────────────┴───────────────────────────┴──────────────────────────────────────────────────────┘
 
 Why re-authentication is preferred for workload identity:
+
 - client_credentials grants are stateless — no session to maintain
 - Refresh tokens are designed for long-lived user sessions, not M2M
 - Re-authentication is simpler and equally secure for workloads
@@ -200,8 +202,9 @@ It would require:
 
 1. Keycloak config: Enable refresh tokens on the caller-agent client
 2. Code changes in auth.py:
-  - Store refresh_token from response
-  - Try grant_type=refresh_token first
-  - Fall back to client_credentials if refresh fails
+
+- Store refresh_token from response
+- Try grant_type=refresh_token first
+- Fall back to client_credentials if refresh fails
 
 Would you like me to implement this, or is the current expiry-aware caching sufficient for your demo?

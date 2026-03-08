@@ -32,11 +32,12 @@ export class Lok8sManager {
 
     const spinner = new SpinnerLogger();
     spinner.start('Creating new lok8s cluster...');
-    
+
     try {
       await CommandRunner.run('lok8s', [
         'create',
-        '-p', CLUSTER_NAME,
+        '-p',
+        CLUSTER_NAME,
         `--memory=${LOK8S_MEMORY}`,
         `--cpu=${LOK8S_CPUS}`,
         `--kubernetes-version=${KUBERNETES_VERSION}`,
@@ -70,8 +71,8 @@ export class Lok8sManager {
     Logger.info(`Deleting lok8s cluster: ${CLUSTER_NAME}`);
 
     try {
-      await CommandRunner.run('lok8s', ['status', '-p', CLUSTER_NAME], { 
-        ignoreError: true 
+      await CommandRunner.run('lok8s', ['status', '-p', CLUSTER_NAME], {
+        ignoreError: true,
       });
     } catch {
       Logger.warn(`Cluster ${CLUSTER_NAME} does not exist`);
@@ -90,25 +91,25 @@ export class Lok8sManager {
     }
   }
 
-//   static async status() {
-//     try {
-//       await CommandRunner.run('lok8s', ['status', '-p', CLUSTER_NAME], { 
-//         ignoreError: true 
-//       });
-//     } catch {
-//       Logger.info(`Cluster ${CLUSTER_NAME} does not exist`);
-//       return;
-//     }
+  //   static async status() {
+  //     try {
+  //       await CommandRunner.run('lok8s', ['status', '-p', CLUSTER_NAME], {
+  //         ignoreError: true
+  //       });
+  //     } catch {
+  //       Logger.info(`Cluster ${CLUSTER_NAME} does not exist`);
+  //       return;
+  //     }
 
-//     Logger.info('Cluster status:');
-//     const result = await CommandRunner.run('lok8s', ['status', '-p', CLUSTER_NAME]);
-//     console.log(result.stdout);
-//   }
+  //     Logger.info('Cluster status:');
+  //     const result = await CommandRunner.run('lok8s', ['status', '-p', CLUSTER_NAME]);
+  //     console.log(result.stdout);
+  //   }
 
   static async getIP() {
     try {
-      await CommandRunner.run('lok8s', ['status', '-p', CLUSTER_NAME], { 
-        ignoreError: true 
+      await CommandRunner.run('lok8s', ['status', '-p', CLUSTER_NAME], {
+        ignoreError: true,
       });
     } catch {
       Logger.error(`Cluster ${CLUSTER_NAME} does not exist`);
@@ -119,4 +120,3 @@ export class Lok8sManager {
     return result.stdout.trim();
   }
 }
-

@@ -53,7 +53,8 @@ export class WorkloadAgentFeature extends Feature {
     this.clientId = config.clientId || 'caller-agent';
     this.clientSecretName = config.clientSecretName || 'caller-agent-credentials';
     this.audience = config.audience || 'agentgateway';
-    this.stockAgentUrl = config.stockAgentUrl || `http://agentgateway.${ns}.svc.cluster.local:8080/agent/run`;
+    this.stockAgentUrl =
+      config.stockAgentUrl || `http://agentgateway.${ns}.svc.cluster.local:8080/agent/run`;
 
     this.llmBaseUrl = config.llmBaseUrl || null;
     this.mcpUrl = config.mcpUrl || null;
@@ -251,8 +252,11 @@ export class WorkloadAgentFeature extends Feature {
     this.log(`Waiting for '${this.agentName}' to be ready...`, 'info');
     try {
       await KubernetesHelper.kubectl([
-        'rollout', 'status', `deployment/${this.agentName}`,
-        '-n', this.namespace,
+        'rollout',
+        'status',
+        `deployment/${this.agentName}`,
+        '-n',
+        this.namespace,
         '--timeout=120s',
       ]);
     } catch {

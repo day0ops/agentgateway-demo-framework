@@ -2,24 +2,24 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: postgres
-  namespace: "{{NAMESPACE}}"
+  namespace: '{{NAMESPACE}}'
 ---
 apiVersion: v1
 kind: Secret
 metadata:
   name: postgres-credentials
-  namespace: "{{NAMESPACE}}"
+  namespace: '{{NAMESPACE}}'
 type: Opaque
 stringData:
   POSTGRES_USER: postgres
-  POSTGRES_PASSWORD: "aab++112"
+  POSTGRES_PASSWORD: 'aab++112'
   POSTGRES_DB: keycloak
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: postgres-pvc
-  namespace: "{{NAMESPACE}}"
+  namespace: '{{NAMESPACE}}'
 spec:
   accessModes:
     - ReadWriteOnce
@@ -31,7 +31,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: postgres
-  namespace: "{{NAMESPACE}}"
+  namespace: '{{NAMESPACE}}'
   labels:
     app: postgres
 spec:
@@ -46,7 +46,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: postgres
-  namespace: "{{NAMESPACE}}"
+  namespace: '{{NAMESPACE}}'
 spec:
   selector:
     matchLabels:
@@ -61,7 +61,7 @@ spec:
       serviceAccountName: postgres
       containers:
         - name: postgres
-          image: "postgres:{{POSTGRES_VERSION}}"
+          image: 'postgres:{{POSTGRES_VERSION}}'
           envFrom:
             - secretRef:
                 name: postgres-credentials
@@ -73,10 +73,10 @@ spec:
           resources:
             limits:
               memory: 512Mi
-              cpu: "1"
+              cpu: '1'
             requests:
               memory: 256Mi
-              cpu: "0.2"
+              cpu: '0.2'
           volumeMounts:
             - name: postgres-storage
               mountPath: /var/lib/postgresql

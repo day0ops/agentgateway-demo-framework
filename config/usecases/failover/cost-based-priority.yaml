@@ -48,7 +48,7 @@ spec:
       steps:
         - action: send-request
           endpoint: /model
-          prompt: "What is machine learning?"
+          prompt: 'What is machine learning?'
         - action: verify
           expect:
             status: success
@@ -61,7 +61,7 @@ spec:
       steps:
         - action: send-request
           endpoint: /model
-          prompt: "Explain AI in simple terms"
+          prompt: 'Explain AI in simple terms'
         - action: verify
           expect:
             status: success
@@ -74,7 +74,7 @@ spec:
       steps:
         - action: send-request
           endpoint: /model
-          prompt: "Hello, how are you?"
+          prompt: 'Hello, how are you?'
         - action: verify
           expect:
             status: success

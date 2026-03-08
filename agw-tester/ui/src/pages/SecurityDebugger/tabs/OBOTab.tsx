@@ -206,7 +206,7 @@ export const OBOTab: React.FC = () => {
             <FlowBox active={!!subjectDecoded}>
               <FlowLabel>Subject Token</FlowLabel>
               <FlowValue>
-                {subjectDecoded ? subjectDecoded.payload.sub as string : 'Not provided'}
+                {subjectDecoded ? (subjectDecoded.payload.sub as string) : 'Not provided'}
               </FlowValue>
             </FlowBox>
             <Arrow>→</Arrow>
@@ -229,7 +229,7 @@ export const OBOTab: React.FC = () => {
             <FormField label="Subject Token" fullWidth>
               <Textarea
                 value={subjectToken}
-                onChange={(e) => setSubjectToken(e.target.value)}
+                onChange={e => setSubjectToken(e.target.value)}
                 placeholder="Paste the subject token (JWT) here..."
                 style={{ minHeight: '80px' }}
               />
@@ -240,16 +240,12 @@ export const OBOTab: React.FC = () => {
             <FormField label="Audience" fullWidth>
               <Input
                 value={audience}
-                onChange={(e) => setAudience(e.target.value)}
+                onChange={e => setAudience(e.target.value)}
                 placeholder="Target audience (optional)"
               />
             </FormField>
             <FormField label="Scope" fullWidth>
-              <Input
-                value={scope}
-                onChange={(e) => setScope(e.target.value)}
-                placeholder="openid"
-              />
+              <Input value={scope} onChange={e => setScope(e.target.value)} placeholder="openid" />
             </FormField>
           </Row>
         </CardContent>

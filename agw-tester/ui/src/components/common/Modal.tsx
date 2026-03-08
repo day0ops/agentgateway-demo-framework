@@ -117,7 +117,7 @@ export const Modal: React.FC<ModalProps> = ({
 
   return (
     <Overlay onClick={onClose}>
-      <ModalContainer width={width} onClick={(e) => e.stopPropagation()}>
+      <ModalContainer width={width} onClick={e => e.stopPropagation()}>
         <ModalHeader>
           <ModalTitle>{title}</ModalTitle>
           <IconButton onClick={onClose}>

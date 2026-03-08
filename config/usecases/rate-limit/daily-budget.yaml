@@ -1,14 +1,14 @@
 apiVersion: agentgateway.demo/v1
 kind: UseCase
 metadata:
-  name: daily-budget-limiter
+  name: daily-budget-management
   description: |
     Enforce a daily USD budget on LLM requests using cost-based rate limiting.
 
     Unlike traditional rate limiting (requests/minute or tokens/minute), this system
     enforces budgets measured in USD based on actual token usage and model-specific pricing.
 
-    The budget limiter uses an ext-proc server that:
+    The budget management uses an ext-proc server that:
     1. Checks available budget before forwarding requests
     2. Estimates cost based on model pricing
     3. Tracks usage against configured budgets
@@ -53,28 +53,28 @@ spec:
                 pathPrefix: /openai
                 model: gpt-4o-mini
 
-    - title: Apply budget limiter
+    - title: Apply budget management
       description: |
-        Deploy the budget limiter infrastructure and configure a $5 daily budget.
+        Deploy the budget management infrastructure and configure a $5 daily budget.
 
         This will:
         - Deploy PostgreSQL for storing budget data
-        - Deploy the budget-limiter ext-proc service
+        - Deploy the budget-management ext-proc service
         - Apply the EnterpriseAgentgatewayPolicy
         - Create a budget for the 'openai' provider
 
-        The budget limiter intercepts all requests and tracks costs based on
+        The budget management intercepts all requests and tracks costs based on
         the model's token pricing (pre-loaded from industry standard rates).
       features:
-        - name: budget-limiter
+        - name: budget-management
           config:
             budgetAmount: 5.00
             period: daily
             entityType: provider
             name: openai
-            matchExpression: "true"
+            matchExpression: 'true'
             warningThresholdPct: 80
-            description: "Daily budget for OpenAI provider"
+            description: 'Daily budget for OpenAI provider'
 
   tests:
     - name: first-request-within-budget
@@ -88,7 +88,7 @@ spec:
       steps:
         - action: send-request
           endpoint: /openai
-          prompt: "What is 2+2? Reply with just the number."
+          prompt: 'What is 2+2? Reply with just the number.'
           timeout: 60000
         - action: verify
           expect:
@@ -99,7 +99,7 @@ spec:
       steps:
         - action: send-request
           endpoint: /openai
-          prompt: "What is 3+3? Reply with just the number."
+          prompt: 'What is 3+3? Reply with just the number.'
           timeout: 60000
         - action: verify
           expect:
@@ -117,7 +117,7 @@ spec:
       steps:
         - action: send-request
           endpoint: /openai
-          prompt: "Hi"
+          prompt: 'Hi'
           timeout: 60000
         - action: verify
           expect:
@@ -139,7 +139,7 @@ spec:
       steps:
         - action: send-request
           endpoint: /openai
-          prompt: "What is 2+2?"
+          prompt: 'What is 2+2?'
           timeout: 60000
         - action: verify
           expect:
@@ -161,13 +161,13 @@ spec:
       steps:
         - action: send-request
           endpoint: /openai
-          prompt: "Hello"
+          prompt: 'Hello'
           timeout: 60000
         - action: verify
           expect:
             statusCode: 429
             headers:
-              retry-after: "*"
+              retry-after: '*'
       teardown:
         - action: reset-budget-usage
           entityType: provider
@@ -183,13 +183,13 @@ spec:
           amount: 0.02
           period: daily
           matchExpression: 'request.headers["x-team"] == "micro-test"'
-          description: "Micro budget for testing"
+          description: 'Micro budget for testing'
         - action: wait
           duration: 15000
       steps:
         - action: send-request
           endpoint: /openai
-          prompt: "Say hi"
+          prompt: 'Say hi'
           headers:
             x-team: micro-test
           timeout: 60000
@@ -210,7 +210,7 @@ spec:
           amount: 0.02
           period: daily
           matchExpression: 'request.headers["x-team"] == "micro-exhaust"'
-          description: "Micro budget that gets exhausted"
+          description: 'Micro budget that gets exhausted'
         - action: wait
           duration: 15000
         # Simulate usage from previous requests (since response body processing not available)
@@ -223,7 +223,7 @@ spec:
       steps:
         - action: send-request
           endpoint: /openai
-          prompt: "Say goodbye"
+          prompt: 'Say goodbye'
           headers:
             x-team: micro-exhaust
           timeout: 60000
@@ -244,13 +244,13 @@ spec:
           amount: 0.0005
           period: daily
           matchExpression: 'request.headers["x-team"] == "micro-tiny"'
-          description: "Budget too small for any request"
+          description: 'Budget too small for any request'
         - action: wait
           duration: 15000
       steps:
         - action: send-request
           endpoint: /openai
-          prompt: "Hi"
+          prompt: 'Hi'
           headers:
             x-team: micro-tiny
           timeout: 60000
@@ -261,4 +261,3 @@ spec:
         - action: delete-budget
           entityType: team
           name: micro-tiny
-

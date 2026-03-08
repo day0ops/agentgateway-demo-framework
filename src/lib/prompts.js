@@ -24,7 +24,7 @@ export class Prompts {
         pageSize: 10,
       },
     ]);
-    
+
     return answer.selection;
   }
 
@@ -67,10 +67,7 @@ export class Prompts {
         { name: chalk.dim('← Back'), value: BACK },
       ];
 
-      const selected = await this.select(
-        `Select from ${chalk.cyan(node.label)}:`,
-        itemChoices,
-      );
+      const selected = await this.select(`Select from ${chalk.cyan(node.label)}:`, itemChoices);
 
       if (selected !== BACK) {
         return selected;
@@ -93,7 +90,7 @@ export class Prompts {
         default: defaultValue,
       },
     ]);
-    
+
     return answer.confirmed;
   }
 
@@ -114,7 +111,7 @@ export class Prompts {
         validate: validate || (() => true),
       },
     ]);
-    
+
     return answer.value;
   }
 
@@ -134,7 +131,7 @@ export class Prompts {
         pageSize: 10,
       },
     ]);
-    
+
     return answer.selections;
   }
 
@@ -151,8 +148,7 @@ export class Prompts {
         message,
       },
     ]);
-    
+
     return answer.value;
   }
 }
-

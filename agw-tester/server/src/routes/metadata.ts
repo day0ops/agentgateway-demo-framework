@@ -11,7 +11,7 @@ metadataRouter.get('/protected-resource', async (req: Request, res: Response) =>
     const response = await fetch(metadataUrl, {
       method: 'GET',
       headers: {
-        'Accept': 'application/json',
+        Accept: 'application/json',
       },
       signal: AbortSignal.timeout(10000),
     });
@@ -28,7 +28,8 @@ metadataRouter.get('/protected-resource', async (req: Request, res: Response) =>
     const data = await response.json();
     res.json(data);
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to fetch protected resource metadata';
+    const message =
+      error instanceof Error ? error.message : 'Failed to fetch protected resource metadata';
     res.status(500).json({ error: { message } });
   }
 });
@@ -43,7 +44,7 @@ metadataRouter.get('/openid-configuration', async (req: Request, res: Response) 
     const response = await fetch(discoveryUrl, {
       method: 'GET',
       headers: {
-        'Accept': 'application/json',
+        Accept: 'application/json',
       },
       signal: AbortSignal.timeout(10000),
     });

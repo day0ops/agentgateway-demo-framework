@@ -78,7 +78,7 @@ export class OAuthAccessTokenValidationFeature extends Feature {
   validate() {
     if (this.jwksMode === 'inline' && !this.inlineJwks) {
       throw new Error(
-        'Access token validation with inline JWKS requires inlineJwks config or KEYCLOAK_CERT_KEYS env var.',
+        'Access token validation with inline JWKS requires inlineJwks config or KEYCLOAK_CERT_KEYS env var.'
       );
     }
     return true;
@@ -217,7 +217,7 @@ export class OAuthAccessTokenValidationFeature extends Feature {
     await this.applyResource(policy);
     this.log(
       `EnterpriseAgentgatewayPolicy '${this.policyName}' targeting ${targetRefs.map(r => r.name).join(', ')}`,
-      'info',
+      'info'
     );
   }
 
@@ -229,7 +229,7 @@ export class OAuthAccessTokenValidationFeature extends Feature {
     await this.deleteResource(
       'EnterpriseAgentgatewayPolicy',
       `${this.keycloakServiceName}-backend-tls`,
-      this.keycloakServiceNamespace,
+      this.keycloakServiceNamespace
     );
 
     this.log('Access token validation cleaned up', 'success');

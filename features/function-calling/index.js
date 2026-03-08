@@ -3,33 +3,33 @@ import { Logger } from '../../src/lib/common.js';
 
 /**
  * Function Calling Feature
- * 
+ *
  * Demonstrates and validates function calling (tools) for LLM providers using kgateway.
- * 
+ *
  * Reference: https://kgateway.dev/docs/latest/agentgateway/llm/functions/
- * 
+ *
  * This feature helps with:
  * - Validating function calling configuration
  * - Providing examples of function calling requests
  * - Documenting the function calling workflow
- * 
+ *
  * Note: Function calling doesn't require a TrafficPolicy - it's part of the standard
  * OpenAI-compatible API request format. This feature primarily provides validation
  * and documentation.
- * 
+ *
  * Configuration:
  * {
  *   enabled: boolean,              // Optional: Enable function calling (default: true)
  *   validateRequests: boolean,    // Optional: Validate tool definitions (default: true)
  *   targetRefs: object            // Optional: Override targetRefs for any policies
  * }
- * 
+ *
  * Example:
  * {
  *   enabled: true,
  *   validateRequests: true
  * }
- * 
+ *
  * Function calling workflow:
  * 1. Send request with tools array containing function definitions
  * 2. LLM responds with tool_calls if it decides to use a function
@@ -44,7 +44,7 @@ export class FunctionCallingFeature extends Feature {
 
   validate() {
     const { enabled = true } = this.config;
-    
+
     if (typeof enabled !== 'boolean') {
       throw new Error('enabled must be a boolean');
     }
@@ -54,11 +54,7 @@ export class FunctionCallingFeature extends Feature {
   }
 
   async deploy() {
-    const {
-      enabled = true,
-      validateRequests = true,
-      targetRefs = null
-    } = this.config;
+    const { enabled = true, validateRequests = true, targetRefs = null } = this.config;
 
     if (!enabled) {
       this.log('Function calling is disabled, skipping deployment', 'info');
@@ -121,7 +117,7 @@ export class FunctionCallingFeature extends Feature {
 
     return {
       valid: errors.length === 0,
-      errors
+      errors,
     };
   }
 
@@ -149,7 +145,7 @@ export class FunctionCallingFeature extends Feature {
 
     return {
       valid: errors.length === 0,
-      errors
+      errors,
     };
   }
 
@@ -164,4 +160,3 @@ export class FunctionCallingFeature extends Feature {
 export function createFunctionCallingFeature(config) {
   return new FunctionCallingFeature('function-calling', config);
 }
-

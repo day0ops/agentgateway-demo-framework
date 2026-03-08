@@ -161,7 +161,7 @@ export class ApiKeyAuthFeature extends Feature {
     await this.applyResource(policy);
     this.log(
       `EnterpriseAgentgatewayPolicy '${this.policyName}' targeting ${targetRefs.map(r => r.name).join(', ')}`,
-      'info',
+      'info'
     );
   }
 

@@ -58,7 +58,7 @@ spec:
                     secretRef:
                       name: anthropic-secret
 
-        pathPrefix: /providers  # Single endpoint for all providers in groups
+        pathPrefix: /providers # Single endpoint for all providers in groups
 
   tests:
     - name: test-groups-endpoint
@@ -66,19 +66,18 @@ spec:
       steps:
         - action: send-request
           endpoint: /providers
-          prompt: "What is Kubernetes?"
+          prompt: 'What is Kubernetes?'
         - action: verify
           expect:
             status: success
-            contains: "Kubernetes"
+            contains: 'Kubernetes'
 
     - name: test-load-balancing
       description: Verify that requests are load balanced across providers in the primary group
       steps:
         - action: send-request
           endpoint: /providers
-          prompt: "Hello, how are you?"
+          prompt: 'Hello, how are you?'
         - action: verify
           expect:
             status: success
-

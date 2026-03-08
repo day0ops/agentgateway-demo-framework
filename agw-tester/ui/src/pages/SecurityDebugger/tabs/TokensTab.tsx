@@ -165,7 +165,9 @@ export const TokensTab: React.FC = () => {
 
   const fetchMetadata = useMutation(
     useCallback(async () => {
-      const result = await apiClient.get<ProtectedResourceMetadata>('/api/metadata/protected-resource');
+      const result = await apiClient.get<ProtectedResourceMetadata>(
+        '/api/metadata/protected-resource'
+      );
       return result;
     }, [])
   );
@@ -194,9 +196,7 @@ export const TokensTab: React.FC = () => {
     }
   };
 
-  const isExpired = decodedToken
-    ? (decodedToken.payload.exp as number) * 1000 < Date.now()
-    : false;
+  const isExpired = decodedToken ? (decodedToken.payload.exp as number) * 1000 < Date.now() : false;
 
   const timeUntilExpiry = decodedToken
     ? Math.max(0, (decodedToken.payload.exp as number) * 1000 - Date.now())
@@ -214,7 +214,7 @@ export const TokensTab: React.FC = () => {
               <FormField label="Grant Type" fullWidth>
                 <Select
                   value={grantType}
-                  onChange={(e) => setGrantType(e.target.value as 'password' | 'client_credentials')}
+                  onChange={e => setGrantType(e.target.value as 'password' | 'client_credentials')}
                 >
                   <option value="password">Password Grant</option>
                   <option value="client_credentials">Client Credentials</option>
@@ -227,7 +227,7 @@ export const TokensTab: React.FC = () => {
                 <FormField label="Username" fullWidth>
                   <Input
                     value={username}
-                    onChange={(e) => setUsername(e.target.value)}
+                    onChange={e => setUsername(e.target.value)}
                     placeholder="Enter username"
                   />
                 </FormField>
@@ -235,7 +235,7 @@ export const TokensTab: React.FC = () => {
                   <Input
                     type="password"
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={e => setPassword(e.target.value)}
                     placeholder="Enter password"
                   />
                 </FormField>
@@ -246,7 +246,7 @@ export const TokensTab: React.FC = () => {
               <FormField label="Client ID" fullWidth>
                 <Input
                   value={clientId}
-                  onChange={(e) => setClientId(e.target.value)}
+                  onChange={e => setClientId(e.target.value)}
                   placeholder="Enter client ID"
                 />
               </FormField>
@@ -254,7 +254,7 @@ export const TokensTab: React.FC = () => {
                 <Input
                   type="password"
                   value={clientSecret}
-                  onChange={(e) => setClientSecret(e.target.value)}
+                  onChange={e => setClientSecret(e.target.value)}
                   placeholder="Enter client secret"
                 />
               </FormField>
@@ -264,7 +264,7 @@ export const TokensTab: React.FC = () => {
               <FormField label="Scope" fullWidth>
                 <Input
                   value={scope}
-                  onChange={(e) => setScope(e.target.value)}
+                  onChange={e => setScope(e.target.value)}
                   placeholder="openid profile email"
                 />
               </FormField>
@@ -308,7 +308,11 @@ export const TokensTab: React.FC = () => {
             )}
           </CardContent>
           <CardFooter>
-            <Button variant="secondary" onClick={handleFetchMetadata} disabled={fetchMetadata.loading}>
+            <Button
+              variant="secondary"
+              onClick={handleFetchMetadata}
+              disabled={fetchMetadata.loading}
+            >
               {fetchMetadata.loading ? <Spinner size={16} /> : 'Fetch Metadata'}
             </Button>
           </CardFooter>

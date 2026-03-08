@@ -18,8 +18,8 @@ spec:
         namespace: telemetry
         port: 4317
       protocol: GRPC
-      clientSampling: "true"
-      randomSampling: "true"
+      clientSampling: 'true'
+      randomSampling: 'true'
       resources:
         - name: deployment.environment.name
           expression: '"demo"'

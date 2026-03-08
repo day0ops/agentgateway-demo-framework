@@ -4,10 +4,10 @@ Demonstrates a two-hop workload identity chain where every agent authenticates *
 
 > **Compare with [agent-workload-identity](agent-workload-identity.md):** That use case uses `client_credentials` with stored secrets and propagates a **single token** end-to-end via `ADKTokenPropagationPlugin`. JWT policy is only on `/mcp`. Here, each agent gets its **own token** independently, and JWT policies enforce at **both** `/agent` and `/mcp` routes.
 
-| Hop | Caller | Identity | Enforcement |
-|-----|--------|----------|-------------|
-| 1 | Caller Agent → AGW → Stock Agent | `azp=chain-caller-agent` | JWT policy on `/agent` HTTPRoute |
-| 2 | Stock Agent → AGW → MCP | `azp=chain-stock-agent` | JWT policy on `/mcp` HTTPRoute + CEL RBAC on `mcp-backend` |
+| Hop | Caller                           | Identity                 | Enforcement                                                |
+| --- | -------------------------------- | ------------------------ | ---------------------------------------------------------- |
+| 1   | Caller Agent → AGW → Stock Agent | `azp=chain-caller-agent` | JWT policy on `/agent` HTTPRoute                           |
+| 2   | Stock Agent → AGW → MCP          | `azp=chain-stock-agent`  | JWT policy on `/mcp` HTTPRoute + CEL RBAC on `mcp-backend` |
 
 ## Sequence Diagram
 
@@ -80,16 +80,16 @@ The MCP server and its CEL policy see only the chain-stock-agent identity. The c
 
 ## Comparison: Chain vs End-to-End Propagation
 
-| | `agent-workload-identity` | `workload-identity-chain` |
-|---|---|---|
-| `/agent` JWT policy | None — token passes through | Strict — `azp=chain-caller-agent` |
-| `/mcp` JWT policy | Strict — `azp=caller-agent` | Strict — `azp=chain-stock-agent` |
-| MCP tool RBAC | `jwt.azp == "caller-agent"` | `jwt.azp == "chain-stock-agent"` |
-| Identity visible at MCP | `caller-agent` | `chain-stock-agent` only |
-| Stock agent code change | None | `MCP_AUTH_MODE=workload` |
-| Credential type | Client credentials (K8s Secret) | SA token exchange — no long-lived secrets |
-| Keycloak clients | `caller-agent` | `chain-caller-agent` + `chain-stock-agent` (isolated from other use cases) |
-| Blast radius if caller-agent compromised | Attacker can call MCP directly | Attacker cannot reach MCP (no chain-stock-agent credentials) |
+|                                          | `agent-workload-identity`       | `workload-identity-chain`                                                  |
+| ---------------------------------------- | ------------------------------- | -------------------------------------------------------------------------- |
+| `/agent` JWT policy                      | None — token passes through     | Strict — `azp=chain-caller-agent`                                          |
+| `/mcp` JWT policy                        | Strict — `azp=caller-agent`     | Strict — `azp=chain-stock-agent`                                           |
+| MCP tool RBAC                            | `jwt.azp == "caller-agent"`     | `jwt.azp == "chain-stock-agent"`                                           |
+| Identity visible at MCP                  | `caller-agent`                  | `chain-stock-agent` only                                                   |
+| Stock agent code change                  | None                            | `MCP_AUTH_MODE=workload`                                                   |
+| Credential type                          | Client credentials (K8s Secret) | SA token exchange — no long-lived secrets                                  |
+| Keycloak clients                         | `caller-agent`                  | `chain-caller-agent` + `chain-stock-agent` (isolated from other use cases) |
+| Blast radius if caller-agent compromised | Attacker can call MCP directly  | Attacker cannot reach MCP (no chain-stock-agent credentials)               |
 
 ## Why Two-Hop Identity?
 
@@ -102,6 +102,7 @@ In this use case, the chain-caller-agent's token is only valid for the `/agent` 
 ### Independent Auditability
 
 Each hop produces its own audit trail with a distinct identity:
+
 - AGW logs for `/agent` show `azp=chain-caller-agent`
 - AGW logs for `/mcp` show `azp=chain-stock-agent`
 
@@ -130,22 +131,22 @@ Future policies can differentiate tool access by workload identity:
 ```yaml
 matchExpressions:
   - 'jwt.azp == "chain-stock-agent" && mcp.tool.name == "get_stock_price"'
-  - 'jwt.azp == "admin-agent"'   # admin-agent can call all tools
+  - 'jwt.azp == "admin-agent"' # admin-agent can call all tools
 ```
 
 ## Architecture: Steps and Resources
 
-| Step | Feature | Resources Created |
-|------|---------|-------------------|
-| 1 | `providers` | HTTPRoute `/openai`, provider config |
-| 2 | `mcp-server` | Deployment `stock-server-mcp`, AgentgatewayBackend `mcp-backend`, HTTPRoute `/mcp` |
-| 3 | Keycloak addon (profile) | Keycloak client `chain-caller-agent` + audience mapper + K8s Secret `chain-caller-agent-credentials` |
-| 4 | Keycloak addon (profile) | Keycloak client `chain-stock-agent` + audience mapper + K8s Secret `chain-stock-agent-credentials` |
-| 5 | `obo-token-exchange` | `EnterpriseAgentgatewayPolicy` `chain-stock-agent-jwt-policy` on HTTPRoute `stock-agent` |
-| 6 | `obo-token-exchange` | `EnterpriseAgentgatewayPolicy` `chain-mcp-jwt-policy` on HTTPRoute `mcp` |
-| 7 | `mcp-tool-access` | `EnterpriseAgentgatewayPolicy` `chain-mcp-tool-access` on AgentgatewayBackend `mcp-backend` |
-| 8 | `workload-agent` | Deployment `stock-agent` (`MCP_AUTH_MODE=workload`, `useTokenExchange: true`), Service, ServiceAccount, HTTPRoute `/agent` |
-| 9 | `workload-agent` | Deployment `caller-agent` (`useTokenExchange: true`), Service, ServiceAccount, HTTPRoute `/caller-agent` |
+| Step | Feature                  | Resources Created                                                                                                          |
+| ---- | ------------------------ | -------------------------------------------------------------------------------------------------------------------------- |
+| 1    | `providers`              | HTTPRoute `/openai`, provider config                                                                                       |
+| 2    | `mcp-server`             | Deployment `stock-server-mcp`, AgentgatewayBackend `mcp-backend`, HTTPRoute `/mcp`                                         |
+| 3    | Keycloak addon (profile) | Keycloak client `chain-caller-agent` + audience mapper + K8s Secret `chain-caller-agent-credentials`                       |
+| 4    | Keycloak addon (profile) | Keycloak client `chain-stock-agent` + audience mapper + K8s Secret `chain-stock-agent-credentials`                         |
+| 5    | `obo-token-exchange`     | `EnterpriseAgentgatewayPolicy` `chain-stock-agent-jwt-policy` on HTTPRoute `stock-agent`                                   |
+| 6    | `obo-token-exchange`     | `EnterpriseAgentgatewayPolicy` `chain-mcp-jwt-policy` on HTTPRoute `mcp`                                                   |
+| 7    | `mcp-tool-access`        | `EnterpriseAgentgatewayPolicy` `chain-mcp-tool-access` on AgentgatewayBackend `mcp-backend`                                |
+| 8    | `workload-agent`         | Deployment `stock-agent` (`MCP_AUTH_MODE=workload`, `useTokenExchange: true`), Service, ServiceAccount, HTTPRoute `/agent` |
+| 9    | `workload-agent`         | Deployment `caller-agent` (`useTokenExchange: true`), Service, ServiceAccount, HTTPRoute `/caller-agent`                   |
 
 ## Running
 

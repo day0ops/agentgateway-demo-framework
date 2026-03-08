@@ -22,22 +22,22 @@ spec:
             - containerPort: 3000
           env:
             - name: PORT
-              value: "3000"
+              value: '3000'
             - name: AGENTGATEWAY_URL
-              value: "http://agentgateway.default.svc.cluster.local:8080"
+              value: 'http://agentgateway.default.svc.cluster.local:8080'
             - name: KEYCLOAK_URL
-              value: "http://keycloak.default.svc.cluster.local:9000"
+              value: 'http://keycloak.default.svc.cluster.local:9000'
             - name: DEFAULT_REALM
-              value: "agw-dev"
+              value: 'agw-dev'
             - name: STS_PORT
-              value: "7777"
+              value: '7777'
           resources:
             requests:
-              memory: "128Mi"
-              cpu: "100m"
+              memory: '128Mi'
+              cpu: '100m'
             limits:
-              memory: "256Mi"
-              cpu: "500m"
+              memory: '256Mi'
+              cpu: '500m'
 ---
 apiVersion: v1
 kind: Service

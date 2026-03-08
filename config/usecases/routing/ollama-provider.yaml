@@ -30,7 +30,7 @@ spec:
       steps:
         - action: send-request
           endpoint: /ollama
-          prompt: "Hello, how are you?"
+          prompt: 'Hello, how are you?'
         - action: verify
           expect:
             status: success
@@ -40,8 +40,8 @@ spec:
       steps:
         - action: send-request
           endpoint: /ollama
-          prompt: "What is 2+2?"
+          prompt: 'What is 2+2?'
         - action: verify
           expect:
             status: success
-            contains: "4"
+            contains: '4'

@@ -24,15 +24,8 @@ interface TokenExchangeRequest {
 // Acquire token from Keycloak
 keycloakRouter.post('/token', async (req: Request, res: Response) => {
   const { keycloakUrl, defaultRealm } = req.app.locals.config;
-  const {
-    grantType,
-    username,
-    password,
-    clientId,
-    clientSecret,
-    scope,
-    realm,
-  } = req.body as TokenRequest;
+  const { grantType, username, password, clientId, clientSecret, scope, realm } =
+    req.body as TokenRequest;
 
   const tokenUrl = `${keycloakUrl}/realms/${realm || defaultRealm}/protocol/openid-connect/token`;
 
@@ -46,7 +39,9 @@ keycloakRouter.post('/token', async (req: Request, res: Response) => {
 
   if (grantType === 'password') {
     if (!username || !password) {
-      res.status(400).json({ error: { message: 'Username and password are required for password grant' } });
+      res
+        .status(400)
+        .json({ error: { message: 'Username and password are required for password grant' } });
       return;
     }
     params.append('username', username);

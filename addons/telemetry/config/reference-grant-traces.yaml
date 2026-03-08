@@ -12,6 +12,6 @@ spec:
       kind: EnterpriseAgentgatewayPolicy
       namespace: agentgateway-system
   to:
-    - group: ""
+    - group: ''
       kind: Service
       name: tempo-distributor

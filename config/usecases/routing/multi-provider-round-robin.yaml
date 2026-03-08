@@ -34,7 +34,7 @@ spec:
       steps:
         - action: send-request
           endpoint: /openai
-          prompt: "What is 2+2?"
+          prompt: 'What is 2+2?'
         - action: verify
           expect:
             status: success
@@ -44,7 +44,7 @@ spec:
       steps:
         - action: send-request
           endpoint: /bedrock
-          prompt: "What is AI?"
+          prompt: 'What is AI?'
         - action: verify
           expect:
             status: success

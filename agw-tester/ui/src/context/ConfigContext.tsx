@@ -27,7 +27,7 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
   const updateConfig = useCallback(
     (updates: Partial<AppConfig>) => {
-      setConfig((prev) => ({ ...prev, ...updates }));
+      setConfig(prev => ({ ...prev, ...updates }));
     },
     [setConfig]
   );
@@ -38,7 +38,7 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
   const setVariable = useCallback(
     (key: string, value: string) => {
-      setConfig((prev) => ({
+      setConfig(prev => ({
         ...prev,
         variables: { ...prev.variables, [key]: value },
       }));
@@ -48,7 +48,7 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
   const deleteVariable = useCallback(
     (key: string) => {
-      setConfig((prev) => {
+      setConfig(prev => {
         const { [key]: _, ...rest } = prev.variables;
         return { ...prev, variables: rest };
       });

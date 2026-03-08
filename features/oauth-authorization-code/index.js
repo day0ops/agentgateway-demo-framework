@@ -102,7 +102,7 @@ export class OAuthAuthorizationCodeFeature extends Feature {
     if (!this.clientId) {
       throw new Error(
         'OAuth authorization code requires a clientId. ' +
-        'Set it in the use case config or via the KEYCLOAK_CLIENT_ID environment variable.',
+          'Set it in the use case config or via the KEYCLOAK_CLIENT_ID environment variable.'
       );
     }
     return true;
@@ -129,11 +129,18 @@ export class OAuthAuthorizationCodeFeature extends Feature {
 
     try {
       const gatewayRef = FeatureManager.getGatewayRef();
-      const result = await KubernetesHelper.kubectl([
-        'get', 'gateway', gatewayRef.name,
-        '-n', gatewayRef.namespace,
-        '-o', 'jsonpath={.status.addresses[0].value}',
-      ], { ignoreError: true });
+      const result = await KubernetesHelper.kubectl(
+        [
+          'get',
+          'gateway',
+          gatewayRef.name,
+          '-n',
+          gatewayRef.namespace,
+          '-o',
+          'jsonpath={.status.addresses[0].value}',
+        ],
+        { ignoreError: true }
+      );
 
       const addr = result.stdout.trim();
       if (addr) {
@@ -148,9 +155,10 @@ export class OAuthAuthorizationCodeFeature extends Feature {
   }
 
   async deployOAuthSecret() {
-    const clientSecret = this.dryRun && !this.clientSecret
-      ? '<set clientSecret or KEYCLOAK_SECRET>'
-      : this.clientSecret;
+    const clientSecret =
+      this.dryRun && !this.clientSecret
+        ? '<set clientSecret or KEYCLOAK_SECRET>'
+        : this.clientSecret;
 
     const secret = {
       apiVersion: 'v1',
@@ -270,7 +278,7 @@ export class OAuthAuthorizationCodeFeature extends Feature {
     await this.applyResource(policy);
     this.log(
       `EnterpriseAgentgatewayPolicy '${this.policyName}' targeting ${targetRefs.map(r => r.name).join(', ')}`,
-      'info',
+      'info'
     );
   }
 

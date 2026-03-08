@@ -216,9 +216,7 @@ export const ElicitationTab: React.FC = () => {
     }
   };
 
-  const getTimelineStatus = (
-    step: number
-  ): 'pending' | 'active' | 'completed' | 'error' => {
+  const getTimelineStatus = (step: number): 'pending' | 'active' | 'completed' | 'error' => {
     if (!elicitation) return 'pending';
     const currentStep = elicitation.status === 'PENDING' ? 2 : 3;
     if (elicitation.status === 'REJECTED' && step === 3) return 'error';
@@ -238,7 +236,7 @@ export const ElicitationTab: React.FC = () => {
             <FormField label="Endpoint" fullWidth>
               <Input
                 value={endpoint}
-                onChange={(e) => setEndpoint(e.target.value)}
+                onChange={e => setEndpoint(e.target.value)}
                 placeholder="/mcp"
               />
             </FormField>
@@ -247,7 +245,7 @@ export const ElicitationTab: React.FC = () => {
           <FormField label="Request Body (JSON-RPC)" fullWidth>
             <Textarea
               value={requestBody}
-              onChange={(e) => setRequestBody(e.target.value)}
+              onChange={e => setRequestBody(e.target.value)}
               style={{ minHeight: '150px' }}
             />
           </FormField>
@@ -275,9 +273,7 @@ export const ElicitationTab: React.FC = () => {
               <TimelineDot status={getTimelineStatus(1)} />
               <TimelineContent>
                 <TimelineTitle>Request Sent</TimelineTitle>
-                <TimelineDescription>
-                  MCP tool call initiated
-                </TimelineDescription>
+                <TimelineDescription>MCP tool call initiated</TimelineDescription>
               </TimelineContent>
             </TimelineItem>
 
@@ -327,9 +323,7 @@ export const ElicitationTab: React.FC = () => {
                       : 'Final status pending'}
                 </TimelineDescription>
                 {elicitation?.result !== undefined && (
-                  <ResponseDisplay>
-                    {JSON.stringify(elicitation.result, null, 2)}
-                  </ResponseDisplay>
+                  <ResponseDisplay>{JSON.stringify(elicitation.result, null, 2)}</ResponseDisplay>
                 )}
               </TimelineContent>
             </TimelineItem>

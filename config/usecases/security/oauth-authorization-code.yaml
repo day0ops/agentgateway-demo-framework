@@ -68,7 +68,7 @@ spec:
       steps:
         - action: send-request
           endpoint: /openai
-          prompt: "What is 2+2?"
+          prompt: 'What is 2+2?'
           followRedirects: false
         - action: verify
           expect:
@@ -85,8 +85,8 @@ spec:
         - action: send-request
           endpoint: /openai
           auth: cookie
-          prompt: "What is 2+2?"
+          prompt: 'What is 2+2?'
         - action: verify
           expect:
             status: success
-            contains: "4"
+            contains: '4'

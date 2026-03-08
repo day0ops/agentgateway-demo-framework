@@ -28,9 +28,9 @@ spec:
             policies:
               ai:
                 routes:
-                  "/v1/embeddings": "Passthrough"
-                  "/v1/models": "Passthrough"
-                  "*": Passthrough
+                  '/v1/embeddings': 'Passthrough'
+                  '/v1/models': 'Passthrough'
+                  '*': Passthrough
 
   tests:
     - name: test-openai-embeddings
@@ -39,7 +39,7 @@ spec:
         - action: send-request
           endpoint: /openai/v1/embeddings
           model: text-embedding-ada-002
-          input: "The food was delicious"
+          input: 'The food was delicious'
         - action: verify
           expect:
             status: success
@@ -51,8 +51,8 @@ spec:
           endpoint: /openai/v1/embeddings
           model: text-embedding-3-small
           input:
-            - "What is Kubernetes?"
-            - "What is machine learning?"
+            - 'What is Kubernetes?'
+            - 'What is machine learning?'
         - action: verify
           expect:
             status: success

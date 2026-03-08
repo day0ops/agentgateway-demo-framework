@@ -102,7 +102,10 @@ export class ElicitationSecretFeature extends Feature {
   }
 
   async deploy() {
-    this.log(`Creating elicitation secret '${this.secretName}' for provider '${this.provider}'...`, 'info');
+    this.log(
+      `Creating elicitation secret '${this.secretName}' for provider '${this.provider}'...`,
+      'info'
+    );
 
     const secret = {
       apiVersion: 'v1',

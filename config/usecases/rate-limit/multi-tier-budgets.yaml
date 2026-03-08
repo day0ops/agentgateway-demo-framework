@@ -10,7 +10,7 @@ metadata:
     - Teams have their own budgets (e.g., $20/day for engineering, $30/day for support)
     - Requests are matched to budgets using CEL expressions based on headers
 
-    The budget limiter uses x-team header to route requests to the appropriate
+    The budget management uses x-team header to route requests to the appropriate
     team budget. If no team header is provided, the default org budget applies.
   docs: https://docs.solo.io/agentgateway/latest/traffic-management/ext-proc/
 
@@ -41,20 +41,20 @@ spec:
                 pathPrefix: /openai
                 model: gpt-4o-mini
 
-    - title: Deploy budget limiter with org budget
+    - title: Deploy budget management with org budget
       description: |
-        Deploy the budget limiter service with the default organization budget.
+        Deploy the budget management service with the default organization budget.
         Team budgets will be created via the API.
       features:
-        - name: budget-limiter
+        - name: budget-management
           config:
             budgetAmount: 100.00
             period: daily
             entityType: channel
             entityId: default
-            matchExpression: "true"
+            matchExpression: 'true'
             warningThresholdPct: 80
-            description: "Organization default budget"
+            description: 'Organization default budget'
 
   tests:
     - name: org-budget-works
@@ -62,7 +62,7 @@ spec:
       steps:
         - action: send-request
           endpoint: /openai
-          prompt: "Hello from org"
+          prompt: 'Hello from org'
           timeout: 60000
         - action: verify
           expect:
@@ -77,13 +77,13 @@ spec:
           amount: 20.00
           period: daily
           matchExpression: 'request.headers["x-team"] == "engineering"'
-          description: "Engineering team budget"
+          description: 'Engineering team budget'
         - action: wait
           duration: 35000
       steps:
         - action: send-request
           endpoint: /openai
-          prompt: "Hello from engineering team"
+          prompt: 'Hello from engineering team'
           headers:
             x-team: engineering
           timeout: 60000
@@ -104,7 +104,7 @@ spec:
           amount: 5.00
           period: daily
           matchExpression: 'request.headers["x-team"] == "support"'
-          description: "Support team budget"
+          description: 'Support team budget'
         - action: set-budget-usage
           entityType: usecase
           entityId: support
@@ -114,7 +114,7 @@ spec:
       steps:
         - action: send-request
           endpoint: /openai
-          prompt: "Hello from support"
+          prompt: 'Hello from support'
           headers:
             x-team: support
           timeout: 60000

@@ -81,7 +81,8 @@ export class KeycloakFeature extends Feature {
     const raw = await readFile(join(CONFIG_DIR, filename), 'utf8');
     const vars = this.templateVars();
     const rendered = raw.replace(/\{\{(\w+)\}\}/g, (_, key) => {
-      if (vars[key] === undefined) throw new Error(`Unknown template variable: {{${key}}} in ${filename}`);
+      if (vars[key] === undefined)
+        throw new Error(`Unknown template variable: {{${key}}} in ${filename}`);
       return vars[key];
     });
 
@@ -102,9 +103,13 @@ export class KeycloakFeature extends Feature {
     for (let i = 0; i < maxAttempts; i++) {
       try {
         const result = await KubernetesHelper.kubectl([
-          'get', 'certificate', this.tlsSecretName,
-          '-n', this.keycloakNamespace,
-          '-o', 'jsonpath={.status.conditions[?(@.type=="Ready")].status}',
+          'get',
+          'certificate',
+          this.tlsSecretName,
+          '-n',
+          this.keycloakNamespace,
+          '-o',
+          'jsonpath={.status.conditions[?(@.type=="Ready")].status}',
         ]);
         if (result?.stdout?.trim() === 'True') {
           this.log('TLS certificate is ready', 'info');
@@ -122,9 +127,13 @@ export class KeycloakFeature extends Feature {
     this.log('Waiting for PostgreSQL to be ready...', 'info');
     try {
       await KubernetesHelper.kubectl([
-        'wait', '--for=condition=Ready', 'pod',
-        '-l', 'app=postgres',
-        '-n', this.keycloakNamespace,
+        'wait',
+        '--for=condition=Ready',
+        'pod',
+        '-l',
+        'app=postgres',
+        '-n',
+        this.keycloakNamespace,
         '--timeout=300s',
       ]);
     } catch (error) {
@@ -136,13 +145,25 @@ export class KeycloakFeature extends Feature {
     this.log('Initialising PostgreSQL database...', 'info');
     await new Promise(r => setTimeout(r, 5000));
 
-    const execInPg = async (sql) => {
+    const execInPg = async sql => {
       try {
-        await KubernetesHelper.kubectl([
-          '-n', this.keycloakNamespace,
-          'exec', 'deploy/postgres', '--',
-          'psql', '-U', 'postgres', '-d', 'postgres', '-c', sql,
-        ], { ignoreError: true });
+        await KubernetesHelper.kubectl(
+          [
+            '-n',
+            this.keycloakNamespace,
+            'exec',
+            'deploy/postgres',
+            '--',
+            'psql',
+            '-U',
+            'postgres',
+            '-d',
+            'postgres',
+            '-c',
+            sql,
+          ],
+          { ignoreError: true }
+        );
       } catch {
         // ignore – object may already exist
       }
@@ -157,9 +178,13 @@ export class KeycloakFeature extends Feature {
     this.log('Waiting for Keycloak to be ready...', 'info');
     try {
       await KubernetesHelper.kubectl([
-        'wait', '--for=condition=Ready', 'pod',
-        '-l', 'app=keycloak',
-        '-n', this.keycloakNamespace,
+        'wait',
+        '--for=condition=Ready',
+        'pod',
+        '-l',
+        'app=keycloak',
+        '-n',
+        this.keycloakNamespace,
         '--timeout=600s',
       ]);
     } catch (error) {
@@ -185,7 +210,7 @@ export class KeycloakFeature extends Feature {
     try {
       const check = await CommandRunner.exec(
         `grep -q "${this.hostname}" /etc/hosts 2>/dev/null && echo exists || echo missing`,
-        { ignoreError: true },
+        { ignoreError: true }
       );
 
       if (check.stdout.trim() === 'exists') {
@@ -210,15 +235,24 @@ export class KeycloakFeature extends Feature {
 
     for (let i = 0; i < 60; i++) {
       try {
-        const result = await KubernetesHelper.kubectl([
-          'get', 'svc', 'keycloak',
-          '-n', this.keycloakNamespace,
-          '-o', 'jsonpath={.status.loadBalancer.ingress[0].ip}{.status.loadBalancer.ingress[0].hostname}',
-        ], { ignoreError: true });
+        const result = await KubernetesHelper.kubectl(
+          [
+            'get',
+            'svc',
+            'keycloak',
+            '-n',
+            this.keycloakNamespace,
+            '-o',
+            'jsonpath={.status.loadBalancer.ingress[0].ip}{.status.loadBalancer.ingress[0].hostname}',
+          ],
+          { ignoreError: true }
+        );
 
         const addr = (result.stdout || '').trim();
         if (addr) return addr;
-      } catch { /* not ready yet */ }
+      } catch {
+        /* not ready yet */
+      }
       await new Promise(r => setTimeout(r, 5000));
     }
 
@@ -240,10 +274,11 @@ export class KeycloakFeature extends Feature {
       const lbUrl = `${this.protocol}://${lbAddress}`;
       // Test connectivity to LB IP
       try {
-        const result = await CommandRunner.run('curl', [
-          '-sSfk', '--connect-timeout', '5',
-          `${lbUrl}/realms/master`,
-        ], { ignoreError: true });
+        const result = await CommandRunner.run(
+          'curl',
+          ['-sSfk', '--connect-timeout', '5', `${lbUrl}/realms/master`],
+          { ignoreError: true }
+        );
 
         if (result.exitCode === 0) {
           this.log(`Using LoadBalancer address for Admin API: ${lbAddress}`, 'info');
@@ -289,14 +324,20 @@ export class KeycloakFeature extends Feature {
       const clientInternalId = await this.createWorkloadClient(baseUrl, token, client);
 
       if (clientInternalId) {
-        await this.addAudienceMapper(baseUrl, token, clientInternalId, client.audience || 'agentgateway');
+        await this.addAudienceMapper(
+          baseUrl,
+          token,
+          clientInternalId,
+          client.audience || 'agentgateway'
+        );
 
         if (client.configureTokenExchange) {
           if (!k8sIdpRegistered) {
             await this.registerK8sIdentityProvider(
-              baseUrl, token,
+              baseUrl,
+              token,
               client.k8sOidcIssuer || 'https://kubernetes.default.svc.cluster.local',
-              client.k8sJwksUrl || 'https://kubernetes.default.svc.cluster.local/openid/v1/jwks',
+              client.k8sJwksUrl || 'https://kubernetes.default.svc.cluster.local/openid/v1/jwks'
             );
             k8sIdpRegistered = true;
           }
@@ -324,13 +365,22 @@ export class KeycloakFeature extends Feature {
     };
     if (client.clientSecret) payload.secret = client.clientSecret;
 
-    const result = await CommandRunner.run('curl', [
-      '-sSik', '-X', 'POST',
-      '-H', `Authorization: Bearer ${token}`,
-      '-H', 'Content-Type: application/json',
-      '-d', JSON.stringify(payload),
-      `${baseUrl}/admin/realms/${this.realm}/clients`,
-    ], { ignoreError: true });
+    const result = await CommandRunner.run(
+      'curl',
+      [
+        '-sSik',
+        '-X',
+        'POST',
+        '-H',
+        `Authorization: Bearer ${token}`,
+        '-H',
+        'Content-Type: application/json',
+        '-d',
+        JSON.stringify(payload),
+        `${baseUrl}/admin/realms/${this.realm}/clients`,
+      ],
+      { ignoreError: true }
+    );
 
     let id = this.extractIdFromLocation(result.stdout);
     if (!id) id = await this.lookupClientId(baseUrl, token, clientId);
@@ -345,45 +395,58 @@ export class KeycloakFeature extends Feature {
 
   async addAudienceMapper(baseUrl, token, clientInternalId, audience) {
     this.log(`Adding audience mapper (aud=${audience})...`, 'info');
-    await this.kcApi('POST', `${baseUrl}/admin/realms/${this.realm}/clients/${clientInternalId}/protocol-mappers/models`, token, {
-      name: `audience-${audience}`,
-      protocol: 'openid-connect',
-      protocolMapper: 'oidc-audience-mapper',
-      config: {
-        'included.custom.audience': audience,
-        'access.token.claim': 'true',
-        'id.token.claim': 'false',
-      },
-    });
+    await this.kcApi(
+      'POST',
+      `${baseUrl}/admin/realms/${this.realm}/clients/${clientInternalId}/protocol-mappers/models`,
+      token,
+      {
+        name: `audience-${audience}`,
+        protocol: 'openid-connect',
+        protocolMapper: 'oidc-audience-mapper',
+        config: {
+          'included.custom.audience': audience,
+          'access.token.claim': 'true',
+          'id.token.claim': 'false',
+        },
+      }
+    );
   }
 
   async registerK8sIdentityProvider(baseUrl, token, issuer, jwksUrl) {
     this.log(`Registering Kubernetes OIDC identity provider (issuer=${issuer})...`, 'info');
-    await this.kcApi('POST', `${baseUrl}/admin/realms/${this.realm}/identity-provider/instances`, token, {
-      providerId: 'oidc',
-      alias: 'kubernetes',
-      displayName: 'Kubernetes',
-      enabled: true,
-      trustEmail: false,
-      storeToken: false,
-      addReadTokenRoleOnCreate: false,
-      config: {
-        validateSignature: 'true',
-        useJwksUrl: 'true',
-        jwksUrl,
-        issuer,
-        tokenUrl: `${issuer}/openid/v1/token`,
-        authorizationUrl: `${issuer}/openid/v1/auth`,
-        disableUserInfoService: 'true',
-        clientAuthMethod: 'client_secret_post',
-        syncMode: 'IMPORT',
-      },
-    });
+    await this.kcApi(
+      'POST',
+      `${baseUrl}/admin/realms/${this.realm}/identity-provider/instances`,
+      token,
+      {
+        providerId: 'oidc',
+        alias: 'kubernetes',
+        displayName: 'Kubernetes',
+        enabled: true,
+        trustEmail: false,
+        storeToken: false,
+        addReadTokenRoleOnCreate: false,
+        config: {
+          validateSignature: 'true',
+          useJwksUrl: 'true',
+          jwksUrl,
+          issuer,
+          tokenUrl: `${issuer}/openid/v1/token`,
+          authorizationUrl: `${issuer}/openid/v1/auth`,
+          disableUserInfoService: 'true',
+          clientAuthMethod: 'client_secret_post',
+          syncMode: 'IMPORT',
+        },
+      }
+    );
   }
 
   async createWorkloadClientSecret(client) {
     const secretNamespace = client.k8sSecretNamespace || FeatureManager.getDefaultNamespace();
-    this.log(`Creating K8s Secret '${client.k8sSecretName}' in namespace '${secretNamespace}'...`, 'info');
+    this.log(
+      `Creating K8s Secret '${client.k8sSecretName}' in namespace '${secretNamespace}'...`,
+      'info'
+    );
 
     await KubernetesHelper.ensureNamespace(secretNamespace, this.spinner);
 
@@ -401,7 +464,15 @@ export class KeycloakFeature extends Feature {
   }
 
   async kcApi(method, url, token, body) {
-    const args = ['-sSfk', '-X', method, '-H', `Authorization: Bearer ${token}`, '-H', 'Content-Type: application/json'];
+    const args = [
+      '-sSfk',
+      '-X',
+      method,
+      '-H',
+      `Authorization: Bearer ${token}`,
+      '-H',
+      'Content-Type: application/json',
+    ];
     if (body) args.push('-d', JSON.stringify(body));
     args.push(url);
     return CommandRunner.run('curl', args, { ignoreError: true });
@@ -412,18 +483,28 @@ export class KeycloakFeature extends Feature {
 
     for (let i = 0; i < 30; i++) {
       try {
-        const result = await CommandRunner.run('curl', [
-          '-sSfk', '-X', 'POST',
-          `${baseUrl}/realms/master/protocol/openid-connect/token`,
-          '-H', 'Content-Type: application/x-www-form-urlencoded',
-          '-d', 'username=admin&password=admin&grant_type=password&client_id=admin-cli',
-        ], { ignoreError: true });
+        const result = await CommandRunner.run(
+          'curl',
+          [
+            '-sSfk',
+            '-X',
+            'POST',
+            `${baseUrl}/realms/master/protocol/openid-connect/token`,
+            '-H',
+            'Content-Type: application/x-www-form-urlencoded',
+            '-d',
+            'username=admin&password=admin&grant_type=password&client_id=admin-cli',
+          ],
+          { ignoreError: true }
+        );
 
         if (result.stdout) {
           const parsed = JSON.parse(result.stdout);
           if (parsed.access_token) return parsed.access_token;
         }
-      } catch { /* not ready yet */ }
+      } catch {
+        /* not ready yet */
+      }
       await new Promise(r => setTimeout(r, 5000));
     }
     throw new Error('Failed to obtain Keycloak admin token');
@@ -510,29 +591,43 @@ export class KeycloakFeature extends Feature {
   }
 
   async registerClient(baseUrl, token, payload) {
-    return CommandRunner.run('curl', [
-      '-sSik', '-X', 'POST',
-      '-H', `Authorization: Bearer ${token}`,
-      '-H', 'Content-Type: application/json',
-      '-d', JSON.stringify(payload),
-      `${baseUrl}/admin/realms/${this.realm}/clients`,
-    ], { ignoreError: true });
+    return CommandRunner.run(
+      'curl',
+      [
+        '-sSik',
+        '-X',
+        'POST',
+        '-H',
+        `Authorization: Bearer ${token}`,
+        '-H',
+        'Content-Type: application/json',
+        '-d',
+        JSON.stringify(payload),
+        `${baseUrl}/admin/realms/${this.realm}/clients`,
+      ],
+      { ignoreError: true }
+    );
   }
 
   async addGroupMapper(baseUrl, token, clientInternalId) {
     this.log('Adding group attribute mapper...', 'info');
-    await this.kcApi('POST', `${baseUrl}/admin/realms/${this.realm}/clients/${clientInternalId}/protocol-mappers/models`, token, {
-      name: 'group',
-      protocol: 'openid-connect',
-      protocolMapper: 'oidc-usermodel-attribute-mapper',
-      config: {
-        'claim.name': 'group',
-        'jsonType.label': 'String',
-        'user.attribute': 'group',
-        'id.token.claim': 'true',
-        'access.token.claim': 'true',
-      },
-    });
+    await this.kcApi(
+      'POST',
+      `${baseUrl}/admin/realms/${this.realm}/clients/${clientInternalId}/protocol-mappers/models`,
+      token,
+      {
+        name: 'group',
+        protocol: 'openid-connect',
+        protocolMapper: 'oidc-usermodel-attribute-mapper',
+        config: {
+          'claim.name': 'group',
+          'jsonType.label': 'String',
+          'user.attribute': 'group',
+          'id.token.claim': 'true',
+          'access.token.claim': 'true',
+        },
+      }
+    );
   }
 
   extractIdFromLocation(stdout) {
@@ -543,20 +638,40 @@ export class KeycloakFeature extends Feature {
 
   async lookupClientId(baseUrl, token, clientId) {
     try {
-      const result = await CommandRunner.run('curl', [
-        '-sSfk', '-H', `Authorization: Bearer ${token}`,
-        `${baseUrl}/admin/realms/${this.realm}/clients?clientId=${clientId}`,
-      ], { ignoreError: true });
+      const result = await CommandRunner.run(
+        'curl',
+        [
+          '-sSfk',
+          '-H',
+          `Authorization: Bearer ${token}`,
+          `${baseUrl}/admin/realms/${this.realm}/clients?clientId=${clientId}`,
+        ],
+        { ignoreError: true }
+      );
       if (result.stdout) return JSON.parse(result.stdout)[0]?.id || null;
-    } catch { /* fallthrough */ }
+    } catch {
+      /* fallthrough */
+    }
     return null;
   }
 
   async createUsers(baseUrl, token) {
     this.log('Creating users...', 'info');
     const users = [
-      { username: 'user1', email: 'user1@solo.io', firstName: 'Joe', lastName: 'Blogg', attributes: { group: 'users' } },
-      { username: 'user2', email: 'user2@solo.io', firstName: 'Bob', lastName: 'Doe', attributes: { group: 'users' } },
+      {
+        username: 'user1',
+        email: 'user1@solo.io',
+        firstName: 'Joe',
+        lastName: 'Blogg',
+        attributes: { group: 'users' },
+      },
+      {
+        username: 'user2',
+        email: 'user2@solo.io',
+        firstName: 'Bob',
+        lastName: 'Doe',
+        attributes: { group: 'users' },
+      },
     ];
     for (const u of users) {
       await this.kcApi('POST', `${baseUrl}/admin/realms/${this.realm}/users`, token, {
@@ -604,7 +719,10 @@ export class KeycloakFeature extends Feature {
     try {
       token = await this.getAdminToken(baseUrl);
     } catch (error) {
-      this.log(`Could not obtain admin token for workload client cleanup: ${error.message}`, 'warn');
+      this.log(
+        `Could not obtain admin token for workload client cleanup: ${error.message}`,
+        'warn'
+      );
       return;
     }
 
@@ -622,7 +740,11 @@ export class KeycloakFeature extends Feature {
 
       if (client.configureTokenExchange && !k8sIdpRemoved) {
         try {
-          await this.kcApi('DELETE', `${baseUrl}/admin/realms/${this.realm}/identity-provider/instances/kubernetes`, token);
+          await this.kcApi(
+            'DELETE',
+            `${baseUrl}/admin/realms/${this.realm}/identity-provider/instances/kubernetes`,
+            token
+          );
           this.log('Kubernetes IdP removed', 'info');
           k8sIdpRemoved = true;
         } catch (error) {

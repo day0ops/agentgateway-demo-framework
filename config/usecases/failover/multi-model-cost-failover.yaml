@@ -38,8 +38,8 @@ spec:
                 routes:
                   /v1/messages: messages
                   /count_tokens: anthropicTokenCount
-                  ":rawPredict": messages
-                  ":streamRawPredict": messages
+                  ':rawPredict': messages
+                  ':streamRawPredict': messages
 
           # Priority 50 - Premium models (fallback only)
           - name: vertex-ai
@@ -55,8 +55,8 @@ spec:
                 routes:
                   /v1/messages: messages
                   /count_tokens: anthropicTokenCount
-                  ":rawPredict": messages
-                  ":streamRawPredict": messages
+                  ':rawPredict': messages
+                  ':streamRawPredict': messages
 
   tests:
     - name: test-cheaper-models-first
@@ -64,7 +64,7 @@ spec:
       steps:
         - action: send-request
           endpoint: /model
-          prompt: "What is machine learning?"
+          prompt: 'What is machine learning?'
         - action: verify
           expect:
             status: success
@@ -77,7 +77,7 @@ spec:
       steps:
         - action: send-request
           endpoint: /model
-          prompt: "Explain AI in simple terms"
+          prompt: 'Explain AI in simple terms'
         - action: verify
           expect:
             status: success
@@ -90,7 +90,7 @@ spec:
       steps:
         - action: send-request
           endpoint: /model
-          prompt: "Hello, how are you?"
+          prompt: 'Hello, how are you?'
         - action: verify
           expect:
             status: success

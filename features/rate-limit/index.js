@@ -33,7 +33,11 @@ import { Feature, FeatureManager } from '../../src/lib/feature.js';
 export class RateLimitFeature extends Feature {
   validate() {
     const { mode = 'global', requestsPerUnit, tokens } = this.config;
-    if (mode === 'global' && requestsPerUnit !== undefined && (typeof requestsPerUnit !== 'number' || requestsPerUnit < 1)) {
+    if (
+      mode === 'global' &&
+      requestsPerUnit !== undefined &&
+      (typeof requestsPerUnit !== 'number' || requestsPerUnit < 1)
+    ) {
       throw new Error('requestsPerUnit must be a positive integer');
     }
     if (mode === 'local' && tokens !== undefined && (typeof tokens !== 'number' || tokens < 1)) {
@@ -90,9 +94,7 @@ export class RateLimitFeature extends Feature {
           ],
           rateLimits: [
             {
-              actions: [
-                { genericKey: { descriptorValue } },
-              ],
+              actions: [{ genericKey: { descriptorValue } }],
               type,
             },
           ],
@@ -115,9 +117,7 @@ export class RateLimitFeature extends Feature {
         traffic: {
           entRateLimit: {
             global: {
-              rateLimitConfigRefs: [
-                { name: this.rateLimitName },
-              ],
+              rateLimitConfigRefs: [{ name: this.rateLimitName }],
             },
           },
         },
@@ -128,11 +128,7 @@ export class RateLimitFeature extends Feature {
   }
 
   async deployLocal() {
-    const {
-      tokens = 5,
-      burst = 0,
-      unit = 'MINUTE',
-    } = this.config;
+    const { tokens = 5, burst = 0, unit = 'MINUTE' } = this.config;
 
     const gatewayRef = FeatureManager.getGatewayRef();
     const gatewayName = this.config.gatewayName || gatewayRef.name;

@@ -51,6 +51,7 @@ This use case illustrates **delegation**: the agent forwards the caller's Keyclo
 For simple tool-agent scenarios this is appropriate. The caller authorized the request; the agent is just a smart intermediary. See [Christian Posta's blog](https://blog.christianposta.com/agent-identity-impersonation-or-delegation/) for a detailed discussion of when to use impersonation vs delegation.
 
 **Key property:** the agent stores **no long-lived credentials**. Its only runtime dependency is:
+
 - The incoming caller JWT (Authorization header)
 - Its auto-mounted K8s ServiceAccount token (available in every pod by default)
 
@@ -64,13 +65,13 @@ The agent is the stock ADK agent (`extras/stock-agent/`) using `ADKTokenPropagat
 
 ## Steps
 
-| # | Feature | What it creates |
-|---|---------|----------------|
-| 1 | `providers` | LLM provider at `/openai` (agent calls this for OpenAI model) |
-| 2 | `mcp-server` | MCP stock server Deployment + Service + AgentgatewayBackend + HTTPRoute at `/mcp` |
-| 3 | `token-exchange` | Optional. Enables AGW STS (port 7777); this flow uses Keycloak JWKS on /mcp. |
-| 4 | `obo-token-exchange` | `EnterpriseAgentgatewayPolicy` — JWT auth on `/mcp` route (Keycloak issuer/JWKS) |
-| 5 | `agent` | ServiceAccount + Deployment + Service + HTTPRoute at `/agent` (image: stock-agent:latest) |
+| #   | Feature              | What it creates                                                                           |
+| --- | -------------------- | ----------------------------------------------------------------------------------------- |
+| 1   | `providers`          | LLM provider at `/openai` (agent calls this for OpenAI model)                             |
+| 2   | `mcp-server`         | MCP stock server Deployment + Service + AgentgatewayBackend + HTTPRoute at `/mcp`         |
+| 3   | `token-exchange`     | Optional. Enables AGW STS (port 7777); this flow uses Keycloak JWKS on /mcp.              |
+| 4   | `obo-token-exchange` | `EnterpriseAgentgatewayPolicy` — JWT auth on `/mcp` route (Keycloak issuer/JWKS)          |
+| 5   | `agent`              | ServiceAccount + Deployment + Service + HTTPRoute at `/agent` (image: stock-agent:latest) |
 
 ## Running
 

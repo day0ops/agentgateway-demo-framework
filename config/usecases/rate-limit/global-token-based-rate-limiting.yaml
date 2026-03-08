@@ -58,7 +58,7 @@ spec:
       steps:
         - action: send-request
           endpoint: /openai
-          prompt: "What is your favorite poem?"
+          prompt: 'What is your favorite poem?'
         - action: verify
           expect:
             status: success
@@ -68,13 +68,13 @@ spec:
       steps:
         - action: send-request
           endpoint: /openai
-          prompt: "What is your favorite poem?"
+          prompt: 'What is your favorite poem?'
         - action: send-request
           endpoint: /openai
-          prompt: "What is your favorite poem?"
+          prompt: 'What is your favorite poem?'
         - action: send-request
           endpoint: /openai
-          prompt: "What is your favorite poem?"
+          prompt: 'What is your favorite poem?'
         - action: verify
           expect:
             statusCode: 429

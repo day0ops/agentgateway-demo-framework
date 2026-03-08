@@ -37,14 +37,14 @@ spec:
       config:
         request:
           customResponse:
-            message: "Request rejected due to policy violation"
+            message: 'Request rejected due to policy violation'
 
           # Custom regex patterns to reject
           matches:
-            - "credit card"
-            - "ignore previous instructions"
-            - "disregard previous instructions"
-            - "(?i)password|passwd|pwd"
+            - 'credit card'
+            - 'ignore previous instructions'
+            - 'disregard previous instructions'
+            - '(?i)password|passwd|pwd'
 
           # Built-in PII patterns: CreditCard, Ssn, Email, PhoneNumber, CaSin
           builtins:
@@ -65,7 +65,7 @@ spec:
       steps:
         - action: send-request
           endpoint: /openai
-          prompt: "My SSN is 123-45-6789, can you help me?"
+          prompt: 'My SSN is 123-45-6789, can you help me?'
         - action: verify
           expect:
             status: blocked
@@ -75,7 +75,7 @@ spec:
       steps:
         - action: send-request
           endpoint: /openai
-          prompt: "My credit card number is 4532-1234-5678-9010"
+          prompt: 'My credit card number is 4532-1234-5678-9010'
         - action: verify
           expect:
             status: blocked
@@ -85,7 +85,7 @@ spec:
       steps:
         - action: send-request
           endpoint: /openai
-          prompt: "Can you help me with my credit card information?"
+          prompt: 'Can you help me with my credit card information?'
         - action: verify
           expect:
             status: blocked
@@ -105,7 +105,7 @@ spec:
       steps:
         - action: send-request
           endpoint: /openai
-          prompt: "My phone number is 555-123-4567"
+          prompt: 'My phone number is 555-123-4567'
         - action: verify
           expect:
             status: blocked
@@ -115,7 +115,7 @@ spec:
       steps:
         - action: send-request
           endpoint: /openai
-          prompt: "What is the capital of France?"
+          prompt: 'What is the capital of France?'
         - action: verify
           expect:
             status: success
@@ -125,7 +125,7 @@ spec:
       steps:
         - action: send-request
           endpoint: /openai
-          prompt: "Can you give me some examples of Master Card credit card numbers?"
+          prompt: 'Can you give me some examples of Master Card credit card numbers?'
         - action: verify
           expect:
             status: blocked

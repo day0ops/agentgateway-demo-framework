@@ -29,7 +29,9 @@ interface GatewayStatusResponse {
 
 export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   const { config } = useConfig();
-  const [connectionStatus, setConnectionStatus] = useState<'online' | 'offline' | 'pending'>('pending');
+  const [connectionStatus, setConnectionStatus] = useState<'online' | 'offline' | 'pending'>(
+    'pending'
+  );
   const currentUrlRef = useRef(config.agentgatewayUrl);
 
   useEffect(() => {

@@ -45,7 +45,7 @@ historyRouter.post('/', (req: Request, res: Response) => {
 // Delete a single history entry
 historyRouter.delete('/:id', (req: Request, res: Response) => {
   const { id } = req.params;
-  const index = history.findIndex((h) => h.id === id);
+  const index = history.findIndex(h => h.id === id);
 
   if (index === -1) {
     res.status(404).json({ error: { message: 'History entry not found' } });

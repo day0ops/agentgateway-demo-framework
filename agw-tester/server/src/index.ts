@@ -52,7 +52,7 @@ app.post('/api/gateway/status', async (req, res) => {
   res.json({
     connected: false,
     url: gatewayUrl,
-    message: `Could not reach ${gatewayUrl} on any health endpoint`
+    message: `Could not reach ${gatewayUrl} on any health endpoint`,
   });
 });
 

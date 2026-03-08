@@ -21,10 +21,7 @@ function boxLine(content) {
 }
 
 function sanitizeMermaidLabel(s) {
-  return String(s)
-    .replace(/"/g, "'")
-    .replace(/[<>]/g, '')
-    .replace(/\n/g, ' ');
+  return String(s).replace(/"/g, "'").replace(/[<>]/g, '').replace(/\n/g, ' ');
 }
 
 /**
@@ -40,7 +37,7 @@ export function generateMermaidForUseCase(metadata, spec, steps) {
   const lines = ['flowchart LR'];
   for (let i = 0; i < steps.length; i++) {
     const step = steps[i];
-    const featureNames = (step.features || []).map((f) => f.name).filter(Boolean);
+    const featureNames = (step.features || []).map(f => f.name).filter(Boolean);
     const title = sanitizeMermaidLabel(step.title || 'Step');
     const featSuffix = featureNames.length ? ` - ${featureNames.join(', ')}` : '';
     const label = sanitizeMermaidLabel(`${i + 1}) ${title}${featSuffix}`);
@@ -77,9 +74,13 @@ export async function showUseCaseOverview(metadata, spec, steps, mermaidText) {
   const bot = '└' + '─'.repeat(BOX_INNER_WIDTH) + '┘';
 
   console.log('');
-  console.log(CYAN(BOLD('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')));
+  console.log(
+    CYAN(BOLD('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'))
+  );
   console.log(CYAN(BOLD(`  Use case: ${metadata.name || 'Unnamed'}`)));
-  console.log(CYAN(BOLD('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')));
+  console.log(
+    CYAN(BOLD('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'))
+  );
   console.log('');
 
   if (metadata.description) {
@@ -91,7 +92,7 @@ export async function showUseCaseOverview(metadata, spec, steps, mermaidText) {
     console.log(DIM('  Steps:'));
     for (let i = 0; i < steps.length; i++) {
       const s = steps[i];
-      const featureList = (s.features || []).map((f) => f.name).filter(Boolean);
+      const featureList = (s.features || []).map(f => f.name).filter(Boolean);
       const suffix = featureList.length ? `  [${featureList.join(', ')}]` : '';
       console.log(DIM(`    ${i + 1}. ${s.title}${suffix}`));
     }
@@ -104,7 +105,7 @@ export async function showUseCaseOverview(metadata, spec, steps, mermaidText) {
     console.log(DIM(asciiDiagram));
     console.log('');
   } else if (steps.length > 0) {
-    const featureList = [...new Set(steps.flatMap((s) => s.features.map((f) => f.name)))].join(', ');
+    const featureList = [...new Set(steps.flatMap(s => s.features.map(f => f.name)))].join(', ');
     console.log(DIM(top));
     console.log(DIM(boxLine('  Features: ' + featureList)));
     console.log(DIM(bot));
@@ -121,9 +122,13 @@ export async function showUseCaseOverview(metadata, spec, steps, mermaidText) {
  */
 export function showStepHeader(stepIndex, totalSteps, title, description) {
   console.log('');
-  console.log(YELLOW(BOLD('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')));
+  console.log(
+    YELLOW(BOLD('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'))
+  );
   console.log(YELLOW(BOLD(`  Step ${stepIndex} of ${totalSteps}: ${title}`)));
-  console.log(YELLOW(BOLD('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')));
+  console.log(
+    YELLOW(BOLD('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'))
+  );
   console.log('');
   if (description) {
     console.log(WHITE(formatDescription(description, '')));

@@ -18,7 +18,13 @@ interface ProxyMCPRequest {
 
 // Proxy LLM requests to agentgateway
 proxyRouter.post('/llm', async (req: Request, res: Response) => {
-  const { endpoint, method, headers, body, agentgatewayUrl: clientUrl } = req.body as ProxyLLMRequest;
+  const {
+    endpoint,
+    method,
+    headers,
+    body,
+    agentgatewayUrl: clientUrl,
+  } = req.body as ProxyLLMRequest;
   const agentgatewayUrl = clientUrl || req.app.locals.config.agentgatewayUrl;
 
   if (!endpoint) {
@@ -107,7 +113,8 @@ proxyRouter.post('/mcp', async (req: Request, res: Response) => {
         elicitation: {
           id: responseBody.elicitation?.id || responseBody.error?.data?.elicitation_id,
           status: 'PENDING',
-          elicitationUrl: responseBody.elicitation?.url || responseBody.error?.data?.elicitation_url,
+          elicitationUrl:
+            responseBody.elicitation?.url || responseBody.error?.data?.elicitation_url,
           createdAt: new Date().toISOString(),
         },
         response: responseBody,

@@ -1,8 +1,8 @@
 .PHONY: help install start stop status clean clean-usecases clean-addons clean-infra test lint format deploy-usecase dryrun-usecase \
-	build-extras build-stock-server-mcp build-currency-server-mcp build-random-server-mcp build-guardrail-webhook build-stock-agent build-caller-agent build-budget-limiter \
-	push-extras push-stock-server-mcp push-currency-server-mcp push-random-server-mcp push-guardrail-webhook push-stock-agent push-caller-agent push-budget-limiter \
-	deploy-stock-server-mcp deploy-currency-server-mcp deploy-random-server-mcp deploy-guardrail-webhook deploy-stock-agent deploy-caller-agent deploy-budget-limiter \
-	undeploy-stock-server-mcp undeploy-currency-server-mcp undeploy-random-server-mcp undeploy-guardrail-webhook undeploy-stock-agent undeploy-caller-agent undeploy-budget-limiter
+	build-extras build-stock-server-mcp build-currency-server-mcp build-random-server-mcp build-guardrail-webhook build-stock-agent build-caller-agent build-budget-management \
+	push-extras push-stock-server-mcp push-currency-server-mcp push-random-server-mcp push-guardrail-webhook push-stock-agent push-caller-agent push-budget-management \
+	deploy-stock-server-mcp deploy-currency-server-mcp deploy-random-server-mcp deploy-guardrail-webhook deploy-stock-agent deploy-caller-agent deploy-budget-management \
+	undeploy-stock-server-mcp undeploy-currency-server-mcp undeploy-random-server-mcp undeploy-guardrail-webhook undeploy-stock-agent undeploy-caller-agent undeploy-budget-management
 .DEFAULT_GOAL := help
 
 BLUE := \033[0;34m
@@ -174,7 +174,7 @@ build-extras: ## Build all extras images
 	@$(MAKE) -C extras/guardrail-webhook build
 	@$(MAKE) -C extras/stock-agent build
 	@$(MAKE) -C extras/caller-agent build
-	@$(MAKE) -C extras/budget-limiter docker-build
+	@$(MAKE) -C extras/budget-management docker-build
 
 build-stock-server-mcp: ## Build the stock MCP server image
 	@$(MAKE) -C extras/stock-server-mcp build
@@ -194,8 +194,8 @@ build-stock-agent: ## Build the stock agent image
 build-caller-agent: ## Build the caller agent image
 	@$(MAKE) -C extras/caller-agent build
 
-build-budget-limiter: ## Build the budget limiter image
-	@$(MAKE) -C extras/budget-limiter docker-build
+build-budget-management: ## Build the budget management image
+	@$(MAKE) -C extras/budget-management docker-build
 
 push-extras: ## Push all extras images (multi-arch)
 	@echo "$(BLUE)Pushing all extras...$(NC)"
@@ -205,7 +205,7 @@ push-extras: ## Push all extras images (multi-arch)
 	@$(MAKE) -C extras/guardrail-webhook push
 	@$(MAKE) -C extras/stock-agent push
 	@$(MAKE) -C extras/caller-agent push
-	@$(MAKE) -C extras/budget-limiter docker-push
+	@$(MAKE) -C extras/budget-management docker-push
 
 push-stock-server-mcp: ## Push the stock MCP server image (multi-arch)
 	@$(MAKE) -C extras/stock-server-mcp push
@@ -225,8 +225,8 @@ push-stock-agent: ## Push the stock agent image (multi-arch)
 push-caller-agent: ## Push the caller agent image (multi-arch)
 	@$(MAKE) -C extras/caller-agent push
 
-push-budget-limiter: ## Push the budget limiter image (multi-arch)
-	@$(MAKE) -C extras/budget-limiter docker-push
+push-budget-management: ## Push the budget management image (multi-arch)
+	@$(MAKE) -C extras/budget-management docker-push
 
 deploy-stock-server-mcp: ## Deploy the stock MCP server to K8s
 	@$(MAKE) -C extras/stock-server-mcp deploy
@@ -246,8 +246,8 @@ deploy-stock-agent: ## Deploy the stock agent to K8s
 deploy-caller-agent: ## Deploy the caller agent to K8s
 	@$(MAKE) -C extras/caller-agent deploy
 
-deploy-budget-limiter: ## Deploy the budget limiter to K8s
-	@$(MAKE) -C extras/budget-limiter deploy
+deploy-budget-management: ## Deploy the budget management to K8s
+	@$(MAKE) -C extras/budget-management deploy
 
 undeploy-stock-server-mcp: ## Remove the stock MCP server from K8s
 	@$(MAKE) -C extras/stock-server-mcp undeploy
@@ -267,8 +267,8 @@ undeploy-stock-agent: ## Remove the stock agent from K8s
 undeploy-caller-agent: ## Remove the caller agent from K8s
 	@$(MAKE) -C extras/caller-agent undeploy
 
-undeploy-budget-limiter: ## Remove the budget limiter from K8s
-	@$(MAKE) -C extras/budget-limiter undeploy
+undeploy-budget-management: ## Remove the budget management from K8s
+	@$(MAKE) -C extras/budget-management undeploy
 
 ##@ Utilities
 

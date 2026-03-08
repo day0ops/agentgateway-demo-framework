@@ -144,7 +144,11 @@ export class TelemetryFeature extends Feature {
 
     // Delete PodMonitors and ServiceMonitors
     await this.deleteResource('PodMonitor', 'agentgateway-metrics', this.telemetryNamespace);
-    await this.deleteResource('PodMonitor', 'agentgateway-control-plane-metrics', this.telemetryNamespace);
+    await this.deleteResource(
+      'PodMonitor',
+      'agentgateway-control-plane-metrics',
+      this.telemetryNamespace
+    );
     await this.deleteResource('ServiceMonitor', 'kubelet', this.telemetryNamespace);
 
     // Delete ReferenceGrants
@@ -157,7 +161,7 @@ export class TelemetryFeature extends Feature {
       'agentgateway-cost',
       'agentgateway-budget-enforcement',
       'agentgateway-performance',
-      'agentgateway-control-plane'
+      'agentgateway-control-plane',
     ];
     for (const name of dashboardNames) {
       await this.deleteResource('ConfigMap', `dashboard-${name}`, this.telemetryNamespace);
@@ -168,10 +172,9 @@ export class TelemetryFeature extends Feature {
 
     for (const release of releases) {
       try {
-        await CommandRunner.run('helm', [
-          'uninstall', release,
-          '-n', this.telemetryNamespace
-        ], { ignoreError: true });
+        await CommandRunner.run('helm', ['uninstall', release, '-n', this.telemetryNamespace], {
+          ignoreError: true,
+        });
       } catch (_error) {
         // Ignore errors - release may not exist
       }
@@ -187,19 +190,27 @@ export class TelemetryFeature extends Feature {
     this.log('Installing Grafana Tempo...', 'info');
 
     try {
-      await CommandRunner.run('helm', ['repo', 'add', 'grafana',
-        'https://grafana.github.io/helm-charts'], { ignoreError: true });
+      await CommandRunner.run(
+        'helm',
+        ['repo', 'add', 'grafana', 'https://grafana.github.io/helm-charts'],
+        { ignoreError: true }
+      );
       await CommandRunner.run('helm', ['repo', 'update', 'grafana'], { ignoreError: true });
     } catch (_error) {
       // Repo might already exist
     }
 
     const helmArgs = [
-      'upgrade', '-i', 'tempo',
+      'upgrade',
+      '-i',
+      'tempo',
       'grafana/tempo-distributed',
-      '-n', this.telemetryNamespace,
-      '--version', TEMPO_DISTRIBUTED_VERSION,
-      '-f', join(CONFIG_DIR, 'tempo-values.yaml'),
+      '-n',
+      this.telemetryNamespace,
+      '--version',
+      TEMPO_DISTRIBUTED_VERSION,
+      '-f',
+      join(CONFIG_DIR, 'tempo-values.yaml'),
       '--create-namespace',
       '--wait',
     ];
@@ -217,23 +228,33 @@ export class TelemetryFeature extends Feature {
     this.log('Installing Grafana Loki...', 'info');
 
     try {
-      await CommandRunner.run('helm', ['repo', 'add', 'grafana',
-        'https://grafana.github.io/helm-charts'], { ignoreError: true });
+      await CommandRunner.run(
+        'helm',
+        ['repo', 'add', 'grafana', 'https://grafana.github.io/helm-charts'],
+        { ignoreError: true }
+      );
       await CommandRunner.run('helm', ['repo', 'update', 'grafana'], { ignoreError: true });
     } catch (_error) {
       // Repo might already exist
     }
 
     const helmArgs = [
-      'upgrade', '-i', 'loki',
+      'upgrade',
+      '-i',
+      'loki',
       'grafana/loki',
-      '-n', this.telemetryNamespace,
-      '--version', LOKI_VERSION,
-      '-f', join(CONFIG_DIR, 'loki-values.yaml'),
+      '-n',
+      this.telemetryNamespace,
+      '--version',
+      LOKI_VERSION,
+      '-f',
+      join(CONFIG_DIR, 'loki-values.yaml'),
       '--create-namespace',
       '--wait',
-      '--set', `loki.limits_config.retention_period=${this.retention}`,
-      '--set', `loki.limits_config.reject_old_samples_max_age=${this.retention}`,
+      '--set',
+      `loki.limits_config.retention_period=${this.retention}`,
+      '--set',
+      `loki.limits_config.reject_old_samples_max_age=${this.retention}`,
       ...this.buildNodeSelectorArgs('singleBinary'),
     ];
     await KubernetesHelper.helm(helmArgs);
@@ -248,11 +269,16 @@ export class TelemetryFeature extends Feature {
     this.log('Installing Grafana Alloy for log collection...', 'info');
 
     const helmArgs = [
-      'upgrade', '-i', 'alloy',
+      'upgrade',
+      '-i',
+      'alloy',
       'grafana/alloy',
-      '-n', this.telemetryNamespace,
-      '--version', ALLOY_VERSION,
-      '-f', join(CONFIG_DIR, 'alloy-values.yaml'),
+      '-n',
+      this.telemetryNamespace,
+      '--version',
+      ALLOY_VERSION,
+      '-f',
+      join(CONFIG_DIR, 'alloy-values.yaml'),
       '--create-namespace',
       '--wait',
     ];
@@ -268,23 +294,40 @@ export class TelemetryFeature extends Feature {
     this.log('Installing Prometheus and Grafana...', 'info');
 
     try {
-      await CommandRunner.run('helm', ['repo', 'add', 'prometheus-community',
-        'https://prometheus-community.github.io/helm-charts'], { ignoreError: true });
-      await CommandRunner.run('helm', ['repo', 'update', 'prometheus-community'], { ignoreError: true });
+      await CommandRunner.run(
+        'helm',
+        [
+          'repo',
+          'add',
+          'prometheus-community',
+          'https://prometheus-community.github.io/helm-charts',
+        ],
+        { ignoreError: true }
+      );
+      await CommandRunner.run('helm', ['repo', 'update', 'prometheus-community'], {
+        ignoreError: true,
+      });
     } catch (_error) {
       // Repo might already exist
     }
 
     const helmArgs = [
-      'upgrade', '-i', 'kube-prometheus-stack',
+      'upgrade',
+      '-i',
+      'kube-prometheus-stack',
       'prometheus-community/kube-prometheus-stack',
-      '-n', this.telemetryNamespace,
-      '--version', PROMETHEUS_STACK_VERSION,
-      '-f', join(CONFIG_DIR, 'prometheus-values.yaml'),
+      '-n',
+      this.telemetryNamespace,
+      '--version',
+      PROMETHEUS_STACK_VERSION,
+      '-f',
+      join(CONFIG_DIR, 'prometheus-values.yaml'),
       '--create-namespace',
       '--wait',
-      '--set', `prometheus.prometheusSpec.retention=${this.retention}`,
-      '--set', `grafana.service.type=${this.grafanaServiceType}`,
+      '--set',
+      `prometheus.prometheusSpec.retention=${this.retention}`,
+      '--set',
+      `grafana.service.type=${this.grafanaServiceType}`,
       ...this.buildNodeSelectorArgs('prometheus.prometheusSpec'),
       ...this.buildNodeSelectorArgs('grafana'),
     ];
@@ -317,7 +360,7 @@ export class TelemetryFeature extends Feature {
             name: `dashboard-${name}`,
             namespace: this.telemetryNamespace,
             labels: {
-              'grafana_dashboard': '1',
+              grafana_dashboard: '1',
               'app.kubernetes.io/managed-by': 'agentgateway-demo',
             },
           },
@@ -353,13 +396,17 @@ export class TelemetryFeature extends Feature {
     this.log(`Waiting for statefulset ${name} to be ready...`, 'info');
 
     try {
-      await KubernetesHelper.kubectl([
-        'wait',
-        '--for=condition=ready',
-        `statefulset/${name}`,
-        '-n', this.telemetryNamespace,
-        `--timeout=${timeout}s`
-      ], { spinner: this.spinner });
+      await KubernetesHelper.kubectl(
+        [
+          'wait',
+          '--for=condition=ready',
+          `statefulset/${name}`,
+          '-n',
+          this.telemetryNamespace,
+          `--timeout=${timeout}s`,
+        ],
+        { spinner: this.spinner }
+      );
     } catch (_error) {
       this.log(`StatefulSet ${name} may take longer to be ready`, 'warn');
     }
@@ -369,12 +416,17 @@ export class TelemetryFeature extends Feature {
     this.log(`Waiting for daemonset ${name} to be ready...`, 'info');
 
     try {
-      await KubernetesHelper.kubectl([
-        'rollout', 'status',
-        `daemonset/${name}`,
-        '-n', this.telemetryNamespace,
-        `--timeout=${timeout}s`
-      ], { spinner: this.spinner });
+      await KubernetesHelper.kubectl(
+        [
+          'rollout',
+          'status',
+          `daemonset/${name}`,
+          '-n',
+          this.telemetryNamespace,
+          `--timeout=${timeout}s`,
+        ],
+        { spinner: this.spinner }
+      );
     } catch (_error) {
       this.log(`DaemonSet ${name} may take longer to be ready`, 'warn');
     }

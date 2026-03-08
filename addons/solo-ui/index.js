@@ -10,7 +10,8 @@ const CONFIG_DIR = join(__dirname, 'config');
 // Solo Enterprise Management (Solo UI) Helm chart version
 // Ref: https://docs.solo.io/agentgateway/2.1.x/install/ui/setup/#install-the-ui
 const SOLO_UI_MANAGEMENT_CHART_VERSION = '0.3.3';
-const SOLO_UI_MANAGEMENT_CHART_OCI = 'oci://us-docker.pkg.dev/solo-public/solo-enterprise-helm/charts/management';
+const SOLO_UI_MANAGEMENT_CHART_OCI =
+  'oci://us-docker.pkg.dev/solo-public/solo-enterprise-helm/charts/management';
 const RELEASE_NAME = 'solo-ui';
 
 /**
@@ -77,7 +78,12 @@ export class SoloUIFeature extends Feature {
     await this.applyYamlFile('tracing-policy.yaml');
     await this.applyYamlFile('reference-grant-traces.yaml');
 
-    this.log('Solo UI installed successfully. Port-forward with: kubectl port-forward service/solo-enterprise-ui -n ' + this.namespace + ' 4000:80', 'success');
+    this.log(
+      'Solo UI installed successfully. Port-forward with: kubectl port-forward service/solo-enterprise-ui -n ' +
+        this.namespace +
+        ' 4000:80',
+      'success'
+    );
   }
 
   /**
@@ -89,14 +95,20 @@ export class SoloUIFeature extends Feature {
     const valuesFile = join(CONFIG_DIR, 'values.yaml');
 
     const helmArgs = [
-      'upgrade', '-i', RELEASE_NAME,
+      'upgrade',
+      '-i',
+      RELEASE_NAME,
       SOLO_UI_MANAGEMENT_CHART_OCI,
-      '-n', this.namespace,
-      '--version', this.chartVersion,
-      '-f', valuesFile,
+      '-n',
+      this.namespace,
+      '--version',
+      this.chartVersion,
+      '-f',
+      valuesFile,
       '--create-namespace',
       '--wait',
-      '--timeout', '10m',
+      '--timeout',
+      '10m',
       ...this.buildNodeSelectorArgs('ui'),
       ...this.buildNodeSelectorArgs('clickhouse'),
     ];
@@ -131,8 +143,10 @@ export class SoloUIFeature extends Feature {
           'wait',
           '--for=condition=ready',
           'pod',
-          '-l', 'app.kubernetes.io/name=clickhouse',
-          '-n', this.namespace,
+          '-l',
+          'app.kubernetes.io/name=clickhouse',
+          '-n',
+          this.namespace,
           '--timeout=300s',
         ],
         { ignoreError: true, spinner: this.spinner }
@@ -150,15 +164,21 @@ export class SoloUIFeature extends Feature {
     // Delete EnterpriseAgentgatewayPolicies and ReferenceGrants
     await this.deleteResource('EnterpriseAgentgatewayPolicy', 'logging-solo-ui', this.namespace);
     await this.deleteResource('EnterpriseAgentgatewayPolicy', 'tracing-solo-ui', this.namespace);
-    await this.deleteResource('ReferenceGrant', 'allow-otel-collector-logs-access-solo-ui', this.namespace);
-    await this.deleteResource('ReferenceGrant', 'allow-otel-collector-traces-access-solo-ui', this.namespace);
+    await this.deleteResource(
+      'ReferenceGrant',
+      'allow-otel-collector-logs-access-solo-ui',
+      this.namespace
+    );
+    await this.deleteResource(
+      'ReferenceGrant',
+      'allow-otel-collector-traces-access-solo-ui',
+      this.namespace
+    );
 
     try {
-      await CommandRunner.run('helm', [
-        'uninstall', RELEASE_NAME,
-        '-n', this.namespace,
-        '--wait',
-      ], { ignoreError: true });
+      await CommandRunner.run('helm', ['uninstall', RELEASE_NAME, '-n', this.namespace, '--wait'], {
+        ignoreError: true,
+      });
       this.log('Management Helm release uninstalled', 'info');
     } catch (error) {
       // Ignore

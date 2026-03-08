@@ -8,7 +8,8 @@ import yaml from 'js-yaml';
 const AGENTGATEWAY_NAMESPACE = process.env.AGENTGATEWAY_NAMESPACE || 'agentgateway-system';
 const AGENTGATEWAY_RELEASE = process.env.AGENTGATEWAY_RELEASE || 'enterprise-agentgateway';
 const AGENTGATEWAY_VERSION = process.env.AGENTGATEWAY_VERSION || '2.1.1';
-const AGENTGATEWAY_OCI_REGISTRY = 'oci://us-docker.pkg.dev/solo-public/enterprise-agentgateway/charts';
+const AGENTGATEWAY_OCI_REGISTRY =
+  'oci://us-docker.pkg.dev/solo-public/enterprise-agentgateway/charts';
 const ENTERPRISE_AGW_LICENSE_KEY = process.env.ENTERPRISE_AGW_LICENSE_KEY;
 
 /**
@@ -108,17 +109,26 @@ export class TokenExchangeFeature extends Feature {
 
     try {
       tempFile = join(tmpdir(), `agw-token-exchange-${Date.now()}.yaml`);
-      await writeFile(tempFile, yaml.dump(this.tokenExchangeValues, { lineWidth: -1, indent: 2 }), 'utf8');
+      await writeFile(
+        tempFile,
+        yaml.dump(this.tokenExchangeValues, { lineWidth: -1, indent: 2 }),
+        'utf8'
+      );
 
       const helmArgs = [
-        'upgrade', AGENTGATEWAY_RELEASE,
+        'upgrade',
+        AGENTGATEWAY_RELEASE,
         `${AGENTGATEWAY_OCI_REGISTRY}/enterprise-agentgateway`,
-        '--namespace', AGENTGATEWAY_NAMESPACE,
-        '--version', AGENTGATEWAY_VERSION,
+        '--namespace',
+        AGENTGATEWAY_NAMESPACE,
+        '--version',
+        AGENTGATEWAY_VERSION,
         '--reuse-values',
-        '-f', tempFile,
+        '-f',
+        tempFile,
         '--wait',
-        '--timeout', '5m',
+        '--timeout',
+        '5m',
       ];
 
       if (ENTERPRISE_AGW_LICENSE_KEY) {
@@ -130,7 +140,11 @@ export class TokenExchangeFeature extends Feature {
       this.log('STS token exchange enabled (port 7777)', 'success');
     } finally {
       if (tempFile) {
-        try { await unlink(tempFile); } catch { /* ignore */ }
+        try {
+          await unlink(tempFile);
+        } catch {
+          /* ignore */
+        }
       }
     }
   }
@@ -146,14 +160,19 @@ export class TokenExchangeFeature extends Feature {
       await writeFile(tempFile, yaml.dump(disableValues, { lineWidth: -1, indent: 2 }), 'utf8');
 
       const helmArgs = [
-        'upgrade', AGENTGATEWAY_RELEASE,
+        'upgrade',
+        AGENTGATEWAY_RELEASE,
         `${AGENTGATEWAY_OCI_REGISTRY}/enterprise-agentgateway`,
-        '--namespace', AGENTGATEWAY_NAMESPACE,
-        '--version', AGENTGATEWAY_VERSION,
+        '--namespace',
+        AGENTGATEWAY_NAMESPACE,
+        '--version',
+        AGENTGATEWAY_VERSION,
         '--reuse-values',
-        '-f', tempFile,
+        '-f',
+        tempFile,
         '--wait',
-        '--timeout', '5m',
+        '--timeout',
+        '5m',
       ];
 
       if (ENTERPRISE_AGW_LICENSE_KEY) {
@@ -167,7 +186,11 @@ export class TokenExchangeFeature extends Feature {
       this.log(`Failed to disable token exchange: ${error.message}`, 'warn');
     } finally {
       if (tempFile) {
-        try { await unlink(tempFile); } catch { /* ignore */ }
+        try {
+          await unlink(tempFile);
+        } catch {
+          /* ignore */
+        }
       }
     }
   }

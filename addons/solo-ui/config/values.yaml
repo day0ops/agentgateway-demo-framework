@@ -1,5 +1,5 @@
 # -- Cluster name
-cluster: "default"
+cluster: 'default'
 
 # -- Enable AgentGateway
 products:

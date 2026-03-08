@@ -184,7 +184,7 @@ spec:
       steps:
         - action: call-agent
           endpoint: /caller-agent
-          query: "What is the current stock price of AAPL?"
+          query: 'What is the current stock price of AAPL?'
           timeout: 90s
         - action: verify
           expect:

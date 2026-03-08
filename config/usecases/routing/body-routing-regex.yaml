@@ -50,7 +50,7 @@ spec:
         - action: send-request
           endpoint: /chat
           model: google/gemini-2.5-flash
-          prompt: "What is Kubernetes?"
+          prompt: 'What is Kubernetes?'
         - action: verify
           expect:
             status: success
@@ -61,7 +61,7 @@ spec:
         - action: send-request
           endpoint: /chat
           model: google/gemini-2.5-flash-lite
-          prompt: "What is Kubernetes?"
+          prompt: 'What is Kubernetes?'
         - action: verify
           expect:
             status: success
@@ -72,7 +72,7 @@ spec:
         - action: send-request
           endpoint: /chat
           model: llama3
-          prompt: "Say hello in one word."
+          prompt: 'Say hello in one word.'
         - action: verify
           expect:
             status: success
@@ -82,7 +82,7 @@ spec:
       steps:
         - action: send-request
           endpoint: /chat
-          prompt: "Hello"
+          prompt: 'Hello'
         - action: verify
           expect:
             status: success
@@ -93,7 +93,7 @@ spec:
         - action: send-request
           endpoint: /chat
           model: unknown-model-not-configured
-          prompt: "Hello"
+          prompt: 'Hello'
         - action: verify
           expect:
             statusCode: 404

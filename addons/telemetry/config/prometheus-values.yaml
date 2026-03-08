@@ -69,7 +69,7 @@ grafana:
         cpu: 50m
         memory: 100Mi
     env:
-      HTTP_HOST: "0.0.0.0"
+      HTTP_HOST: '0.0.0.0'
     # Use FQDN to avoid DNS resolution issues
     serverURL: http://kube-prometheus-stack-grafana-image-renderer.telemetry.svc.cluster.local:8081/render
     renderingCallbackURL: http://kube-prometheus-stack-grafana.telemetry.svc.cluster.local:80/
@@ -80,7 +80,7 @@ grafana:
     dashboards:
       enabled: true
       label: grafana_dashboard
-      labelValue: "1"
+      labelValue: '1'
       searchNamespace: ALL
     datasources:
       enabled: true

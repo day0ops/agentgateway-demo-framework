@@ -32,14 +32,14 @@ spec:
         # Prepend system instructions to every request
         prepend:
           - role: system
-            content: "Parse the unstructured text into CSV format."
+            content: 'Parse the unstructured text into CSV format.'
           - role: system
-            content: "Always include a header row with column names."
+            content: 'Always include a header row with column names.'
 
         # Optionally append additional context
         append:
           - role: system
-            content: "Ensure the CSV is properly formatted with commas as delimiters."
+            content: 'Ensure the CSV is properly formatted with commas as delimiters.'
 
   tests:
     - name: csv-parsing-with-enrichment
@@ -47,7 +47,7 @@ spec:
       steps:
         - action: send-request
           endpoint: /openai
-          prompt: "Seattle, Los Angeles, and Chicago are cities in North America. London, Paris, and Berlin are cities in Europe."
+          prompt: 'Seattle, Los Angeles, and Chicago are cities in North America. London, Paris, and Berlin are cities in Europe.'
         - action: verify
           expect:
             status: success
@@ -58,7 +58,7 @@ spec:
       steps:
         - action: send-request
           endpoint: /openai
-          prompt: "The recipe called for eggs, flour and sugar. The price was $5, $3, and $2."
+          prompt: 'The recipe called for eggs, flour and sugar. The price was $5, $3, and $2.'
         - action: verify
           expect:
             status: success

@@ -27,13 +27,13 @@ const TRACKING_NAMESPACE = process.env.AGENTGATEWAY_NAMESPACE || 'agentgateway-s
  * @returns {Promise<void>}
  */
 function waitForKey() {
-  return new Promise((resolve) => {
+  return new Promise(resolve => {
     const stdin = process.stdin;
     if (!stdin.isTTY) {
       resolve();
       return;
     }
-    const onData = (key) => {
+    const onData = key => {
       const k = Buffer.isBuffer(key) ? key.toString() : key;
       if (k === '\u0003') {
         stdin.removeListener('data', onData);
@@ -137,7 +137,7 @@ export class UseCaseManager {
       if (matches.length > 1) {
         throw new Error(
           `Ambiguous use case name '${name}'. Use category/name format. ` +
-          `Found in: ${matches.map(m => m.category || 'root').join(', ')}`
+            `Found in: ${matches.map(m => m.category || 'root').join(', ')}`
         );
       }
     }
@@ -195,10 +195,7 @@ export class UseCaseManager {
             })),
         }));
 
-      const selectedName = await Prompts.selectTree(
-        'Select use case to deploy:',
-        tree,
-      );
+      const selectedName = await Prompts.selectTree('Select use case to deploy:', tree);
 
       const usecase = usecases.find(u => u.name === selectedName);
 
@@ -247,11 +244,18 @@ export class UseCaseManager {
    */
   static async getCurrentUseCase() {
     try {
-      const result = await KubernetesHelper.kubectl([
-        'get', 'configmap', TRACKING_CONFIGMAP,
-        '-n', TRACKING_NAMESPACE,
-        '-o', 'jsonpath={.data.usecase}'
-      ], { ignoreError: true });
+      const result = await KubernetesHelper.kubectl(
+        [
+          'get',
+          'configmap',
+          TRACKING_CONFIGMAP,
+          '-n',
+          TRACKING_NAMESPACE,
+          '-o',
+          'jsonpath={.data.usecase}',
+        ],
+        { ignoreError: true }
+      );
 
       return result.stdout.trim() || null;
     } catch {
@@ -290,9 +294,12 @@ export class UseCaseManager {
   static async clearCurrentUseCase() {
     try {
       await KubernetesHelper.kubectl([
-        'delete', 'configmap', TRACKING_CONFIGMAP,
-        '-n', TRACKING_NAMESPACE,
-        '--ignore-not-found=true'
+        'delete',
+        'configmap',
+        TRACKING_CONFIGMAP,
+        '-n',
+        TRACKING_NAMESPACE,
+        '--ignore-not-found=true',
       ]);
     } catch {
       // Ignore errors
@@ -307,7 +314,7 @@ export class UseCaseManager {
    */
   static getSteps(spec) {
     if (spec.steps && Array.isArray(spec.steps) && spec.steps.length > 0) {
-      return spec.steps.map((s) => ({
+      return spec.steps.map(s => ({
         title: s.title || 'Step',
         description: s.description,
         features: s.features || [],
@@ -316,10 +323,10 @@ export class UseCaseManager {
     const features = spec.features || [];
     if (features.length === 0) return [];
 
-    const gatewayFeatures = features.filter((f) => f.name === 'gateway');
-    const rest = features.filter((f) => f.name !== 'gateway');
-    const providerFeatures = rest.filter((f) => f.name === 'providers');
-    const policyFeatures = rest.filter((f) => f.name !== 'providers');
+    const gatewayFeatures = features.filter(f => f.name === 'gateway');
+    const rest = features.filter(f => f.name !== 'gateway');
+    const providerFeatures = rest.filter(f => f.name === 'providers');
+    const policyFeatures = rest.filter(f => f.name !== 'providers');
 
     const steps = [];
     if (gatewayFeatures.length > 0) {
@@ -445,7 +452,7 @@ export class UseCaseManager {
       }
 
       const steps = this.getSteps(spec);
-      const allFeatures = steps.flatMap((s) => s.features);
+      const allFeatures = steps.flatMap(s => s.features);
 
       if (allFeatures.length === 0) {
         Logger.warn('No features configured in use case');
@@ -504,11 +511,13 @@ export class UseCaseManager {
 
         if (useSteppedFlow) {
           showStepHeader(stepIndex, totalSteps, step.title, step.description);
-          Logger.info(`Applying: ${step.features.map((f) => f.name).join(', ')}`);
+          Logger.info(`Applying: ${step.features.map(f => f.name).join(', ')}`);
           showWaitPrompt();
           await waitForKey();
         } else if (steps.length > 1) {
-          Logger.info(`Step ${stepIndex}/${totalSteps}: ${step.title} — ${step.features.map((f) => f.name).join(', ')}`);
+          Logger.info(
+            `Step ${stepIndex}/${totalSteps}: ${step.title} — ${step.features.map(f => f.name).join(', ')}`
+          );
         }
 
         for (const feature of step.features) {
@@ -569,7 +578,7 @@ export class UseCaseManager {
       }
 
       const steps = this.getSteps(spec);
-      const allFeatures = steps.flatMap((s) => s.features);
+      const allFeatures = steps.flatMap(s => s.features);
 
       if (allFeatures.length === 0) {
         Logger.warn('No features configured in use case');
@@ -587,7 +596,7 @@ export class UseCaseManager {
       // Enable policy registry for staged application
       PolicyRegistry.enable();
 
-      const hasGatewayFeature = allFeatures.some((f) => f.name === 'gateway');
+      const hasGatewayFeature = allFeatures.some(f => f.name === 'gateway');
       const collected = [];
 
       for (let i = 0; i < steps.length; i++) {
@@ -667,7 +676,10 @@ export class UseCaseManager {
         }
       }
 
-      const output = lines.join('\n').replace(/\n{3,}/g, '\n\n').trimEnd();
+      const output = lines
+        .join('\n')
+        .replace(/\n{3,}/g, '\n\n')
+        .trimEnd();
       console.log(output);
     } catch (error) {
       Logger.error(`Dry run failed: ${error.message}`);
@@ -698,7 +710,7 @@ export class UseCaseManager {
       return {
         group: 'gateway.networking.k8s.io',
         kind: 'HTTPRoute',
-        name: providerName
+        name: providerName,
       };
     });
 
@@ -707,7 +719,9 @@ export class UseCaseManager {
       if (policyFeatures.includes(feature.name) && !feature.config?.targetRefs) {
         feature.config = feature.config || {};
         feature.config.targetRefs = targetRefs;
-        Logger.debug(`Auto-injected targetRefs for ${feature.name}: ${targetRefs.map(t => t.name).join(', ')}`);
+        Logger.debug(
+          `Auto-injected targetRefs for ${feature.name}: ${targetRefs.map(t => t.name).join(', ')}`
+        );
       }
     }
   }
@@ -734,7 +748,7 @@ export class UseCaseManager {
 
       const { namespace } = spec;
       const steps = this.getSteps(spec);
-      const features = steps.flatMap((s) => s.features);
+      const features = steps.flatMap(s => s.features);
 
       if (namespace) {
         FeatureManager.setDefaultNamespace(namespace);
@@ -760,19 +774,29 @@ export class UseCaseManager {
 
       // Clean up any merged policies created by this use case
       try {
-        const result = await KubernetesHelper.kubectl([
-          'get', 'enterpriseagentgatewaypolicy',
-          '-n', FeatureManager.getDefaultNamespace(),
-          '-l', 'agentgateway.dev/merged-policy=true',
-          '-o', 'jsonpath={.items[*].metadata.name}'
-        ], { ignoreError: true });
+        const result = await KubernetesHelper.kubectl(
+          [
+            'get',
+            'enterpriseagentgatewaypolicy',
+            '-n',
+            FeatureManager.getDefaultNamespace(),
+            '-l',
+            'agentgateway.dev/merged-policy=true',
+            '-o',
+            'jsonpath={.items[*].metadata.name}',
+          ],
+          { ignoreError: true }
+        );
 
         const policyNames = result.stdout.trim().split(/\s+/).filter(Boolean);
         for (const policyName of policyNames) {
           await KubernetesHelper.kubectl([
-            'delete', 'enterpriseagentgatewaypolicy', policyName,
-            '-n', FeatureManager.getDefaultNamespace(),
-            '--ignore-not-found=true'
+            'delete',
+            'enterpriseagentgatewaypolicy',
+            policyName,
+            '-n',
+            FeatureManager.getDefaultNamespace(),
+            '--ignore-not-found=true',
           ]);
         }
       } catch {

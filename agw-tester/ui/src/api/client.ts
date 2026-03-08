@@ -26,11 +26,7 @@ async function handleResponse<T>(response: Response): Promise<T> {
       message = response.statusText || message;
     }
 
-    throw new ApiClientError(
-      message,
-      response.status,
-      response.status === 409
-    );
+    throw new ApiClientError(message, response.status, response.status === 409);
   }
 
   if (response.status === 204) {
@@ -45,7 +41,7 @@ export const apiClient = {
     const response = await fetch(path, {
       method: 'GET',
       headers: {
-        'Accept': 'application/json',
+        Accept: 'application/json',
       },
     });
     return handleResponse<T>(response);
@@ -56,7 +52,7 @@ export const apiClient = {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Accept': 'application/json',
+        Accept: 'application/json',
       },
       body: data ? JSON.stringify(data) : undefined,
     });
@@ -68,7 +64,7 @@ export const apiClient = {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
-        'Accept': 'application/json',
+        Accept: 'application/json',
       },
       body: JSON.stringify(data),
     });
@@ -79,7 +75,7 @@ export const apiClient = {
     const response = await fetch(path, {
       method: 'DELETE',
       headers: {
-        'Accept': 'application/json',
+        Accept: 'application/json',
       },
     });
     return handleResponse<T>(response);

@@ -164,9 +164,7 @@ export const DEFAULT_TEMPLATES: RequestTemplate[] = [
     },
     body: {
       model: 'gpt-4o',
-      messages: [
-        { role: 'user', content: 'Hello, how are you?' },
-      ],
+      messages: [{ role: 'user', content: 'Hello, how are you?' }],
     },
   },
   {
@@ -182,9 +180,7 @@ export const DEFAULT_TEMPLATES: RequestTemplate[] = [
     body: {
       model: 'claude-3-5-sonnet-20241022',
       max_tokens: 1024,
-      messages: [
-        { role: 'user', content: 'Hello, how are you?' },
-      ],
+      messages: [{ role: 'user', content: 'Hello, how are you?' }],
     },
   },
   {

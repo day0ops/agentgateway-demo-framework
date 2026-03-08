@@ -96,12 +96,12 @@ export class SpinnerLogger {
     if (level === 'info') {
       return this;
     }
-    
+
     if (this.isSpinning) {
       this.spinner.clear();
       this.spinner.frame();
     }
-    
+
     switch (level) {
       case 'success':
         Logger.success(message);
@@ -120,7 +120,7 @@ export class SpinnerLogger {
     if (this.isSpinning) {
       this.spinner.render();
     }
-    
+
     return this;
   }
 
@@ -202,23 +202,28 @@ export class KubernetesHelper {
     // Use external spinner if provided, otherwise create new one
     const spinner = externalSpinner || new SpinnerLogger();
     const ownSpinner = !externalSpinner;
-    
+
     if (ownSpinner) {
       spinner.start('Waiting for pod to be ready...');
     } else {
       spinner.setText('Waiting for pod to be ready...');
     }
-    
+
     try {
-      await this.kubectl([
-        'wait',
-        '--for=condition=ready',
-        'pod',
-        '-l', labelSelector,
-        '-n', namespace,
-        `--timeout=${timeout}s`
-      ], { spinner });
-      
+      await this.kubectl(
+        [
+          'wait',
+          '--for=condition=ready',
+          'pod',
+          '-l',
+          labelSelector,
+          '-n',
+          namespace,
+          `--timeout=${timeout}s`,
+        ],
+        { spinner }
+      );
+
       if (ownSpinner) {
         spinner.succeed('Pod is ready');
       }
@@ -235,34 +240,34 @@ export class KubernetesHelper {
     // Use external spinner if provided, otherwise create new one
     const spinner = externalSpinner || new SpinnerLogger();
     const ownSpinner = !externalSpinner;
-    
+
     const startTime = Date.now();
     const timeoutMs = timeout * 1000;
-    
+
     // First, wait for the deployment to exist
     if (ownSpinner) {
       spinner.start('Waiting for deployment to be created...');
     } else {
       spinner.setText('Waiting for deployment to be created...');
     }
-    
+
     while (Date.now() - startTime < timeoutMs) {
       try {
-        const result = await this.kubectl([
-          'get', 'deployment', deploymentName,
-          '-n', namespace
-        ], { ignoreError: true, spinner });
-        
+        const result = await this.kubectl(['get', 'deployment', deploymentName, '-n', namespace], {
+          ignoreError: true,
+          spinner,
+        });
+
         if (result.exitCode === 0) {
           break;
         }
       } catch {
         // Deployment doesn't exist yet, continue waiting
       }
-      
+
       // Wait 2 seconds before checking again
       await new Promise(resolve => setTimeout(resolve, 2000));
-      
+
       // Check if we've timed out
       if (Date.now() - startTime >= timeoutMs) {
         if (ownSpinner) {
@@ -271,21 +276,28 @@ export class KubernetesHelper {
         throw new Error(`Deployment ${deploymentName} was not created within ${timeout}s`);
       }
     }
-    
+
     // Now wait for the deployment to become available
     spinner.setText('Waiting for deployment to be ready...');
-    
+
     try {
-      const remainingTimeout = Math.max(10, Math.floor((timeoutMs - (Date.now() - startTime)) / 1000));
-      
-      await this.kubectl([
-        'wait',
-        '--for=condition=available',
-        `deployment/${deploymentName}`,
-        '-n', namespace,
-        `--timeout=${remainingTimeout}s`
-      ], { spinner });
-      
+      const remainingTimeout = Math.max(
+        10,
+        Math.floor((timeoutMs - (Date.now() - startTime)) / 1000)
+      );
+
+      await this.kubectl(
+        [
+          'wait',
+          '--for=condition=available',
+          `deployment/${deploymentName}`,
+          '-n',
+          namespace,
+          `--timeout=${remainingTimeout}s`,
+        ],
+        { spinner }
+      );
+
       if (ownSpinner) {
         spinner.succeed('Deployment is ready');
       }
@@ -331,7 +343,7 @@ export class KubernetesHelper {
         args.push('-n', namespace);
       }
       args.push('--ignore-not-found=true', '-o', 'name');
-      
+
       const result = await this.kubectl(args, { ignoreError: true });
       return result.stdout.trim().length > 0;
     } catch (error) {
@@ -342,14 +354,19 @@ export class KubernetesHelper {
   static async createSecretFromLiteral(namespace, secretName, key, value, spinner = null) {
     try {
       await this.kubectl([
-        'create', 'secret', 'generic', secretName,
+        'create',
+        'secret',
+        'generic',
+        secretName,
         `--from-literal=${key}=${value}`,
-        '-n', namespace,
+        '-n',
+        namespace,
         '--dry-run=client',
-        '-o', 'yaml'
-      ]).then(result => 
-        this.kubectl(['apply', '-f', '-'], { 
-          input: result.stdout 
+        '-o',
+        'yaml',
+      ]).then(result =>
+        this.kubectl(['apply', '-f', '-'], {
+          input: result.stdout,
         })
       );
     } catch (error) {
@@ -360,8 +377,8 @@ export class KubernetesHelper {
 
   static async applyYaml(yamlContent, spinner = null) {
     try {
-      await this.kubectl(['apply', '-f', '-'], { 
-        input: yamlContent 
+      await this.kubectl(['apply', '-f', '-'], {
+        input: yamlContent,
       });
     } catch (error) {
       // Don't log here - let the feature handle error logging
@@ -371,8 +388,8 @@ export class KubernetesHelper {
 
   static async deleteIfExists(resourceType, resourceName, namespace, spinner = null) {
     try {
-      await this.kubectl(['get', resourceType, resourceName, '-n', namespace], { 
-        ignoreError: true 
+      await this.kubectl(['get', resourceType, resourceName, '-n', namespace], {
+        ignoreError: true,
       });
       await this.kubectl(['delete', resourceType, resourceName, '-n', namespace, '--wait=false']);
     } catch {
@@ -382,15 +399,22 @@ export class KubernetesHelper {
 
   static async getLoadBalancerAddress(namespace, serviceName, timeout = 300) {
     const startTime = Date.now();
-    
+
     while (Date.now() - startTime < timeout * 1000) {
       try {
-        const result = await this.kubectl([
-          'get', 'svc', serviceName,
-          '-n', namespace,
-          '-o', 'jsonpath={.status.loadBalancer.ingress[0].ip}{.status.loadBalancer.ingress[0].hostname}'
-        ], { ignoreError: true });
-        
+        const result = await this.kubectl(
+          [
+            'get',
+            'svc',
+            serviceName,
+            '-n',
+            namespace,
+            '-o',
+            'jsonpath={.status.loadBalancer.ingress[0].ip}{.status.loadBalancer.ingress[0].hostname}',
+          ],
+          { ignoreError: true }
+        );
+
         const address = result.stdout.trim();
         if (address) {
           return address;
@@ -398,10 +422,10 @@ export class KubernetesHelper {
       } catch {
         // Continue waiting
       }
-      
+
       await new Promise(resolve => setTimeout(resolve, 5000));
     }
-    
+
     throw new Error('Timeout waiting for LoadBalancer address');
   }
 }
@@ -524,16 +548,17 @@ export function printTrafficBox(request, response) {
     return w >= width ? str : str + ' '.repeat(width - w);
   };
 
-  const top    = DIM('┌' + '─'.repeat(INNER) + '┐');
+  const top = DIM('┌' + '─'.repeat(INNER) + '┐');
   const bottom = DIM('└' + '─'.repeat(INNER) + '┘');
-  const mid    = DIM('├' + '─'.repeat(INNER) + '┤');
+  const mid = DIM('├' + '─'.repeat(INNER) + '┤');
 
   const row = (text = '') => {
     const safe = String(text).replace(/\r?\n/g, ' ');
     const visLen = stringWidth(safe);
-    const content = visLen > CONTENT_MAX
-      ? safe.replace(/\x1B\[[0-9;]*m/g, '').substring(0, CONTENT_MAX - 1) + '…'
-      : safe;
+    const content =
+      visLen > CONTENT_MAX
+        ? safe.replace(/\x1B\[[0-9;]*m/g, '').substring(0, CONTENT_MAX - 1) + '…'
+        : safe;
     return DIM('│') + ' ' + padVisual(content, CONTENT_MAX) + ' ' + DIM('│');
   };
 
@@ -555,7 +580,11 @@ export function printTrafficBox(request, response) {
     if (body == null || body === '') return ['(empty)'];
     let str;
     if (typeof body === 'object') {
-      try { str = JSON.stringify(body, null, 2); } catch { str = String(body); }
+      try {
+        str = JSON.stringify(body, null, 2);
+      } catch {
+        str = String(body);
+      }
     } else {
       str = String(body);
     }
@@ -592,9 +621,12 @@ export function printTrafficBox(request, response) {
   out.push(sectionRow('RESPONSE', chalk.bold.magenta));
   out.push(row());
 
-  const statusFn = response.status >= 200 && response.status < 300
-    ? chalk.green
-    : response.status >= 400 ? chalk.red : chalk.yellow;
+  const statusFn =
+    response.status >= 200 && response.status < 300
+      ? chalk.green
+      : response.status >= 400
+        ? chalk.red
+        : chalk.yellow;
   out.push(row('  ' + chalk.dim('Status:') + ' ' + statusFn(String(response.status))));
 
   if (response.headers && Object.keys(response.headers).length > 0) {
@@ -616,4 +648,3 @@ export function printTrafficBox(request, response) {
   out.push(bottom, '');
   console.log(out.join('\n'));
 }
-

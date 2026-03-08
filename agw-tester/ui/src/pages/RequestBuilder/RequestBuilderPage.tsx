@@ -11,7 +11,12 @@ import { useConfig } from '@/context/ConfigContext';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { useMutation } from '@/hooks/useApi';
 import { apiClient } from '@/api/client';
-import { DEFAULT_TEMPLATES, DEFAULT_PROVIDERS, type HistoryEntry, type LLMResponse } from '@/api/types';
+import {
+  DEFAULT_TEMPLATES,
+  DEFAULT_PROVIDERS,
+  type HistoryEntry,
+  type LLMResponse,
+} from '@/api/types';
 import { colors } from '@/styles/colors';
 import { spacing, radius } from '@/styles/sizing';
 import { fontSize, fontFamily } from '@/styles/typography';
@@ -26,7 +31,7 @@ const PageContainer = styled.div`
 const ContentArea = styled.div<{ showSidebar: boolean }>`
   flex: 1;
   display: grid;
-  grid-template-columns: ${({ showSidebar }) => showSidebar ? '1fr 400px' : '1fr'};
+  grid-template-columns: ${({ showSidebar }) => (showSidebar ? '1fr 400px' : '1fr')};
   gap: ${spacing[4]};
   padding: ${spacing[4]};
   overflow: hidden;
@@ -149,15 +154,15 @@ const ModeToggle = styled.div`
 const ToggleButton = styled.button<{ active: boolean }>`
   padding: ${spacing[2]} ${spacing[3]};
   font-size: ${fontSize.sm};
-  color: ${({ active }) => active ? colors.foreground : colors.mutedForeground};
-  background: ${({ active }) => active ? colors.primary : 'transparent'};
-  border: 1px solid ${({ active }) => active ? colors.primary : colors.border};
+  color: ${({ active }) => (active ? colors.foreground : colors.mutedForeground)};
+  background: ${({ active }) => (active ? colors.primary : 'transparent')};
+  border: 1px solid ${({ active }) => (active ? colors.primary : colors.border)};
   border-radius: ${radius.md};
   cursor: pointer;
   transition: all 0.15s ease;
 
   &:hover {
-    background: ${({ active }) => active ? colors.primaryHover : colors.hoverBg};
+    background: ${({ active }) => (active ? colors.primaryHover : colors.hoverBg)};
   }
 `;
 
@@ -263,18 +268,17 @@ const SidebarIcon = ({ open }: { open: boolean }) => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
     <rect x="3" y="3" width="18" height="18" rx="2" />
     <line x1="15" y1="3" x2="15" y2="21" />
-    {open ? (
-      <polyline points="10 8 6 12 10 16" />
-    ) : (
-      <polyline points="6 8 10 12 6 16" />
-    )}
+    {open ? <polyline points="10 8 6 12 10 16" /> : <polyline points="6 8 10 12 6 16" />}
   </svg>
 );
 
 export const RequestBuilderPage: React.FC = () => {
   const { config } = useConfig();
   const [history, setHistory] = useLocalStorage<HistoryEntry[]>('agw-tester-history', []);
-  const [lastEndpoint, setLastEndpoint] = useLocalStorage<string>('agw-tester-last-endpoint', '/openai/v1/chat/completions');
+  const [lastEndpoint, setLastEndpoint] = useLocalStorage<string>(
+    'agw-tester-last-endpoint',
+    '/openai/v1/chat/completions'
+  );
 
   const [endpoint, setEndpoint] = useState(lastEndpoint);
   const [method] = useState<'POST' | 'GET'>('POST');
@@ -316,10 +320,13 @@ export const RequestBuilderPage: React.FC = () => {
 
   const sendRequest = useMutation(
     useCallback(async () => {
-      const headersObj = headers.reduce((acc, { key, value }) => {
-        if (key.trim()) acc[key] = value;
-        return acc;
-      }, {} as Record<string, string>);
+      const headersObj = headers.reduce(
+        (acc, { key, value }) => {
+          if (key.trim()) acc[key] = value;
+          return acc;
+        },
+        {} as Record<string, string>
+      );
 
       // In simple mode, always use freshly generated body
       let parsedBody: unknown;
@@ -363,7 +370,7 @@ export const RequestBuilderPage: React.FC = () => {
         durationMs: result.durationMs,
         status: result.status,
       };
-      setHistory((prev) => [entry, ...prev.slice(0, 49)]);
+      setHistory(prev => [entry, ...prev.slice(0, 49)]);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Request failed';
       toast.error(message);
@@ -372,12 +379,10 @@ export const RequestBuilderPage: React.FC = () => {
 
   const handleTemplateChange = (templateId: string) => {
     setSelectedTemplate(templateId);
-    const template = DEFAULT_TEMPLATES.find((t) => t.id === templateId);
+    const template = DEFAULT_TEMPLATES.find(t => t.id === templateId);
     if (template) {
       setEndpoint(template.endpoint);
-      setHeaders(
-        Object.entries(template.headers).map(([key, value]) => ({ key, value }))
-      );
+      setHeaders(Object.entries(template.headers).map(([key, value]) => ({ key, value })));
       setBody(JSON.stringify(template.body, null, 2));
       // Sync model and provider from template body
       const templateBody = template.body as { model?: string };
@@ -396,7 +401,7 @@ export const RequestBuilderPage: React.FC = () => {
 
   const handleProviderChange = (providerId: string) => {
     setSelectedProvider(providerId);
-    const provider = DEFAULT_PROVIDERS.find((p) => p.id === providerId);
+    const provider = DEFAULT_PROVIDERS.find(p => p.id === providerId);
     if (provider && provider.models.length > 0) {
       const newModel = provider.models[0].id;
       setSelectedModel(newModel);
@@ -422,17 +427,15 @@ export const RequestBuilderPage: React.FC = () => {
   };
 
   const handleAddHeader = () => {
-    setHeaders((prev) => [...prev, { key: '', value: '' }]);
+    setHeaders(prev => [...prev, { key: '', value: '' }]);
   };
 
   const handleRemoveHeader = (index: number) => {
-    setHeaders((prev) => prev.filter((_, i) => i !== index));
+    setHeaders(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleHeaderChange = (index: number, field: 'key' | 'value', value: string) => {
-    setHeaders((prev) =>
-      prev.map((h, i) => (i === index ? { ...h, [field]: value } : h))
-    );
+    setHeaders(prev => prev.map((h, i) => (i === index ? { ...h, [field]: value } : h)));
   };
 
   const handleHistorySelect = (entry: HistoryEntry) => {
@@ -455,17 +458,15 @@ export const RequestBuilderPage: React.FC = () => {
   };
 
   const handleDeleteHistoryItem = (id: string) => {
-    setHistory((prev) => prev.filter((h) => h.id !== id));
+    setHistory(prev => prev.filter(h => h.id !== id));
   };
 
-  const selectedProviderModels = DEFAULT_PROVIDERS.find((p) => p.id === selectedProvider)?.models || [];
+  const selectedProviderModels =
+    DEFAULT_PROVIDERS.find(p => p.id === selectedProvider)?.models || [];
 
   return (
     <PageContainer>
-      <PageHeader
-        title="Request Builder"
-        description="Build and send requests to agentgateway"
-      >
+      <PageHeader title="Request Builder" description="Build and send requests to agentgateway">
         <ToolbarRight>
           <IconButton
             onClick={() => setShowSidebar(!showSidebar)}
@@ -485,9 +486,12 @@ export const RequestBuilderPage: React.FC = () => {
             <CardContent>
               <Row style={{ marginBottom: spacing[4] }}>
                 <FormField label="Template" fullWidth>
-                  <Select value={selectedTemplate} onChange={(e) => handleTemplateChange(e.target.value)}>
+                  <Select
+                    value={selectedTemplate}
+                    onChange={e => handleTemplateChange(e.target.value)}
+                  >
                     <option value="">Select a template...</option>
-                    {DEFAULT_TEMPLATES.map((t) => (
+                    {DEFAULT_TEMPLATES.map(t => (
                       <option key={t.id} value={t.id}>
                         {t.name}
                       </option>
@@ -495,8 +499,11 @@ export const RequestBuilderPage: React.FC = () => {
                   </Select>
                 </FormField>
                 <FormField label="Provider" fullWidth>
-                  <Select value={selectedProvider} onChange={(e) => handleProviderChange(e.target.value)}>
-                    {DEFAULT_PROVIDERS.map((p) => (
+                  <Select
+                    value={selectedProvider}
+                    onChange={e => handleProviderChange(e.target.value)}
+                  >
+                    {DEFAULT_PROVIDERS.map(p => (
                       <option key={p.id} value={p.id}>
                         {p.name}
                       </option>
@@ -504,11 +511,8 @@ export const RequestBuilderPage: React.FC = () => {
                   </Select>
                 </FormField>
                 <FormField label="Model" fullWidth>
-                  <Select
-                    value={selectedModel}
-                    onChange={(e) => handleModelChange(e.target.value)}
-                  >
-                    {selectedProviderModels.map((m) => (
+                  <Select value={selectedModel} onChange={e => handleModelChange(e.target.value)}>
+                    {selectedProviderModels.map(m => (
                       <option key={m.id} value={m.id}>
                         {m.name}
                       </option>
@@ -522,7 +526,7 @@ export const RequestBuilderPage: React.FC = () => {
                   <FormField label="Endpoint" fullWidth>
                     <Input
                       value={endpoint}
-                      onChange={(e) => setEndpoint(e.target.value)}
+                      onChange={e => setEndpoint(e.target.value)}
                       placeholder="/openai/v1/chat/completions"
                     />
                   </FormField>
@@ -543,12 +547,12 @@ export const RequestBuilderPage: React.FC = () => {
                     <HeaderRow key={index}>
                       <HeaderInput
                         value={header.key}
-                        onChange={(e) => handleHeaderChange(index, 'key', e.target.value)}
+                        onChange={e => handleHeaderChange(index, 'key', e.target.value)}
                         placeholder="Header name"
                       />
                       <HeaderInput
                         value={header.value}
-                        onChange={(e) => handleHeaderChange(index, 'value', e.target.value)}
+                        onChange={e => handleHeaderChange(index, 'value', e.target.value)}
                         placeholder="Header value"
                       />
                       <IconButton onClick={() => handleRemoveHeader(index)}>
@@ -556,7 +560,12 @@ export const RequestBuilderPage: React.FC = () => {
                       </IconButton>
                     </HeaderRow>
                   ))}
-                  <Button variant="ghost" size="sm" onClick={handleAddHeader} style={{ marginBottom: spacing[4] }}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleAddHeader}
+                    style={{ marginBottom: spacing[4] }}
+                  >
                     <PlusIcon /> Add Header
                   </Button>
                 </HeadersContainer>
@@ -575,7 +584,12 @@ export const RequestBuilderPage: React.FC = () => {
                 <>
                   <Row style={{ marginBottom: spacing[4] }}>
                     <FormField label="Role" fullWidth>
-                      <Select value={messageRole} onChange={(e) => setMessageRole(e.target.value as 'user' | 'assistant' | 'system')}>
+                      <Select
+                        value={messageRole}
+                        onChange={e =>
+                          setMessageRole(e.target.value as 'user' | 'assistant' | 'system')
+                        }
+                      >
                         <option value="user">User</option>
                         <option value="assistant">Assistant</option>
                         <option value="system">System</option>
@@ -585,7 +599,7 @@ export const RequestBuilderPage: React.FC = () => {
                   <FormField label="Message" fullWidth>
                     <SimpleMessageInput
                       value={messageContent}
-                      onChange={(e) => setMessageContent(e.target.value)}
+                      onChange={e => setMessageContent(e.target.value)}
                       placeholder="Enter your message..."
                     />
                   </FormField>
@@ -594,7 +608,7 @@ export const RequestBuilderPage: React.FC = () => {
                 <FormField label="Body (JSON)" fullWidth>
                   <BodyEditor
                     value={body}
-                    onChange={(e) => setBody(e.target.value)}
+                    onChange={e => setBody(e.target.value)}
                     placeholder='{"key": "value"}'
                   />
                 </FormField>
@@ -617,14 +631,10 @@ export const RequestBuilderPage: React.FC = () => {
                       {response.durationMs}ms
                     </span>
                   </ResponseMeta>
-                  <ResponseBody>
-                    {JSON.stringify(response.body, null, 2)}
-                  </ResponseBody>
+                  <ResponseBody>{JSON.stringify(response.body, null, 2)}</ResponseBody>
                 </>
               ) : (
-                <EmptyResponse>
-                  Send a request to see the response
-                </EmptyResponse>
+                <EmptyResponse>Send a request to see the response</EmptyResponse>
               )}
             </ResponseContent>
           </ResponseCard>
@@ -632,50 +642,50 @@ export const RequestBuilderPage: React.FC = () => {
 
         {showSidebar && (
           <SidePanel>
-          <HistoryCard>
-            <CardHeader>
-              <CardTitle>History</CardTitle>
-              {history.length > 0 && (
-                <IconButton onClick={handleClearHistory} title="Clear history">
-                  <TrashIcon />
-                </IconButton>
-              )}
-            </CardHeader>
-            <HistoryContent>
-              {history.length === 0 ? (
-                <EmptyResponse style={{ padding: spacing[6] }}>
-                  No request history yet
-                </EmptyResponse>
-              ) : (
-                history.map((entry) => (
-                  <HistoryItem
-                    key={entry.id}
-                    onClick={() => handleHistorySelect(entry)}
-                  >
-                    <HistoryItemHeader>
-                      <HistoryEndpoint>{entry.endpoint}</HistoryEndpoint>
-                      <IconButton
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteHistoryItem(entry.id);
-                        }}
-                      >
-                        <TrashIcon />
-                      </IconButton>
-                    </HistoryItemHeader>
-                    <HistoryMeta>
-                      <Badge variant={getStatusVariant(entry.status)} style={{ padding: '2px 6px' }}>
-                        {entry.status}
-                      </Badge>
-                      <span>{entry.durationMs}ms</span>
-                      <span>{new Date(entry.timestamp).toLocaleTimeString()}</span>
-                    </HistoryMeta>
-                  </HistoryItem>
-                ))
-              )}
-            </HistoryContent>
-          </HistoryCard>
-        </SidePanel>
+            <HistoryCard>
+              <CardHeader>
+                <CardTitle>History</CardTitle>
+                {history.length > 0 && (
+                  <IconButton onClick={handleClearHistory} title="Clear history">
+                    <TrashIcon />
+                  </IconButton>
+                )}
+              </CardHeader>
+              <HistoryContent>
+                {history.length === 0 ? (
+                  <EmptyResponse style={{ padding: spacing[6] }}>
+                    No request history yet
+                  </EmptyResponse>
+                ) : (
+                  history.map(entry => (
+                    <HistoryItem key={entry.id} onClick={() => handleHistorySelect(entry)}>
+                      <HistoryItemHeader>
+                        <HistoryEndpoint>{entry.endpoint}</HistoryEndpoint>
+                        <IconButton
+                          onClick={e => {
+                            e.stopPropagation();
+                            handleDeleteHistoryItem(entry.id);
+                          }}
+                        >
+                          <TrashIcon />
+                        </IconButton>
+                      </HistoryItemHeader>
+                      <HistoryMeta>
+                        <Badge
+                          variant={getStatusVariant(entry.status)}
+                          style={{ padding: '2px 6px' }}
+                        >
+                          {entry.status}
+                        </Badge>
+                        <span>{entry.durationMs}ms</span>
+                        <span>{new Date(entry.timestamp).toLocaleTimeString()}</span>
+                      </HistoryMeta>
+                    </HistoryItem>
+                  ))
+                )}
+              </HistoryContent>
+            </HistoryCard>
+          </SidePanel>
         )}
       </ContentArea>
     </PageContainer>

@@ -52,18 +52,18 @@ spec:
       steps:
         - action: send-request
           endpoint: /model
-          prompt: "What is Kubernetes in one sentence?"
+          prompt: 'What is Kubernetes in one sentence?'
         - action: verify
           expect:
             status: success
-            contains: "Kubernetes"
+            contains: 'Kubernetes'
 
     - name: test-priority-selection
       description: Test that cheaper models are used first
       steps:
         - action: send-request
           endpoint: /model
-          prompt: "Hello, how are you?"
+          prompt: 'Hello, how are you?'
         - action: verify
           expect:
             status: success

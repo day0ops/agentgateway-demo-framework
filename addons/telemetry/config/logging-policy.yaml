@@ -20,21 +20,21 @@ spec:
           - name: http.user_agent
             expression: 'request.headers["user-agent"]'
           - name: http.method
-            expression: "request.method"
+            expression: 'request.method'
           - name: http.path
-            expression: "request.path"
+            expression: 'request.path'
           - name: http.host
-            expression: "request.host"
+            expression: 'request.host'
           - name: http.status_code
-            expression: "string(response.code)"
+            expression: 'string(response.code)'
           - name: http.scheme
-            expression: "request.scheme"
+            expression: 'request.scheme'
           - name: request.start_time
             expression: 'default(string(request.startTime), "")'
           - name: request.end_time
             expression: 'default(string(request.endTime), "")'
           - name: source.address
-            expression: "source.address"
+            expression: 'source.address'
           - name: backend.name
             expression: 'default(backend.name, "")'
           - name: llm.input_tokens

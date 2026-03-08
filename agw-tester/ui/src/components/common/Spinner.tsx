@@ -32,7 +32,7 @@ const LoadingContainer = styled.div`
   padding: 40px;
 `;
 
-export const Loading: React.FC<SpinnerProps> = (props) => (
+export const Loading: React.FC<SpinnerProps> = props => (
   <LoadingContainer>
     <Spinner {...props} />
   </LoadingContainer>

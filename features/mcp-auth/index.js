@@ -70,7 +70,8 @@ export class McpAuthFeature extends Feature {
     this.configureDynamicRegistration = kc.configureDynamicRegistration !== false;
 
     const keycloakHost = `${this.keycloakServiceName}.${this.keycloakServiceNamespace}.svc.cluster.local`;
-    const protocol = this.keycloakServicePort === 443 || this.keycloakServicePort === 8443 ? 'https' : 'http';
+    const protocol =
+      this.keycloakServicePort === 443 || this.keycloakServicePort === 8443 ? 'https' : 'http';
     this.issuer = config.issuer || `${protocol}://${keycloakHost}/realms/${this.realm}`;
 
     this.resource = config.resource || 'http://localhost:8080/mcp';
@@ -154,19 +155,28 @@ export class McpAuthFeature extends Feature {
   async configureKeycloakDynamicRegistration() {
     this.log('Configuring Keycloak for dynamic client registration...', 'info');
 
-    const protocol = this.keycloakServicePort === 443 || this.keycloakServicePort === 8443 ? 'https' : 'http';
+    const protocol =
+      this.keycloakServicePort === 443 || this.keycloakServicePort === 8443 ? 'https' : 'http';
     const baseUrl = `${protocol}://${this.keycloakServiceName}.${this.keycloakServiceNamespace}.svc.cluster.local`;
 
     let token;
     try {
-      const result = await CommandRunner.run('kubectl', [
-        '-n', this.keycloakServiceNamespace,
-        'exec', 'deploy/keycloak', '--',
-        'bash', '-c',
-        `curl -sSfk -X POST ${baseUrl}/realms/master/protocol/openid-connect/token ` +
-        `-H 'Content-Type: application/x-www-form-urlencoded' ` +
-        `-d 'username=admin&password=admin&grant_type=password&client_id=admin-cli'`,
-      ], { ignoreError: true });
+      const result = await CommandRunner.run(
+        'kubectl',
+        [
+          '-n',
+          this.keycloakServiceNamespace,
+          'exec',
+          'deploy/keycloak',
+          '--',
+          'bash',
+          '-c',
+          `curl -sSfk -X POST ${baseUrl}/realms/master/protocol/openid-connect/token ` +
+            `-H 'Content-Type: application/x-www-form-urlencoded' ` +
+            `-d 'username=admin&password=admin&grant_type=password&client_id=admin-cli'`,
+        ],
+        { ignoreError: true }
+      );
 
       if (result.stdout) {
         const parsed = JSON.parse(result.stdout);
@@ -178,7 +188,10 @@ export class McpAuthFeature extends Feature {
     }
 
     if (!token) {
-      this.log('Could not obtain Keycloak admin token, skipping dynamic registration config', 'warn');
+      this.log(
+        'Could not obtain Keycloak admin token, skipping dynamic registration config',
+        'warn'
+      );
       return;
     }
 
@@ -190,13 +203,21 @@ export class McpAuthFeature extends Feature {
 
   async removeRegistrationPolicy(baseUrl, token, providerId, subType) {
     try {
-      const listResult = await CommandRunner.run('kubectl', [
-        '-n', this.keycloakServiceNamespace,
-        'exec', 'deploy/keycloak', '--',
-        'bash', '-c',
-        `curl -sSfk -H 'Authorization: Bearer ${token}' ` +
-        `'${baseUrl}/admin/realms/${this.realm}/components?type=org.keycloak.services.clientregistration.policy.ClientRegistrationPolicy'`,
-      ], { ignoreError: true });
+      const listResult = await CommandRunner.run(
+        'kubectl',
+        [
+          '-n',
+          this.keycloakServiceNamespace,
+          'exec',
+          'deploy/keycloak',
+          '--',
+          'bash',
+          '-c',
+          `curl -sSfk -H 'Authorization: Bearer ${token}' ` +
+            `'${baseUrl}/admin/realms/${this.realm}/components?type=org.keycloak.services.clientregistration.policy.ClientRegistrationPolicy'`,
+        ],
+        { ignoreError: true }
+      );
 
       if (!listResult.stdout) return;
 
@@ -209,13 +230,21 @@ export class McpAuthFeature extends Feature {
 
       if (!match) return;
 
-      await CommandRunner.run('kubectl', [
-        '-n', this.keycloakServiceNamespace,
-        'exec', 'deploy/keycloak', '--',
-        'bash', '-c',
-        `curl -sSfk -X DELETE -H 'Authorization: Bearer ${token}' ` +
-        `'${baseUrl}/admin/realms/${this.realm}/components/${match.id}'`,
-      ], { ignoreError: true });
+      await CommandRunner.run(
+        'kubectl',
+        [
+          '-n',
+          this.keycloakServiceNamespace,
+          'exec',
+          'deploy/keycloak',
+          '--',
+          'bash',
+          '-c',
+          `curl -sSfk -X DELETE -H 'Authorization: Bearer ${token}' ` +
+            `'${baseUrl}/admin/realms/${this.realm}/components/${match.id}'`,
+        ],
+        { ignoreError: true }
+      );
 
       this.log(`Removed Keycloak registration policy '${providerId}'`, 'info');
     } catch {
@@ -273,7 +302,10 @@ export class McpAuthFeature extends Feature {
     };
 
     await this.applyResource(policy);
-    this.log(`EnterpriseAgentgatewayPolicy '${this.policyName}' targeting backend '${this.backendName}'`, 'info');
+    this.log(
+      `EnterpriseAgentgatewayPolicy '${this.policyName}' targeting backend '${this.backendName}'`,
+      'info'
+    );
   }
 
   async deployDiscoveryRoute() {
@@ -289,8 +321,18 @@ export class McpAuthFeature extends Feature {
       ],
       matches: [
         { path: { type: 'PathPrefix', value: this.mcpPath } },
-        { path: { type: 'PathPrefix', value: `/.well-known/oauth-protected-resource${this.mcpPath}` } },
-        { path: { type: 'PathPrefix', value: `/.well-known/oauth-authorization-server${this.mcpPath}` } },
+        {
+          path: {
+            type: 'PathPrefix',
+            value: `/.well-known/oauth-protected-resource${this.mcpPath}`,
+          },
+        },
+        {
+          path: {
+            type: 'PathPrefix',
+            value: `/.well-known/oauth-authorization-server${this.mcpPath}`,
+          },
+        },
         { path: { type: 'PathPrefix', value: `/${this.jwksPath}` } },
       ],
     };
@@ -344,7 +386,7 @@ export class McpAuthFeature extends Feature {
     await this.deleteResource(
       'EnterpriseAgentgatewayPolicy',
       `${this.keycloakServiceName}-backend-tls`,
-      this.keycloakServiceNamespace,
+      this.keycloakServiceNamespace
     );
 
     this.log('MCP auth cleaned up', 'success');

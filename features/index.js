@@ -1,9 +1,9 @@
 /**
  * Feature Registry
- * 
+ *
  * Central registry for all agentgateway features.
  * Import this module to automatically register all available features.
- * 
+ *
  * Note: Profile-based addons (like telemetry) are registered separately
  * in addons/index.js
  */
@@ -27,7 +27,7 @@ import { McpServerFeature } from './mcp-server/index.js';
 import { McpAuthFeature } from './mcp-auth/index.js';
 import { McpToolAccessFeature } from './mcp-tool-access/index.js';
 import { WorkloadAgentFeature } from './workload-agent/index.js';
-import { BudgetLimiterFeature } from './budget-limiter/index.js';
+import { BudgetManagementFeature } from './budget-management/index.js';
 import { ElicitationSecretFeature } from './elicitation-secret/index.js';
 import { ElicitationBackendFeature } from './elicitation-backend/index.js';
 
@@ -50,7 +50,7 @@ FeatureManager.register('mcp-server', McpServerFeature);
 FeatureManager.register('mcp-auth', McpAuthFeature);
 FeatureManager.register('mcp-tool-access', McpToolAccessFeature);
 FeatureManager.register('workload-agent', WorkloadAgentFeature);
-FeatureManager.register('budget-limiter', BudgetLimiterFeature);
+FeatureManager.register('budget-management', BudgetManagementFeature);
 FeatureManager.register('elicitation-secret', ElicitationSecretFeature);
 FeatureManager.register('elicitation-backend', ElicitationBackendFeature);
 
@@ -77,7 +77,7 @@ export {
   McpAuthFeature,
   McpToolAccessFeature,
   WorkloadAgentFeature,
-  BudgetLimiterFeature,
+  BudgetManagementFeature,
   ElicitationSecretFeature,
   ElicitationBackendFeature,
 };

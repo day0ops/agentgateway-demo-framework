@@ -15,14 +15,17 @@ const PROJECT_ROOT = join(__dirname, '../..');
  */
 export class ProfileManager {
   static PROFILES_DIR = join(PROJECT_ROOT, 'config/profiles');
-  
+
   static DESCRIPTIONS = {
     'standard-agentgateway': 'Standard AgentGateway installation',
-    'agentgateway-with-observability': 'AgentGateway with full observability stack (Solo UI,Prometheus, Grafana, Loki, Tempo)',
+    'agentgateway-with-observability':
+      'AgentGateway with full observability stack (Solo UI,Prometheus, Grafana, Loki, Tempo)',
     'agentgateway-with-solo-ui': 'AgentGateway with Solo UI stack',
     'agentgateway-custom-config': 'AgentGateway with custom configuration',
-    'agentgateway-custom-version': 'AgentGateway with custom version, OCI registry, and controller extraEnv (e.g. Gateway API experimental)',
-    'agentgateway-with-keycloak': 'AgentGateway with Keycloak (OBO token exchange, workload identity, and other Keycloak-based security demos)',
+    'agentgateway-custom-version':
+      'AgentGateway with custom version, OCI registry, and controller extraEnv (e.g. Gateway API experimental)',
+    'agentgateway-with-keycloak':
+      'AgentGateway with Keycloak (OBO token exchange, workload identity, and other Keycloak-based security demos)',
   };
 
   /**
@@ -33,7 +36,7 @@ export class ProfileManager {
     try {
       const files = await readdir(this.PROFILES_DIR);
       const yamlFiles = files.filter(f => f.endsWith('.yaml'));
-      
+
       return yamlFiles.map(file => {
         const name = basename(file, '.yaml');
         return {
@@ -55,11 +58,11 @@ export class ProfileManager {
   static async get(name) {
     const profiles = await this.list();
     const profile = profiles.find(p => p.name === name);
-    
+
     if (!profile) {
       throw new Error(`Profile '${name}' not found`);
     }
-    
+
     return profile;
   }
 
@@ -86,11 +89,11 @@ export class ProfileManager {
     try {
       const content = await readFile(profilePath, 'utf8');
       const profile = yaml.load(content);
-      
+
       return {
         helmValues: profile.helmValues || profile,
         addons: profile.addons || [],
-        resources: profile.resources || []
+        resources: profile.resources || [],
       };
     } catch (error) {
       throw new Error(`Failed to load profile: ${error.message}`);
@@ -105,7 +108,7 @@ export class ProfileManager {
   static async select(defaultProfile = 'standard') {
     try {
       const profiles = await this.list();
-      
+
       if (profiles.length === 0) {
         throw new Error('No profiles found in config/profiles/');
       }
@@ -126,7 +129,7 @@ export class ProfileManager {
       );
 
       const profile = profiles.find(p => p.name === selectedName);
-      
+
       return {
         name: profile.name,
         file: profile.file,
@@ -145,4 +148,3 @@ export class ProfileManager {
     this.DESCRIPTIONS[name] = description;
   }
 }
-

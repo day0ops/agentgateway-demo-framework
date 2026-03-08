@@ -4,7 +4,9 @@
   "description": "Demo framework for agentgateway features and use cases",
   "type": "module",
   "main": "src/index.js",
-  "bin": { "agw": "./src/cli.js" },
+  "bin": {
+    "agw": "./src/cli.js"
+  },
   "scripts": {
     "start": "node src/cli.js",
     "dev": "node --watch src/cli.js",
@@ -14,7 +16,14 @@
     "setup": "npm install && node src/cli.js base install",
     "clean": "node src/cli.js base cleanup"
   },
-  "keywords": ["agentgateway", "kgateway", "kubernetes", "llm", "ai-gateway", "demo"],
+  "keywords": [
+    "agentgateway",
+    "kgateway",
+    "kubernetes",
+    "llm",
+    "ai-gateway",
+    "demo"
+  ],
   "author": "",
   "license": "MIT",
   "dependencies": {
@@ -34,5 +43,7 @@
     "playwright": "^1.58.2",
     "prettier": "^3.1.1"
   },
-  "engines": { "node": ">=18.0.0" }
+  "engines": {
+    "node": ">=18.0.0"
+  }
 }

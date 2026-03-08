@@ -11,17 +11,17 @@ metadata:
 spec:
   # Secret name where the certificate will be stored
   secretName: example-tls-secret
-  
+
   # Issuer or ClusterIssuer reference
   issuerRef:
     name: letsencrypt-prod
     kind: ClusterIssuer
-  
+
   # DNS names for the certificate
   dnsNames:
     - example.com
     - www.example.com
-  
+
   # Common name (optional, defaults to first dnsName)
   # commonName: example.com
 
@@ -38,7 +38,7 @@ spec:
     name: letsencrypt-prod
     kind: ClusterIssuer
   dnsNames:
-    - "*.example.com"
+    - '*.example.com'
     - example.com
 
 ---
@@ -56,4 +56,3 @@ spec:
   dnsNames:
     - kgateway.example.com
     - api.example.com
-

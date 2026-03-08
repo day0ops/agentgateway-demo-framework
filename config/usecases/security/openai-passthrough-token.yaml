@@ -28,19 +28,19 @@ spec:
         - action: send-request
           endpoint: /openai
           headers:
-            Authorization: "Bearer ${OPENAI_API_KEY}"
-          prompt: "What is 2+2?"
+            Authorization: 'Bearer ${OPENAI_API_KEY}'
+          prompt: 'What is 2+2?'
         - action: verify
           expect:
             status: success
-            contains: "4"
+            contains: '4'
 
     - name: test-passthrough-without-token
       description: Request fails when no Authorization header is provided
       steps:
         - action: send-request
           endpoint: /openai
-          prompt: "Hello"
+          prompt: 'Hello'
         - action: verify
           expect:
             status: error

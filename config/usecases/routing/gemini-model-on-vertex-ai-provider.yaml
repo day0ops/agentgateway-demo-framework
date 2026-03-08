@@ -26,18 +26,18 @@ spec:
       steps:
         - action: send-request
           endpoint: /vertex-ai
-          prompt: "What is machine learning?"
+          prompt: 'What is machine learning?'
         - action: verify
           expect:
             status: success
-            contains: "machine learning"
+            contains: 'machine learning'
 
     - name: test-vertex-ai-simple-query
       description: Test Vertex AI with a simple query
       steps:
         - action: send-request
           endpoint: /vertex-ai
-          prompt: "Hello, how are you?"
+          prompt: 'Hello, how are you?'
         - action: verify
           expect:
             status: success

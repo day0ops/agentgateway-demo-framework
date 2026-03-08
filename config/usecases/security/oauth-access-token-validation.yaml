@@ -54,7 +54,7 @@ spec:
       steps:
         - action: send-request
           endpoint: /openai
-          prompt: "What is 2+2?"
+          prompt: 'What is 2+2?'
         - action: verify
           expect:
             status: 403
@@ -73,8 +73,8 @@ spec:
         - action: send-request
           endpoint: /openai
           auth: bearer
-          prompt: "What is 2+2?"
+          prompt: 'What is 2+2?'
         - action: verify
           expect:
             status: success
-            contains: "4"
+            contains: '4'

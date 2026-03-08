@@ -61,7 +61,8 @@ export class OboTokenExchangeFeature extends Feature {
     this.keycloakServiceName = kc.serviceName || 'keycloak';
     this.keycloakServiceNamespace = kc.serviceNamespace || 'keycloak';
     this.keycloakServicePort = kc.servicePort || 443;
-    this.jwksPath = config.jwksPath || kc.jwksPath || `realms/${this.realm}/protocol/openid-connect/certs`;
+    this.jwksPath =
+      config.jwksPath || kc.jwksPath || `realms/${this.realm}/protocol/openid-connect/certs`;
 
     const keycloakHost = `${this.keycloakServiceName}.${this.keycloakServiceNamespace}.svc.cluster.local`;
     this.issuer = config.issuer || `https://${keycloakHost}/realms/${this.realm}`;
@@ -83,7 +84,10 @@ export class OboTokenExchangeFeature extends Feature {
   async deploy() {
     this.log('Configuring OBO token exchange JWT policy...', 'info');
 
-    if (!this.jwksBackend && (this.keycloakServicePort === 443 || this.keycloakServicePort === 8443)) {
+    if (
+      !this.jwksBackend &&
+      (this.keycloakServicePort === 443 || this.keycloakServicePort === 8443)
+    ) {
       await this.deployBackendTlsPolicy();
     }
     await this.deployJwtPolicy();
@@ -147,7 +151,10 @@ export class OboTokenExchangeFeature extends Feature {
     };
 
     await this.applyResource(policy);
-    this.log(`JWT policy '${this.policyName}' targeting ${targetRefs.map(r => r.name).join(', ')}`, 'info');
+    this.log(
+      `JWT policy '${this.policyName}' targeting ${targetRefs.map(r => r.name).join(', ')}`,
+      'info'
+    );
   }
 
   async deployBackendTlsPolicy() {
@@ -192,7 +199,7 @@ export class OboTokenExchangeFeature extends Feature {
       await this.deleteResource(
         'EnterpriseAgentgatewayPolicy',
         `${this.keycloakServiceName}-backend-tls`,
-        this.keycloakServiceNamespace,
+        this.keycloakServiceNamespace
       );
     }
 

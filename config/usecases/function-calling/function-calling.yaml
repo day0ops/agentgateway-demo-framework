@@ -43,12 +43,12 @@ spec:
       steps:
         - action: send-request
           endpoint: /openai
-          prompt: "How is the current weather in Columbus?"
+          prompt: 'How is the current weather in Columbus?'
           body:
             model: gpt-3.5-turbo
             messages:
               - role: user
-                content: "How is the current weather in Columbus?"
+                content: 'How is the current weather in Columbus?'
             tools:
               - type: function
                 function:
@@ -77,12 +77,12 @@ spec:
       steps:
         - action: send-request
           endpoint: /openai
-          prompt: "Search for information about AI and send me an email summary"
+          prompt: 'Search for information about AI and send me an email summary'
           body:
             model: gpt-3.5-turbo
             messages:
               - role: user
-                content: "Search for information about AI and send me an email summary"
+                content: 'Search for information about AI and send me an email summary'
             tools:
               - type: function
                 function:

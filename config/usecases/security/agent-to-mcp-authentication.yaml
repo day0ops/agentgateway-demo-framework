@@ -146,7 +146,7 @@ spec:
         - action: call-agent
           endpoint: /agent
           auth: bearer
-          query: "What is the current stock price of AAPL?"
+          query: 'What is the current stock price of AAPL?'
           timeout: 60
         - action: verify
           expect:

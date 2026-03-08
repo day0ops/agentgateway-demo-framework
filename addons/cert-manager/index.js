@@ -13,16 +13,16 @@ const CERT_MANAGER_CHART_VERSION = '1.19.3';
 
 /**
  * Cert-Manager Feature
- * 
+ *
  * Installs cert-manager for automatic TLS certificate management in Kubernetes.
- * 
+ *
  * Reference: https://cert-manager.io/docs/installation/helm/
- * 
+ *
  * This service installs:
  * - cert-manager (certificate management)
  * - CRDs for Certificate, CertificateRequest, Issuer, ClusterIssuer
  * - Webhook for certificate validation
- * 
+ *
  * Configuration:
  * {
  *   certManagerNamespace: string,  // Default: 'cert-manager'
@@ -86,9 +86,7 @@ export class CertManagerFeature extends Feature {
     const crdUrl = `https://github.com/cert-manager/cert-manager/releases/download/${CERT_MANAGER_VERSION}/cert-manager.crds.yaml`;
 
     try {
-      await KubernetesHelper.kubectl([
-        'apply', '-f', crdUrl
-      ], { spinner: this.spinner });
+      await KubernetesHelper.kubectl(['apply', '-f', crdUrl], { spinner: this.spinner });
       this.log('cert-manager CRDs installed', 'info');
     } catch (error) {
       throw new Error(`Failed to install cert-manager CRDs: ${error.message}`);
@@ -102,14 +100,11 @@ export class CertManagerFeature extends Feature {
     this.log('Adding Jetstack Helm repository...', 'info');
 
     try {
-      await CommandRunner.run('helm', [
-        'repo', 'add', 'jetstack',
-        'https://charts.jetstack.io'
-      ], { ignoreError: true }); // Ignore if repo already exists
+      await CommandRunner.run('helm', ['repo', 'add', 'jetstack', 'https://charts.jetstack.io'], {
+        ignoreError: true,
+      }); // Ignore if repo already exists
 
-      await CommandRunner.run('helm', [
-        'repo', 'update'
-      ]);
+      await CommandRunner.run('helm', ['repo', 'update']);
 
       this.log('Jetstack Helm repository added and updated', 'info');
     } catch (error) {
@@ -124,13 +119,18 @@ export class CertManagerFeature extends Feature {
     this.log('Installing cert-manager Helm chart...', 'info');
 
     const helmArgs = [
-      'upgrade', '-i', 'cert-manager',
+      'upgrade',
+      '-i',
+      'cert-manager',
       'jetstack/cert-manager',
-      '-n', this.certManagerNamespace,
-      '--version', CERT_MANAGER_CHART_VERSION,
+      '-n',
+      this.certManagerNamespace,
+      '--version',
+      CERT_MANAGER_CHART_VERSION,
       '--create-namespace',
       '--wait',
-      '--timeout', '5m'
+      '--timeout',
+      '5m',
     ];
 
     // Add values file if it exists
@@ -163,11 +163,7 @@ export class CertManagerFeature extends Feature {
   async waitForCertManager() {
     this.log('Waiting for cert-manager to be ready...', 'info');
 
-    const deployments = [
-      'cert-manager',
-      'cert-manager-webhook',
-      'cert-manager-cainjector'
-    ];
+    const deployments = ['cert-manager', 'cert-manager-webhook', 'cert-manager-cainjector'];
 
     for (const deployment of deployments) {
       if (deployment === 'cert-manager-webhook' && !this.webhookEnabled) {
@@ -215,10 +211,11 @@ export class CertManagerFeature extends Feature {
 
     // Uninstall Helm chart
     try {
-      await CommandRunner.run('helm', [
-        'uninstall', 'cert-manager',
-        '-n', this.certManagerNamespace
-      ], { ignoreError: true });
+      await CommandRunner.run(
+        'helm',
+        ['uninstall', 'cert-manager', '-n', this.certManagerNamespace],
+        { ignoreError: true }
+      );
       this.log('cert-manager Helm chart uninstalled', 'info');
     } catch (error) {
       // Ignore errors - release may not exist
@@ -226,9 +223,10 @@ export class CertManagerFeature extends Feature {
 
     // Remove ClusterIssuer
     try {
-      await KubernetesHelper.kubectl([
-        'delete', 'clusterissuer', 'selfsigned-issuer', '--ignore-not-found=true'
-      ], { ignoreError: true });
+      await KubernetesHelper.kubectl(
+        ['delete', 'clusterissuer', 'selfsigned-issuer', '--ignore-not-found=true'],
+        { ignoreError: true }
+      );
     } catch {
       // Ignore
     }
@@ -247,4 +245,3 @@ export class CertManagerFeature extends Feature {
     this.log('cert-manager cleaned up', 'success');
   }
 }
-
