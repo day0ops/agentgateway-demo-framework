@@ -1,0 +1,141 @@
+apiVersion: agentgateway.demo/v1
+kind: UseCase
+metadata:
+  name: elicitation-oauth-flow
+  description: Out-of-band OAuth consent for agents accessing external APIs on behalf of users
+  docs: https://docs.solo.io/agentgateway/2.1.x/security/obo-elicitations/elicitations/
+
+spec:
+  diagram: |
+    sequenceDiagram
+      participant Agent
+      participant AGW as AgentGateway
+      participant STS as STS :7777
+      participant UI as Solo UI
+      participant GitHub as External OAuth (GitHub)
+      participant API as External API
+      Agent->>AGW: Request to /api/user (needs GitHub token)
+      AGW->>STS: Check for upstream token
+      STS-->>AGW: No token, elicitation required
+      AGW-->>Agent: 202 + elicitation_url (PENDING)
+      Note over Agent: Agent pauses, waits for user
+      Agent->>UI: Notify user: "Authorization needed"
+      Note over UI: User opens Solo UI
+      UI->>GitHub: OAuth authorize redirect
+      Note over UI,GitHub: User authenticates with GitHub
+      GitHub-->>UI: Authorization code
+      UI->>STS: Exchange code for token
+      STS->>GitHub: Token exchange
+      GitHub-->>STS: Access token
+      STS-->>UI: Elicitation COMPLETED
+      Note over Agent: Agent retries
+      Agent->>AGW: Retry request to /api/user
+      AGW->>STS: Check for upstream token
+      STS-->>AGW: Token found
+      AGW->>API: Forward request + Bearer token
+      API-->>Agent: Success response
+  steps:
+    - title: Set up token exchange service
+      description: >
+        Enable the Security Token Service (STS) on the agentgateway control
+        plane (port 7777) via Helm upgrade. The STS manages elicitation state
+        and stores OAuth tokens for the out-of-band consent flow.
+      features:
+        - name: token-exchange
+          config:
+            keycloak:
+              realm: agw-dev
+              serviceName: keycloak
+              serviceNamespace: keycloak
+            tokenExpiration: 24h
+
+    - title: Create elicitation secret
+      description: >
+        Create a Kubernetes secret containing the external OAuth provider
+        credentials (GitHub in this example). The secret includes:
+        - client_id and client_secret for OAuth
+        - authorize_url and access_token_url for the OAuth flow
+        - scopes requested from the external provider
+        - redirect_uri for the Solo UI elicitation handler
+      features:
+        - name: elicitation-secret
+          config:
+            secretName: elicitation-github
+            provider: github
+            scopes: read:user,repo
+            redirectUri: http://localhost:4000/age/elicitations
+
+    - title: Configure elicitation backend
+      description: >
+        Create an AgentgatewayBackend for the external API (GitHub API) and
+        configure an EnterpriseAgentgatewayPolicy with tokenExchange.elicitation.
+        When requests arrive without an upstream token:
+        1. STS returns an elicitation URL with PENDING status
+        2. User completes OAuth in Solo UI
+        3. STS stores the token with COMPLETED status
+        4. Subsequent requests have the token injected automatically
+      features:
+        - name: elicitation-backend
+          config:
+            backendName: github-api
+            policyName: github-elicitation
+            routeName: github-api
+            pathPrefix: /github
+            secretName: elicitation-github
+            upstream:
+              host: api.github.com
+              port: 443
+              tls: true
+            tokenHeader: Authorization
+            tokenPrefix: 'Bearer '
+
+  tests:
+    - name: test-request-without-token-returns-elicitation
+      description: Verify request without upstream token returns elicitation URL
+      steps:
+        - action: get-token
+          keycloak:
+            realm: agw-dev
+            clientId: agw-client-public
+        - action: send-request
+          endpoint: /github/user
+          auth: bearer
+        - action: verify
+          expect:
+            status: 202
+            contains: elicitation_url
+
+    - name: test-elicitation-status-pending
+      description: Verify elicitation starts in PENDING state
+      steps:
+        - action: get-token
+          keycloak:
+            realm: agw-dev
+            clientId: agw-client-public
+        - action: send-request
+          endpoint: /github/user
+          auth: bearer
+        - action: verify
+          expect:
+            contains: PENDING
+
+    - name: test-elicitation-visible-in-ui
+      description: Verify pending elicitation is visible in Solo UI (manual verification)
+      manual: true
+      steps:
+        - action: note
+          text: >
+            Open http://localhost:4000 in a browser.
+            Navigate to Elicitations section.
+            Verify pending elicitation for GitHub is visible.
+            Click to complete OAuth authorization.
+
+    - name: test-after-authorization-success
+      description: Verify requests succeed after user completes authorization (manual verification)
+      manual: true
+      steps:
+        - action: note
+          text: >
+            After completing OAuth in Solo UI, retry the API request.
+            The token should be automatically injected.
+            Response should contain GitHub user data.

@@ -1,5 +1,6 @@
 import chalk from 'chalk';
 import stringWidth from 'string-width';
+import { formatDescription } from './common.js';
 
 const DIM = chalk.dim;
 const CYAN = chalk.cyan;
@@ -82,18 +83,7 @@ export async function showUseCaseOverview(metadata, spec, steps, mermaidText) {
   console.log('');
 
   if (metadata.description) {
-    const maxWidth = 75;
-    const words = String(metadata.description).split(/\s+/);
-    let line = '';
-    for (const word of words) {
-      if (line.length + word.length + 1 > maxWidth && line.length > 0) {
-        console.log(WHITE(line));
-        line = word;
-      } else {
-        line = line ? `${line} ${word}` : word;
-      }
-    }
-    if (line) console.log(WHITE(line));
+    console.log(WHITE(formatDescription(metadata.description, '')));
     console.log('');
   }
 
@@ -136,18 +126,7 @@ export function showStepHeader(stepIndex, totalSteps, title, description) {
   console.log(YELLOW(BOLD('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')));
   console.log('');
   if (description) {
-    const maxWidth = 75;
-    const words = description.split(/\s+/);
-    let line = '';
-    for (const word of words) {
-      if (line.length + word.length + 1 > maxWidth && line.length > 0) {
-        console.log(WHITE(line));
-        line = word;
-      } else {
-        line = line ? `${line} ${word}` : word;
-      }
-    }
-    if (line) console.log(WHITE(line));
+    console.log(WHITE(formatDescription(description, '')));
     console.log('');
   }
 }

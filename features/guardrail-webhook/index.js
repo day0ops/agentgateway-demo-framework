@@ -49,7 +49,9 @@ export class GuardrailWebhookFeature extends Feature {
       port: 8000,
       serviceName: 'ai-guardrail-webhook',
     };
-    return { ...defaults, ...(this.config.webhook || {}) };
+    const merged = { ...defaults, ...(this.config.webhook || {}) };
+    merged.image = Feature.resolveImage(merged.image);
+    return merged;
   }
 
   get opikConfig() {

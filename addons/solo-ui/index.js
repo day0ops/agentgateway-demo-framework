@@ -28,8 +28,9 @@ const RELEASE_NAME = 'solo-ui';
  *
  * Configuration:
  * {
- *   namespace: string,           // Default: 'agentgateway-system'
+ *   namespace: string,               // Default: 'agentgateway-system'
  *   managementChartVersion: string,  // Default: '0.3.3'
+ *   nodeSelector: object             // Default: {} (e.g., { nodeclass: 'worker' })
  * }
  */
 export class SoloUIFeature extends Feature {
@@ -37,6 +38,7 @@ export class SoloUIFeature extends Feature {
     super(name, config);
     this.namespace = config.namespace || this.namespace;
     this.chartVersion = config.managementChartVersion || SOLO_UI_MANAGEMENT_CHART_VERSION;
+    this.nodeSelector = config.nodeSelector || {};
   }
 
   getFeaturePath() {
@@ -45,6 +47,20 @@ export class SoloUIFeature extends Feature {
 
   validate() {
     return true;
+  }
+
+  /**
+   * Build Helm --set args for nodeSelector
+   * @param {string} prefix - Helm values path prefix (e.g., 'clickhouse')
+   * @returns {string[]} Array of --set arguments
+   */
+  buildNodeSelectorArgs(prefix) {
+    const args = [];
+    const pathPrefix = prefix ? `${prefix}.` : '';
+    for (const [key, value] of Object.entries(this.nodeSelector)) {
+      args.push('--set', `${pathPrefix}nodeSelector.${key}=${value}`);
+    }
+    return args;
   }
 
   async deploy() {
@@ -72,19 +88,20 @@ export class SoloUIFeature extends Feature {
 
     const valuesFile = join(CONFIG_DIR, 'values.yaml');
 
-    await KubernetesHelper.helm(
-      [
-        'upgrade', '-i', RELEASE_NAME,
-        SOLO_UI_MANAGEMENT_CHART_OCI,
-        '-n', this.namespace,
-        '--version', this.chartVersion,
-        '-f', valuesFile,
-        '--create-namespace',
-        '--wait',
-        '--timeout', '10m',
-      ],
-      { spinner: this.spinner }
-    );
+    const helmArgs = [
+      'upgrade', '-i', RELEASE_NAME,
+      SOLO_UI_MANAGEMENT_CHART_OCI,
+      '-n', this.namespace,
+      '--version', this.chartVersion,
+      '-f', valuesFile,
+      '--create-namespace',
+      '--wait',
+      '--timeout', '10m',
+      ...this.buildNodeSelectorArgs('ui'),
+      ...this.buildNodeSelectorArgs('clickhouse'),
+    ];
+
+    await KubernetesHelper.helm(helmArgs, { spinner: this.spinner });
 
     this.log('Management Helm chart installed', 'info');
   }

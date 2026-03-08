@@ -1,7 +1,8 @@
 .PHONY: help install start stop status clean clean-usecases clean-addons clean-infra test lint format deploy-usecase dryrun-usecase \
-	build-extras build-stock-server-mcp build-currency-server-mcp build-random-server-mcp build-guardrail-webhook build-stock-agent \
-	deploy-stock-server-mcp deploy-currency-server-mcp deploy-random-server-mcp deploy-guardrail-webhook deploy-stock-agent \
-	undeploy-stock-server-mcp undeploy-currency-server-mcp undeploy-random-server-mcp undeploy-guardrail-webhook undeploy-stock-agent
+	build-extras build-stock-server-mcp build-currency-server-mcp build-random-server-mcp build-guardrail-webhook build-stock-agent build-caller-agent build-budget-limiter \
+	push-extras push-stock-server-mcp push-currency-server-mcp push-random-server-mcp push-guardrail-webhook push-stock-agent push-caller-agent push-budget-limiter \
+	deploy-stock-server-mcp deploy-currency-server-mcp deploy-random-server-mcp deploy-guardrail-webhook deploy-stock-agent deploy-caller-agent deploy-budget-limiter \
+	undeploy-stock-server-mcp undeploy-currency-server-mcp undeploy-random-server-mcp undeploy-guardrail-webhook undeploy-stock-agent undeploy-caller-agent undeploy-budget-limiter
 .DEFAULT_GOAL := help
 
 BLUE := \033[0;34m
@@ -144,6 +145,27 @@ clean: ## Clean up everything
 
 ##@ Extras
 
+BUILDX_BUILDER ?= agw-builder
+
+setup-buildx: ## Setup buildx with insecure registry (requires REGISTRY_IP env var)
+	@if [ -z "$(REGISTRY_IP)" ]; then \
+		echo "$(YELLOW)REGISTRY_IP not set. Using default buildx.$(NC)"; \
+		exit 0; \
+	fi; \
+	echo "$(BLUE)Setting up buildx for insecure registry at $(REGISTRY_IP)...$(NC)"; \
+	printf '[registry."$(REGISTRY_IP):5000"]\n  insecure = true\n\n[registry."$(REGISTRY_IP):5001"]\n  insecure = true\n' > /tmp/buildkitd.toml; \
+	docker buildx rm $(BUILDX_BUILDER) 2>/dev/null || true; \
+	docker buildx create --name $(BUILDX_BUILDER) \
+		--driver docker-container \
+		--config /tmp/buildkitd.toml \
+		--use; \
+	docker buildx inspect --bootstrap; \
+	echo "$(GREEN)Buildx builder '$(BUILDX_BUILDER)' ready with insecure registry at $(REGISTRY_IP)$(NC)"
+
+clean-buildx: ## Remove the lok8s buildx builder
+	@docker buildx rm $(BUILDX_BUILDER) 2>/dev/null || true
+	@echo "$(GREEN)Buildx builder '$(BUILDX_BUILDER)' removed$(NC)"
+
 build-extras: ## Build all extras images
 	@echo "$(BLUE)Building all extras...$(NC)"
 	@$(MAKE) -C extras/stock-server-mcp build
@@ -151,6 +173,8 @@ build-extras: ## Build all extras images
 	@$(MAKE) -C extras/random-server-mcp build
 	@$(MAKE) -C extras/guardrail-webhook build
 	@$(MAKE) -C extras/stock-agent build
+	@$(MAKE) -C extras/caller-agent build
+	@$(MAKE) -C extras/budget-limiter docker-build
 
 build-stock-server-mcp: ## Build the stock MCP server image
 	@$(MAKE) -C extras/stock-server-mcp build
@@ -167,6 +191,43 @@ build-guardrail-webhook: ## Build the guardrail webhook image
 build-stock-agent: ## Build the stock agent image
 	@$(MAKE) -C extras/stock-agent build
 
+build-caller-agent: ## Build the caller agent image
+	@$(MAKE) -C extras/caller-agent build
+
+build-budget-limiter: ## Build the budget limiter image
+	@$(MAKE) -C extras/budget-limiter docker-build
+
+push-extras: ## Push all extras images (multi-arch)
+	@echo "$(BLUE)Pushing all extras...$(NC)"
+	@$(MAKE) -C extras/stock-server-mcp push
+	@$(MAKE) -C extras/currency-server-mcp push
+	@$(MAKE) -C extras/random-server-mcp push
+	@$(MAKE) -C extras/guardrail-webhook push
+	@$(MAKE) -C extras/stock-agent push
+	@$(MAKE) -C extras/caller-agent push
+	@$(MAKE) -C extras/budget-limiter docker-push
+
+push-stock-server-mcp: ## Push the stock MCP server image (multi-arch)
+	@$(MAKE) -C extras/stock-server-mcp push
+
+push-currency-server-mcp: ## Push the currency MCP server image (multi-arch)
+	@$(MAKE) -C extras/currency-server-mcp push
+
+push-random-server-mcp: ## Push the random MCP server image (multi-arch)
+	@$(MAKE) -C extras/random-server-mcp push
+
+push-guardrail-webhook: ## Push the guardrail webhook image (multi-arch)
+	@$(MAKE) -C extras/guardrail-webhook push
+
+push-stock-agent: ## Push the stock agent image (multi-arch)
+	@$(MAKE) -C extras/stock-agent push
+
+push-caller-agent: ## Push the caller agent image (multi-arch)
+	@$(MAKE) -C extras/caller-agent push
+
+push-budget-limiter: ## Push the budget limiter image (multi-arch)
+	@$(MAKE) -C extras/budget-limiter docker-push
+
 deploy-stock-server-mcp: ## Deploy the stock MCP server to K8s
 	@$(MAKE) -C extras/stock-server-mcp deploy
 
@@ -182,6 +243,12 @@ deploy-guardrail-webhook: ## Deploy the guardrail webhook to K8s
 deploy-stock-agent: ## Deploy the stock agent to K8s
 	@$(MAKE) -C extras/stock-agent deploy
 
+deploy-caller-agent: ## Deploy the caller agent to K8s
+	@$(MAKE) -C extras/caller-agent deploy
+
+deploy-budget-limiter: ## Deploy the budget limiter to K8s
+	@$(MAKE) -C extras/budget-limiter deploy
+
 undeploy-stock-server-mcp: ## Remove the stock MCP server from K8s
 	@$(MAKE) -C extras/stock-server-mcp undeploy
 
@@ -196,6 +263,12 @@ undeploy-guardrail-webhook: ## Remove the guardrail webhook from K8s
 
 undeploy-stock-agent: ## Remove the stock agent from K8s
 	@$(MAKE) -C extras/stock-agent undeploy
+
+undeploy-caller-agent: ## Remove the caller agent from K8s
+	@$(MAKE) -C extras/caller-agent undeploy
+
+undeploy-budget-limiter: ## Remove the budget limiter from K8s
+	@$(MAKE) -C extras/budget-limiter undeploy
 
 ##@ Utilities
 

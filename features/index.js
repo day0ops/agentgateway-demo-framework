@@ -8,7 +8,7 @@
  * in addons/index.js
  */
 
-import { FeatureManager } from '../src/lib/feature.js';
+import { FeatureManager, PolicyRegistry } from '../src/lib/feature.js';
 import { GatewayFeature } from './gateway/index.js';
 import { ProvidersFeature } from './providers/index.js';
 import { PromptEnrichmentFeature } from './prompt-enrichment/index.js';
@@ -26,6 +26,10 @@ import { ApiKeyAuthFeature } from './apikey-auth/index.js';
 import { McpServerFeature } from './mcp-server/index.js';
 import { McpAuthFeature } from './mcp-auth/index.js';
 import { McpToolAccessFeature } from './mcp-tool-access/index.js';
+import { WorkloadAgentFeature } from './workload-agent/index.js';
+import { BudgetLimiterFeature } from './budget-limiter/index.js';
+import { ElicitationSecretFeature } from './elicitation-secret/index.js';
+import { ElicitationBackendFeature } from './elicitation-backend/index.js';
 
 // Register all features
 FeatureManager.register('gateway', GatewayFeature);
@@ -45,9 +49,13 @@ FeatureManager.register('apikey-auth', ApiKeyAuthFeature);
 FeatureManager.register('mcp-server', McpServerFeature);
 FeatureManager.register('mcp-auth', McpAuthFeature);
 FeatureManager.register('mcp-tool-access', McpToolAccessFeature);
+FeatureManager.register('workload-agent', WorkloadAgentFeature);
+FeatureManager.register('budget-limiter', BudgetLimiterFeature);
+FeatureManager.register('elicitation-secret', ElicitationSecretFeature);
+FeatureManager.register('elicitation-backend', ElicitationBackendFeature);
 
-// Export the FeatureManager for use in other modules
-export { FeatureManager };
+// Export the FeatureManager and PolicyRegistry for use in other modules
+export { FeatureManager, PolicyRegistry };
 
 // Export individual feature classes
 export {
@@ -68,4 +76,8 @@ export {
   McpServerFeature,
   McpAuthFeature,
   McpToolAccessFeature,
+  WorkloadAgentFeature,
+  BudgetLimiterFeature,
+  ElicitationSecretFeature,
+  ElicitationBackendFeature,
 };

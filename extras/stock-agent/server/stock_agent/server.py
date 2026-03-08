@@ -43,7 +43,7 @@ runner = Runner(
     app_name=_APP_NAME,
     agent=root_agent,
     session_service=session_service,
-    plugins=[plugin],
+    plugins=[plugin] if plugin is not None else [],
 )
 
 _CANCEL_SCOPE_MSG = "Attempted to exit cancel scope in a different task than it was entered in"

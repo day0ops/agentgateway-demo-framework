@@ -66,7 +66,7 @@ export class McpServerFeature extends Feature {
     super(name, config);
 
     this.shouldDeployServer = config.deployServer !== false;
-    this.image = config.image || 'mcp-stock-server:latest';
+    this.image = Feature.resolveImage(config.image || 'mcp-stock-server:latest');
     this.imagePullPolicy = config.imagePullPolicy || 'IfNotPresent';
     this.serverName = config.serverName || 'mcp-stock-server';
     this.serverPort = config.serverPort || 8000;
@@ -227,7 +227,7 @@ export class McpServerFeature extends Feature {
 
   async deployWorkloadFor(server) {
     const name = server.name;
-    const image = server.image;
+    const image = Feature.resolveImage(server.image);
     const imagePullPolicy = server.imagePullPolicy || this.imagePullPolicy;
     const serverPort = server.serverPort || this.serverPort;
     const servicePort = server.servicePort || this.servicePort;

@@ -15,9 +15,11 @@ const ENTERPRISE_AGW_LICENSE_KEY = process.env.ENTERPRISE_AGW_LICENSE_KEY;
  * Token Exchange Feature
  *
  * Performs a Helm upgrade on the enterprise-agentgateway release to enable the
- * Security Token Service (STS) for OBO token exchange.
+ * Security Token Service (STS) for OBO token exchange and elicitation flows.
  *
- * Reference: https://docs.solo.io/agentgateway/2.1.x/security/obo-elicitations/obo/#step-2-set-up-token-exchange
+ * References:
+ *   OBO: https://docs.solo.io/agentgateway/2.1.x/security/obo-elicitations/obo/#step-2-set-up-token-exchange
+ *   Elicitation: https://docs.solo.io/agentgateway/2.1.x/security/obo-elicitations/elicitations/
  *
  * Configuration:
  * {
@@ -31,6 +33,12 @@ const ENTERPRISE_AGW_LICENSE_KEY = process.env.ENTERPRISE_AGW_LICENSE_KEY;
  *   },
  *   actorValidator: {
  *     validatorType: string,  // Default: 'k8s'
+ *   },
+ *   elicitation: {
+ *     enabled: boolean,       // Enable elicitation support (default: false)
+ *     oidc: {
+ *       secretName: string,   // Secret containing OAuth provider credentials
+ *     },
  *   },
  * }
  */
@@ -61,6 +69,17 @@ export class TokenExchangeFeature extends Feature {
         },
       },
     };
+
+    if (config.elicitation?.enabled) {
+      this.tokenExchangeValues.tokenExchange.elicitation = {
+        enabled: true,
+      };
+      if (config.elicitation.oidc?.secretName) {
+        this.tokenExchangeValues.tokenExchange.elicitation.oidc = {
+          secretName: config.elicitation.oidc.secretName,
+        };
+      }
+    }
   }
 
   getFeaturePath() {

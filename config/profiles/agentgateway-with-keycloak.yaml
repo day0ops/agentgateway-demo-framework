@@ -1,0 +1,95 @@
+## AgentGateway profile with Keycloak
+## Installs Keycloak as IdP — covers OBO token exchange, workload identity, and other Keycloak-based security demos
+## Reference: https://docs.solo.io/agentgateway/latest/security/
+
+agentgateway:
+  version: "v2.2.0-beta.1"
+  ociRegistry: "oci://us-central1-docker.pkg.dev/developers-369321/enterprise-agentgateway-public-nonprod/charts"
+
+agentgateway-crds:
+  version: "v2.2.0-beta.1"
+  ociRegistry: "oci://us-central1-docker.pkg.dev/developers-369321/enterprise-agentgateway-public-nonprod/charts"
+
+helmValues:
+
+  controller:
+    extraEnv:
+      KGW_ENABLE_GATEWAY_API_EXPERIMENTAL_FEATURES: "true"
+
+  # STS token exchange configuration
+  tokenExchange:
+    enabled: true
+    issuer: "enterprise-agentgateway.agentgateway-system.svc.cluster.local:7777"
+    tokenExpiration: 24h
+    subjectValidator:
+      validatorType: remote
+      remoteConfig:
+        url: "https://keycloak.keycloak.svc.cluster.local/realms/agw-dev/protocol/openid-connect/certs"
+    actorValidator:
+      validatorType: k8s
+    apiValidator:
+      validatorType: remote
+      remoteConfig:
+        url: "https://keycloak.keycloak.svc.cluster.local/realms/agw-dev/protocol/openid-connect/certs"
+
+resources:
+  - agentgateway-with-keycloak/enterprise-agentgateway-parameters.yaml
+
+featureGates:
+  injectExtAuthCustomCaCert:
+    enabled: true
+    sourceSecret: keycloak-tls
+    sourceNamespace: keycloak
+
+addons:
+  - name: cert-manager
+    description: Certificate management for TLS (required by Keycloak)
+    namespace: cert-manager
+
+  - name: keycloak
+    description: Keycloak OIDC Identity Provider
+    namespace: keycloak
+    config:
+      keycloakNamespace: keycloak
+      hostname: keycloak.keycloak.svc.cluster.local
+      protocol: https
+      realm: agw-dev
+      clientId: agw-client
+      clientSecret: agw-client-secret
+      publicClientId: agw-client-public
+      tls:
+        enabled: true
+        secretName: keycloak-tls
+        createCertificate: true
+      workloadClients:
+        - clientId: caller-agent
+          clientSecret: caller-agent-secret
+          audience: agentgateway
+          k8sSecretName: caller-agent-credentials
+          k8sSecretNamespace: agentgateway-system
+        - clientId: chain-caller-agent
+          clientSecret: chain-caller-agent-secret
+          audience: agentgateway
+          k8sSecretName: chain-caller-agent-credentials
+          k8sSecretNamespace: agentgateway-system
+        - clientId: chain-stock-agent
+          clientSecret: chain-stock-agent-secret
+          audience: agentgateway
+          k8sSecretName: chain-stock-agent-credentials
+          k8sSecretNamespace: agentgateway-system
+
+  - name: solo-ui
+    description: Solo Enterprise UI for agentgateway
+    namespace: agentgateway-system
+    config:
+      nodeSelector:
+        nodeclass: worker
+  - name: telemetry
+    description: OpenTelemetry observability stack (Prometheus, Grafana, Loki, Tempo)
+    namespace: telemetry
+    config:
+      nodeSelector:
+        nodeclass: worker
+      config:
+        retention: '120h' # 5 days
+        grafanaServiceType: 'LoadBalancer'

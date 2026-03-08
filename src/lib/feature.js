@@ -8,6 +8,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const PROJECT_ROOT = join(__dirname, '../..');
 const DEFAULT_NAMESPACE = process.env.AGENTGATEWAY_NAMESPACE || 'agentgateway-system';
+const IMAGE_REPO = process.env.IMAGE_REPO || '';
 
 /**
  * Base class for all features
@@ -74,9 +75,33 @@ export class Feature {
   }
 
   /**
+   * Resolve container image with IMAGE_REPO prefix if set.
+   * Skips prefixing if image already contains a registry (has a slash before the first colon).
+   * @param {string} image - Image name (e.g., 'stock-server-mcp:latest')
+   * @returns {string} Resolved image (e.g., 'myregistry.com/stock-server-mcp:latest')
+   */
+  static resolveImage(image) {
+    if (!IMAGE_REPO || !image) return image;
+    const slashIndex = image.indexOf('/');
+    const colonIndex = image.indexOf(':');
+    const hasRegistry = slashIndex !== -1 && (colonIndex === -1 || slashIndex < colonIndex);
+    if (hasRegistry) return image;
+    return `${IMAGE_REPO}/${image}`;
+  }
+
+  /**
    * Helper: Apply Kubernetes resource (or collect YAML when dryRun)
    */
   async applyResource(resource) {
+    // Check if this should be deferred to PolicyRegistry
+    if (resource.kind === 'EnterpriseAgentgatewayPolicy' && PolicyRegistry.isEnabled()) {
+      const registered = PolicyRegistry.register(resource, this.name, this.namespace);
+      if (registered) {
+        // Policy registered for deferred merge+apply; don't add to dryRunYaml
+        return;
+      }
+    }
+
     const yamlContent = yaml.dump(resource, { lineWidth: -1, indent: 2 });
     if (this.dryRun && this._dryRunYaml) {
       this._dryRunYaml.push(yamlContent);
@@ -199,6 +224,151 @@ export class Feature {
 
     return output;
   }
+}
+
+/**
+ * Policy Registry - Collects and merges EnterpriseAgentgatewayPolicy resources
+ * for staged application at the end of use case deployment.
+ *
+ * This feature is enabled by default but can be disabled via:
+ * - Environment variable: DISABLE_POLICY_COALESCING=true
+ *
+ * When disabled, each feature applies its own EnterpriseAgentgatewayPolicy directly.
+ */
+export class PolicyRegistry {
+  static policies = new Map();      // Map<targetRefKey, policyEntry>
+  static contributors = new Map();  // Map<targetRefKey, Set<featureName>>
+  static enabled = false;
+
+  /**
+   * Check if policy coalescing feature is available (not disabled via env var)
+   */
+  static isCoalescingEnabled() {
+    return process.env.DISABLE_POLICY_COALESCING !== 'true';
+  }
+
+  static getTargetRefKey(targetRef, defaultNamespace) {
+    const kind = targetRef.kind || 'Unknown';
+    const ns = targetRef.namespace || defaultNamespace || 'default';
+    const name = targetRef.name || 'unknown';
+    return `${kind}:${ns}/${name}`;
+  }
+
+  static enable() {
+    // Only enable if coalescing feature is not disabled
+    if (this.isCoalescingEnabled()) {
+      this.enabled = true;
+      this.clear();
+    }
+  }
+  static disable() { this.enabled = false; }
+  static isEnabled() { return this.enabled && this.isCoalescingEnabled(); }
+  static clear() { this.policies.clear(); this.contributors.clear(); }
+
+  static register(policy, featureName, defaultNamespace) {
+    // Returns true if registered (deferred), false if should apply immediately
+    if (!this.enabled) return false;
+    if (policy.kind !== 'EnterpriseAgentgatewayPolicy') return false;
+
+    const targetRefs = policy.spec?.targetRefs || [];
+    if (targetRefs.length === 0) return false;
+
+    for (const targetRef of targetRefs) {
+      const key = this.getTargetRefKey(targetRef, defaultNamespace);
+
+      if (this.policies.has(key)) {
+        const existing = this.policies.get(key);
+        const merged = this.mergePolicy(existing, policy, featureName);
+        this.policies.set(key, merged);
+      } else {
+        const entry = JSON.parse(JSON.stringify(policy));
+        entry._contributors = [featureName];
+        entry._targetRefKey = key;
+        this.policies.set(key, entry);
+      }
+
+      if (!this.contributors.has(key)) this.contributors.set(key, new Set());
+      this.contributors.get(key).add(featureName);
+    }
+    return true;
+  }
+
+  static mergePolicy(existing, incoming, featureName) {
+    const merged = JSON.parse(JSON.stringify(existing));
+
+    // Merge labels
+    if (incoming.metadata?.labels) {
+      merged.metadata.labels = { ...(merged.metadata.labels || {}), ...incoming.metadata.labels };
+    }
+
+    // Merge spec.traffic
+    if (incoming.spec?.traffic) {
+      merged.spec.traffic = this.mergeSection(
+        merged.spec.traffic || {}, incoming.spec.traffic, 'spec.traffic', featureName
+      );
+    }
+
+    // Merge spec.backend
+    if (incoming.spec?.backend) {
+      merged.spec.backend = this.mergeSection(
+        merged.spec.backend || {}, incoming.spec.backend, 'spec.backend', featureName
+      );
+    }
+
+    merged._contributors = [...(merged._contributors || []), featureName];
+    return merged;
+  }
+
+  static mergeSection(existing, incoming, path, featureName) {
+    if (!incoming) return existing;
+    if (!existing || Object.keys(existing).length === 0) return incoming;
+
+    const result = { ...existing };
+    for (const [key, value] of Object.entries(incoming)) {
+      if (result[key] === undefined) {
+        result[key] = value;
+      } else if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+        result[key] = this.mergeSection(result[key], value, `${path}.${key}`, featureName);
+      } else {
+        throw new Error(
+          `Policy conflict at ${path}.${key}: feature '${featureName}' cannot set this field - ` +
+          'already set by previous feature(s). Only one feature can configure each policy field.'
+        );
+      }
+    }
+    return result;
+  }
+
+  static async commit(options = {}) {
+    const { dryRun = false, spinner = null } = options;
+    const yamlDocs = [];
+
+    for (const [_key, policy] of this.policies) {
+      const contributors = policy._contributors || [];
+      const cleanPolicy = JSON.parse(JSON.stringify(policy));
+      delete cleanPolicy._contributors;
+      delete cleanPolicy._targetRefKey;
+
+      // Generate merged policy name from contributors
+      cleanPolicy.metadata.name = `merged-${contributors.join('-')}`;
+      cleanPolicy.metadata.labels = {
+        ...(cleanPolicy.metadata.labels || {}),
+        'agentgateway.dev/merged-policy': 'true',
+        'agentgateway.dev/contributors': contributors.join('_'),
+      };
+
+      const yamlContent = yaml.dump(cleanPolicy, { lineWidth: -1, indent: 2 });
+
+      if (dryRun) {
+        yamlDocs.push(yamlContent);
+      } else {
+        await KubernetesHelper.applyYaml(yamlContent, spinner);
+      }
+    }
+    return yamlDocs;
+  }
+
+  static getMergedPolicyCount() { return this.policies.size; }
 }
 
 /**

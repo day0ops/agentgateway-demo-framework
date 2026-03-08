@@ -44,7 +44,7 @@ export class AgentFeature extends Feature {
 
     const ns = this.namespace;
     this.agentName = config.agentName || config.name || name || 'agent';
-    this.image = config.image;
+    this.image = Feature.resolveImage(config.image);
     this.imagePullPolicy = config.imagePullPolicy || 'IfNotPresent';
     this.pathPrefix = config.pathPrefix || '/agent';
     this.pathRewrite = config.pathRewrite !== undefined ? config.pathRewrite : '/';

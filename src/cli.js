@@ -8,7 +8,7 @@ import { Lok8sManager } from './lib/lok8s.js';
 import { AgentGatewayManager } from './lib/agentgateway.js';
 import { checkDependencies, Logger } from './lib/common.js';
 import { ProfileManager } from './lib/profiles.js';
-import { UseCaseManager } from './lib/usecases.js';
+import { UseCaseManager } from './lib/usecase.js';
 import { AddonInstaller } from './lib/addons.js';
 import { CLI_VERSION, CLI_DESCRIPTION } from './lib/version.js';
 
@@ -341,10 +341,12 @@ usecase
       Object.keys(byCategory).sort().forEach(category => {
         const categoryName = category === 'root' ? 'General' : category.toUpperCase();
         console.log(`\n  ${chalk.bold(categoryName)}:`);
-        byCategory[category].forEach(u => {
-          const name = u.category ? `${u.category}/${u.name}` : u.name;
-          console.log(`    ${chalk.cyan('•')} ${name}`);
-        });
+        byCategory[category]
+          .sort((a, b) => a.name.localeCompare(b.name))
+          .forEach(u => {
+            const name = u.category ? `${u.category}/${u.name}` : u.name;
+            console.log(`    ${chalk.cyan('•')} ${name}`);
+          });
       });
       console.log('');
     } catch (error) {

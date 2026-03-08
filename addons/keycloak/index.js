@@ -1,4 +1,4 @@
-import { Feature } from '../../src/lib/feature.js';
+import { Feature, FeatureManager } from '../../src/lib/feature.js';
 import { KubernetesHelper, CommandRunner } from '../../src/lib/common.js';
 import { readFile } from 'fs/promises';
 import { join, dirname } from 'path';
@@ -35,6 +35,7 @@ export class KeycloakFeature extends Feature {
     this.tlsEnabled = config.tls?.enabled !== false;
     this.tlsSecretName = config.tls?.secretName || 'keycloak-tls';
     this.createCertificate = config.tls?.createCertificate !== false;
+    this.workloadClients = config.workloadClients || [];
   }
 
   validate() {
@@ -228,10 +229,39 @@ export class KeycloakFeature extends Feature {
   // Post-deploy Keycloak configuration via Admin REST API
   // ---------------------------------------------------------------------------
 
+  /**
+   * Determine the base URL for Admin API calls.
+   * Tries LoadBalancer IP first, falls back to FQDN hostname.
+   */
+  async getAdminBaseUrl() {
+    const lbAddress = await this.waitForLoadBalancer();
+
+    if (lbAddress) {
+      const lbUrl = `${this.protocol}://${lbAddress}`;
+      // Test connectivity to LB IP
+      try {
+        const result = await CommandRunner.run('curl', [
+          '-sSfk', '--connect-timeout', '5',
+          `${lbUrl}/realms/master`,
+        ], { ignoreError: true });
+
+        if (result.exitCode === 0) {
+          this.log(`Using LoadBalancer address for Admin API: ${lbAddress}`, 'info');
+          return lbUrl;
+        }
+      } catch {
+        // LB not reachable, fall through to FQDN
+      }
+    }
+
+    this.log(`Falling back to FQDN for Admin API: ${this.hostname}`, 'info');
+    return `${this.protocol}://${this.hostname}`;
+  }
+
   async configureKeycloak() {
     this.log('Configuring Keycloak via Admin API...', 'info');
 
-    const baseUrl = `${this.protocol}://${this.hostname}`;
+    const baseUrl = await this.getAdminBaseUrl();
     const token = await this.getAdminToken(baseUrl);
 
     await this.createRealm(baseUrl, token);
@@ -240,7 +270,134 @@ export class KeycloakFeature extends Feature {
     await this.createPublicClient(baseUrl, token);
     await this.createUsers(baseUrl, token);
 
+    if (this.workloadClients.length > 0) {
+      await this.configureWorkloadClients(baseUrl, token);
+    }
+
     this.log('Keycloak configuration complete', 'info');
+  }
+
+  // ---------------------------------------------------------------------------
+  // Workload identity clients
+  // ---------------------------------------------------------------------------
+
+  async configureWorkloadClients(baseUrl, token) {
+    this.log(`Configuring ${this.workloadClients.length} workload client(s)...`, 'info');
+    let k8sIdpRegistered = false;
+
+    for (const client of this.workloadClients) {
+      const clientInternalId = await this.createWorkloadClient(baseUrl, token, client);
+
+      if (clientInternalId) {
+        await this.addAudienceMapper(baseUrl, token, clientInternalId, client.audience || 'agentgateway');
+
+        if (client.configureTokenExchange) {
+          if (!k8sIdpRegistered) {
+            await this.registerK8sIdentityProvider(
+              baseUrl, token,
+              client.k8sOidcIssuer || 'https://kubernetes.default.svc.cluster.local',
+              client.k8sJwksUrl || 'https://kubernetes.default.svc.cluster.local/openid/v1/jwks',
+            );
+            k8sIdpRegistered = true;
+          }
+        }
+      }
+
+      if (client.k8sSecretName) {
+        await this.createWorkloadClientSecret(client);
+      }
+    }
+  }
+
+  async createWorkloadClient(baseUrl, token, client) {
+    const clientId = client.clientId;
+    this.log(`Creating workload client '${clientId}'...`, 'info');
+
+    const payload = {
+      clientId,
+      enabled: true,
+      publicClient: false,
+      standardFlowEnabled: false,
+      serviceAccountsEnabled: true,
+      directAccessGrantsEnabled: false,
+      attributes: { 'access.token.signed.response.alg': 'RS256' },
+    };
+    if (client.clientSecret) payload.secret = client.clientSecret;
+
+    const result = await CommandRunner.run('curl', [
+      '-sSik', '-X', 'POST',
+      '-H', `Authorization: Bearer ${token}`,
+      '-H', 'Content-Type: application/json',
+      '-d', JSON.stringify(payload),
+      `${baseUrl}/admin/realms/${this.realm}/clients`,
+    ], { ignoreError: true });
+
+    let id = this.extractIdFromLocation(result.stdout);
+    if (!id) id = await this.lookupClientId(baseUrl, token, clientId);
+
+    if (id) {
+      this.log(`Workload client '${clientId}' created (internal id: ${id})`, 'info');
+    } else {
+      this.log(`Workload client '${clientId}' may already exist`, 'warn');
+    }
+    return id;
+  }
+
+  async addAudienceMapper(baseUrl, token, clientInternalId, audience) {
+    this.log(`Adding audience mapper (aud=${audience})...`, 'info');
+    await this.kcApi('POST', `${baseUrl}/admin/realms/${this.realm}/clients/${clientInternalId}/protocol-mappers/models`, token, {
+      name: `audience-${audience}`,
+      protocol: 'openid-connect',
+      protocolMapper: 'oidc-audience-mapper',
+      config: {
+        'included.custom.audience': audience,
+        'access.token.claim': 'true',
+        'id.token.claim': 'false',
+      },
+    });
+  }
+
+  async registerK8sIdentityProvider(baseUrl, token, issuer, jwksUrl) {
+    this.log(`Registering Kubernetes OIDC identity provider (issuer=${issuer})...`, 'info');
+    await this.kcApi('POST', `${baseUrl}/admin/realms/${this.realm}/identity-provider/instances`, token, {
+      providerId: 'oidc',
+      alias: 'kubernetes',
+      displayName: 'Kubernetes',
+      enabled: true,
+      trustEmail: false,
+      storeToken: false,
+      addReadTokenRoleOnCreate: false,
+      config: {
+        validateSignature: 'true',
+        useJwksUrl: 'true',
+        jwksUrl,
+        issuer,
+        tokenUrl: `${issuer}/openid/v1/token`,
+        authorizationUrl: `${issuer}/openid/v1/auth`,
+        disableUserInfoService: 'true',
+        clientAuthMethod: 'client_secret_post',
+        syncMode: 'IMPORT',
+      },
+    });
+  }
+
+  async createWorkloadClientSecret(client) {
+    const secretNamespace = client.k8sSecretNamespace || FeatureManager.getDefaultNamespace();
+    this.log(`Creating K8s Secret '${client.k8sSecretName}' in namespace '${secretNamespace}'...`, 'info');
+
+    await KubernetesHelper.ensureNamespace(secretNamespace, this.spinner);
+
+    await this.applyResource({
+      apiVersion: 'v1',
+      kind: 'Secret',
+      metadata: {
+        name: client.k8sSecretName,
+        namespace: secretNamespace,
+        labels: { 'app.kubernetes.io/managed-by': 'agentgateway-demo' },
+      },
+      type: 'Opaque',
+      stringData: { client_secret: client.clientSecret },
+    });
   }
 
   async kcApi(method, url, token, body) {
@@ -419,6 +576,10 @@ export class KeycloakFeature extends Feature {
     this.log('Cleaning up Keycloak...', 'info');
     const ns = this.keycloakNamespace;
 
+    if (this.workloadClients.length > 0) {
+      await this.cleanupWorkloadClients();
+    }
+
     await this.deleteResource('deployment', 'keycloak', ns);
     await this.deleteResource('service', 'keycloak', ns);
     await this.deleteResource('secret', 'keycloak-secrets', ns);
@@ -435,5 +596,44 @@ export class KeycloakFeature extends Feature {
     }
 
     this.log('Keycloak cleaned up', 'success');
+  }
+
+  async cleanupWorkloadClients() {
+    const baseUrl = `${this.protocol}://${this.hostname}`;
+    let token;
+    try {
+      token = await this.getAdminToken(baseUrl);
+    } catch (error) {
+      this.log(`Could not obtain admin token for workload client cleanup: ${error.message}`, 'warn');
+      return;
+    }
+
+    let k8sIdpRemoved = false;
+    for (const client of this.workloadClients) {
+      try {
+        const id = await this.lookupClientId(baseUrl, token, client.clientId);
+        if (id) {
+          await this.kcApi('DELETE', `${baseUrl}/admin/realms/${this.realm}/clients/${id}`, token);
+          this.log(`Workload client '${client.clientId}' deleted`, 'info');
+        }
+      } catch (error) {
+        this.log(`Failed to delete workload client '${client.clientId}': ${error.message}`, 'warn');
+      }
+
+      if (client.configureTokenExchange && !k8sIdpRemoved) {
+        try {
+          await this.kcApi('DELETE', `${baseUrl}/admin/realms/${this.realm}/identity-provider/instances/kubernetes`, token);
+          this.log('Kubernetes IdP removed', 'info');
+          k8sIdpRemoved = true;
+        } catch (error) {
+          this.log(`Failed to remove Kubernetes IdP: ${error.message}`, 'warn');
+        }
+      }
+
+      if (client.k8sSecretName) {
+        const secretNamespace = client.k8sSecretNamespace || FeatureManager.getDefaultNamespace();
+        await this.deleteResource('secret', client.k8sSecretName, secretNamespace);
+      }
+    }
   }
 }

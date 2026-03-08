@@ -8,37 +8,37 @@ Demonstrates machine-to-machine (M2M) authentication in an agentic system. The c
 
 ```mermaid
 sequenceDiagram
-    participant Caller as Caller<br/>(test runner / user)
-    participant GW as AGW Proxy<br/>:8080
-    participant Agent as Stock ADK Agent<br/>/agent
-    participant STS as AGW STS<br/>:7777
-    participant KC as Keycloak<br/>:8080 HTTP
-    participant MCP as MCP Stock Server<br/>(protected)
+    participant Caller as Caller
+    participant GW as AGW Proxy
+    participant Agent as Stock ADK Agent
+    participant STS as AGW STS
+    participant KC as Keycloak
+    participant MCP as MCP Stock Server
 
-    Note over Caller,MCP: MCP route protected by JWT policy (Keycloak or STS issuer)
+    Note over Caller,MCP: MCP route protected by JWT policy
 
-    Caller->>KC: POST /token<br/>grant_type=client_credentials
+    Caller->>KC: POST /token (client_credentials)
     KC-->>Caller: user_jwt (sub=agw-client)
 
-    Caller->>GW: POST /agent/run<br/>Authorization: Bearer user_jwt<br/>{"query": "What is AAPL price?"}
+    Caller->>GW: POST /agent/run + Bearer user_jwt
     GW-->>Agent: forward
 
     rect rgb(240, 255, 240)
-        Note over Agent,MCP: Agent forwards JWT to /mcp; GW validates via Keycloak or STS
-        Agent->>GW: POST /mcp<br/>Authorization: Bearer token<br/>(tools/call get_stock_price)
+        Note over Agent,MCP: Agent forwards JWT to /mcp
+        Agent->>GW: POST /mcp + Bearer token (tools/call)
         alt Policy uses Keycloak issuer
-            GW->>KC: GET .../certs<br/>(validate token via JWKS)
+            GW->>KC: GET JWKS (validate token)
             KC-->>GW: JWKS
         else Policy uses STS issuer
-            GW->>STS: GET /.well-known/jwks.json<br/>(validate token)
+            GW->>STS: GET /.well-known/jwks.json
             STS-->>GW: JWKS
         end
         GW-->>MCP: forward authenticated request
-        MCP-->>GW: {"price": 195.42}
+        MCP-->>GW: tool result
         GW-->>Agent: tool result
     end
 
-    Agent-->>GW: {"response": "AAPL is $195.42"}
+    Agent-->>GW: final response
     GW-->>Caller: 200 OK
 ```
 

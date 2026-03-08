@@ -437,6 +437,77 @@ export function waitFor(ms) {
 }
 
 /**
+ * Wrap text to a given terminal width, preserving an optional leading indent
+ * on every line. Uses `string-width` so ANSI escape codes are excluded from
+ * the measured length.
+ *
+ * @param {string} text       - Text to wrap (whitespace is normalised)
+ * @param {number} [width]    - Max line width (defaults to terminal width, capped at 120)
+ * @param {string} [indent]   - String prepended to every output line (default: '')
+ * @returns {string}
+ */
+export function wrapText(text, width = Math.min(process.stdout.columns || 100, 120), indent = '') {
+  const maxContent = width - stringWidth(indent);
+  const words = String(text).trim().split(/\s+/);
+  const lines = [];
+  let line = '';
+
+  for (const word of words) {
+    const candidate = line ? `${line} ${word}` : word;
+    if (stringWidth(candidate) > maxContent && line) {
+      lines.push(indent + line);
+      line = word;
+    } else {
+      line = candidate;
+    }
+  }
+
+  if (line) lines.push(indent + line);
+  return lines.join('\n');
+}
+
+/**
+ * Format a multi-line description preserving structure (bullets, numbered lists, paragraphs).
+ * @param {string} text - The description text
+ * @param {string} [indent='  '] - Indentation for each line
+ * @returns {string} Formatted description
+ */
+export function formatDescription(text, indent = '  ') {
+  if (!text) return '';
+  const width = Math.min(process.stdout.columns || 100, 100);
+  const lines = text.split('\n');
+  const result = [];
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      result.push('');
+      continue;
+    }
+    // Check if line is a bullet or numbered item
+    const isBullet = /^[-*]/.test(trimmed);
+    const isNumbered = /^\d+[.)]/.test(trimmed);
+    const lineIndent = isBullet || isNumbered ? indent + '  ' : indent;
+    const prefix = isBullet || isNumbered ? indent + trimmed.slice(0, 2) : '';
+
+    if (isBullet || isNumbered) {
+      // Wrap the content after the bullet/number
+      const content = trimmed.slice(2).trim();
+      const wrapped = wrapText(content, width - lineIndent.length, '');
+      const wrappedLines = wrapped.split('\n');
+      result.push(prefix + wrappedLines[0]);
+      for (let i = 1; i < wrappedLines.length; i++) {
+        result.push(lineIndent + wrappedLines[i]);
+      }
+    } else {
+      // Regular paragraph line
+      result.push(wrapText(trimmed, width, indent));
+    }
+  }
+  return result.join('\n');
+}
+
+/**
  * Print a bordered box showing raw HTTP request and response details.
  * @param {{ method: string, url: string, headers: Object, body: any }} request
  * @param {{ status: number, headers: Object, body: any }} response

@@ -22,7 +22,7 @@ export class ProfileManager {
     'agentgateway-with-solo-ui': 'AgentGateway with Solo UI stack',
     'agentgateway-custom-config': 'AgentGateway with custom configuration',
     'agentgateway-custom-version': 'AgentGateway with custom version, OCI registry, and controller extraEnv (e.g. Gateway API experimental)',
-    'agentgateway-with-obo': 'AgentGateway with OBO token exchange (Keycloak + STS)',
+    'agentgateway-with-keycloak': 'AgentGateway with Keycloak (OBO token exchange, workload identity, and other Keycloak-based security demos)',
   };
 
   /**
@@ -110,11 +110,14 @@ export class ProfileManager {
         throw new Error('No profiles found in config/profiles/');
       }
 
-      const choices = profiles.map(profile => ({
-        name: `${profile.name.padEnd(12)} - ${profile.description}`,
-        value: profile.name,
-        short: profile.name,
-      }));
+      const choices = profiles
+        .slice()
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map(profile => ({
+          name: `${profile.name.padEnd(12)} - ${profile.description}`,
+          value: profile.name,
+          short: profile.name,
+        }));
 
       const selectedName = await Prompts.select(
         'Select kgateway installation profile:',

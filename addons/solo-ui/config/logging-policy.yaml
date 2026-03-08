@@ -13,8 +13,6 @@ spec:
       name: agentgateway
   frontend:
     accessLog:
-      filter: |
-        has(response)
       attributes:
         add:
           - name: http.user_agent

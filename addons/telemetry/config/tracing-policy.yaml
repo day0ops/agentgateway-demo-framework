@@ -14,7 +14,7 @@ spec:
   frontend:
     tracing:
       backendRef:
-        name: opentelemetry-collector-traces
+        name: tempo-distributor
         namespace: telemetry
         port: 4317
       protocol: GRPC

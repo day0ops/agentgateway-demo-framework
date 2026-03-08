@@ -1,14 +1,42 @@
-# Helm values for Grafana Tempo
-# https://github.com/grafana/helm-charts/tree/main/charts/tempo
+# Helm values for Grafana Tempo Distributed
+# https://github.com/grafana/helm-charts/tree/main/charts/tempo-distributed
 
-# Use default Tempo configuration
-# Customizations can be added here as needed
-
-persistence:
+# Disable minio - use local storage for simplicity
+minio:
   enabled: false
-tempo:
-  receivers:
-    otlp:
-      protocols:
-        grpc:
-          endpoint: 0.0.0.0:4317
+
+# Enable OTLP receivers for traces
+traces:
+  otlp:
+    grpc:
+      enabled: true
+    http:
+      enabled: true
+  zipkin:
+    enabled: false
+  jaeger:
+    thriftHttp:
+      enabled: false
+  opencensus:
+    enabled: false
+
+# Minimal resource configuration for local/demo environments
+distributor:
+  replicas: 1
+
+ingester:
+  replicas: 1
+
+querier:
+  replicas: 1
+
+queryFrontend:
+  replicas: 1
+
+compactor:
+  replicas: 1
+
+# Use local storage
+storage:
+  trace:
+    backend: local
