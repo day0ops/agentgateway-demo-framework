@@ -8,14 +8,12 @@ A modular framework for demonstrating and testing [agentgateway](https://agentga
 
 Ensure you have the following installed:
 
-- **Node.js** >= 18.0.0
-- **bun** or **yarn**
-- **macOS** (Darwin) or Linux
-- **Docker Desktop** (running)
+- **Node.js** >= 24.14.0
+- **bun** - JavaScript runtime and package manager
+- **Docker Desktop** - for building and pushing images
 - **kubectl** - Kubernetes CLI
 - **helm** - Kubernetes package manager
 - **jq** - JSON processor
-- **yq** - YAML processor
 
 Set the following environment variables:
 
@@ -56,8 +54,8 @@ node src/cli.js check-deps
 
 ### 3. Install base infrastructure
 
-If you do not want to do install [lok8s](https://github.com/day0ops/lok8s) as your local Kubernetes cluster, you can skip this step.
-Otherwise, run the following command after install [lok8s](https://github.com/day0ops/lok8s) to install the base infrastructure:
+If you do not want to install [lok8s](https://github.com/day0ops/lok8s) as your local Kubernetes cluster, you can skip this step.
+Otherwise, run the following command after installing [lok8s](https://github.com/day0ops/lok8s) as the base infrastructure:
 
 ```bash
 make install-infra
