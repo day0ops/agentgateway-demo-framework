@@ -1,13 +1,14 @@
 #!/usr/bin/env node
 
 import { Command } from 'commander';
+import { join } from 'path';
 import chalk from 'chalk';
 import figlet from 'figlet';
 import { Lok8sManager } from './lib/lok8s.js';
 import { AgentGatewayManager } from './lib/agentgateway.js';
 import { checkDependencies, Logger } from './lib/common.js';
 import { ProfileManager } from './lib/profiles.js';
-import { UseCaseManager } from './lib/usecases.js';
+import { UseCaseManager } from './lib/usecase.js';
 import { AddonInstaller } from './lib/addons.js';
 import { CLI_VERSION, CLI_DESCRIPTION } from './lib/version.js';
 
@@ -29,7 +30,7 @@ function formatDuration(ms) {
 function showBanner() {
   const banner = figlet.textSync('Agentgateway', { font: 'Standard', horizontalLayout: 'default' });
   console.log(chalk.blue(banner));
-  console.log(chalk.gray(`  Solo.io Agentgateway v${CLI_VERSION}\n`));
+  console.log(chalk.gray(`  Solo.io Agentgateway Demo Framework v${CLI_VERSION}\n`));
 }
 
 program
@@ -44,7 +45,7 @@ program
   .command('version')
   .description('Display banner, version, and description')
   .option('-s, --short', 'Print only version and description (one per line) for scripts')
-  .action((options) => {
+  .action(options => {
     if (options.short) {
       console.log(CLI_VERSION);
       console.log(CLI_DESCRIPTION);
@@ -104,9 +105,12 @@ base
 base
   .command('install-gateway')
   .description('Install agentgateway enterprise with optional addons')
-  .option('-p, --profile <name>', 'Installation profile (standard, standard-with-telemetry, advanced)')
+  .option(
+    '-p, --profile <name>',
+    'Installation profile (standard, standard-with-telemetry, advanced)'
+  )
   .option('--no-prompt', 'Skip interactive prompts and use defaults')
-  .action(async (options) => {
+  .action(async options => {
     const startTime = Date.now();
     try {
       Logger.info('Installing agentgateway...');
@@ -114,10 +118,9 @@ base
       // Determine which profile to use
       let profileFile = null;
       let profileData = null;
-      
+
       if (options.profile) {
-        // Profile specified via command line
-        profileFile = `./config/profiles/${options.profile}.yaml`;
+        profileFile = join(ProfileManager.PROFILES_DIR, `${options.profile}.yaml`);
         Logger.info(`Using profile: ${options.profile}`);
         try {
           profileData = await ProfileManager.load(profileFile);
@@ -126,7 +129,6 @@ base
           throw error;
         }
       } else if (options.prompt !== false) {
-        // Interactive mode - prompt user to select profile
         try {
           const profile = await ProfileManager.select();
           Logger.info(`Selected profile: ${profile.name}`);
@@ -137,17 +139,20 @@ base
           throw error;
         }
       }
-      // else: no profile, use defaults
 
       if (profileData && profileData.addons.length > 0) {
-        Logger.info(`Installing ${profileData.addons.length} prerequisite addon(s) from profile...`);
+        Logger.info(
+          `Installing ${profileData.addons.length} prerequisite addon(s) from profile...`
+        );
         await AddonInstaller.installAddons(profileData.addons);
       }
-      
+
       await AgentGatewayManager.install(profileFile);
-      await AgentGatewayManager.installProxy();
-      
-      Logger.success(`Gateway and all addons installed successfully in (${formatDuration(Date.now() - startTime)})`);
+      await AgentGatewayManager.installProxy(profileFile);
+
+      Logger.success(
+        `Gateway and all addons installed successfully in (${formatDuration(Date.now() - startTime)})`
+      );
     } catch (error) {
       Logger.error('Failed to install gateway');
       if (error.message) {
@@ -163,22 +168,24 @@ base
 base
   .command('install')
   .description('Install everything (infrastructure + gateway + addons)')
-  .option('-p, --profile <name>', 'Installation profile (standard, standard-with-telemetry, advanced)')
+  .option(
+    '-p, --profile <name>',
+    'Installation profile (standard, standard-with-telemetry, advanced)'
+  )
   .option('--no-prompt', 'Skip interactive prompts and use defaults')
-  .action(async (options) => {
+  .action(async options => {
     try {
       Logger.info('Installing complete stack...');
-      
+
       // Install infrastructure first
       await Lok8sManager.start();
-           
+
       // Determine which profile to use
       let profileFile = null;
       let profileData = null;
-      
+
       if (options.profile) {
-        // Profile specified via command line
-        profileFile = `./config/profiles/${options.profile}.yaml`;
+        profileFile = join(ProfileManager.PROFILES_DIR, `${options.profile}.yaml`);
         Logger.info(`Using profile: ${options.profile}`);
         try {
           profileData = await ProfileManager.load(profileFile);
@@ -187,7 +194,6 @@ base
           throw error;
         }
       } else if (options.prompt !== false) {
-        // Interactive mode - prompt user to select profile
         try {
           const profile = await ProfileManager.select();
           Logger.info(`Selected profile: ${profile.name}`);
@@ -198,17 +204,17 @@ base
           throw error;
         }
       }
-      // else: no profile, use defaults
 
       if (profileData && profileData.addons.length > 0) {
-        Logger.info(`Installing ${profileData.addons.length} prerequisite addon(s) from profile...`);
+        Logger.info(
+          `Installing ${profileData.addons.length} prerequisite addon(s) from profile...`
+        );
         await AddonInstaller.installAddons(profileData.addons);
       }
-      
-      // Install agentgateway with helm values from profile
+
       await AgentGatewayManager.install(profileFile);
-      await AgentGatewayManager.installProxy();
-      
+      await AgentGatewayManager.installProxy(profileFile);
+
       Logger.success('Complete stack installed successfully');
     } catch (error) {
       Logger.error('Failed to install complete stack');
@@ -264,7 +270,9 @@ base
         {
           type: 'confirm',
           name: 'confirm',
-          message: chalk.yellow('This will delete the entire cluster and all resources. Are you sure?'),
+          message: chalk.yellow(
+            'This will delete the entire cluster and all resources. Are you sure?'
+          ),
           default: false,
         },
       ]);
@@ -311,7 +319,7 @@ profile
   .action(async () => {
     try {
       const profiles = await ProfileManager.list();
-      
+
       console.log('\nAvailable profiles:');
       profiles.forEach(p => {
         console.log(`  ${chalk.cyan(p.name.padEnd(12))} - ${p.description}`);
@@ -332,7 +340,7 @@ usecase
   .action(async () => {
     try {
       const usecases = await UseCaseManager.list();
-      
+
       // Group by category
       const byCategory = {};
       usecases.forEach(u => {
@@ -342,16 +350,20 @@ usecase
         }
         byCategory[category].push(u);
       });
-      
+
       console.log('\nAvailable use cases:');
-      Object.keys(byCategory).sort().forEach(category => {
-        const categoryName = category === 'root' ? 'General' : category.toUpperCase();
-        console.log(`\n  ${chalk.bold(categoryName)}:`);
-        byCategory[category].forEach(u => {
-          const name = u.category ? `${u.category}/${u.name}` : u.name;
-          console.log(`    ${chalk.cyan('•')} ${name}`);
+      Object.keys(byCategory)
+        .sort()
+        .forEach(category => {
+          const categoryName = category === 'root' ? 'General' : category.toUpperCase();
+          console.log(`\n  ${chalk.bold(categoryName)}:`);
+          byCategory[category]
+            .sort((a, b) => a.name.localeCompare(b.name))
+            .forEach(u => {
+              const name = u.category ? `${u.category}/${u.name}` : u.name;
+              console.log(`    ${chalk.cyan('•')} ${name}`);
+            });
         });
-      });
       console.log('');
     } catch (error) {
       Logger.error('Failed to list use cases');
@@ -367,7 +379,7 @@ usecase
   .option('--no-prompt', 'Skip interactive prompts')
   .option('--no-stepped', 'Deploy all at once without step-through (no diagrams, no wait for key)')
   .option('--no-diagrams', 'Hide ASCII flow diagrams during stepped deploy')
-  .action(async (options) => {
+  .action(async options => {
     try {
       let usecaseName = null;
 
@@ -403,7 +415,7 @@ usecase
   .description('Show generated YAML for a use case without applying (copy-friendly output)')
   .option('-n, --name <name>', 'Use case name')
   .option('--no-prompt', 'Skip interactive prompts')
-  .action(async (options) => {
+  .action(async options => {
     try {
       let usecaseName = null;
 
@@ -428,11 +440,12 @@ usecase
   .command('test')
   .description('Test a deployed use case')
   .option('-n, --name <name>', 'Use case name')
+  .option('-c, --cleanup', 'Run cleanup after tests complete (undeploys features)')
   .option('--no-prompt', 'Skip interactive prompts')
-  .action(async (options) => {
+  .action(async options => {
     try {
       let usecaseName = null;
-      
+
       if (options.name) {
         // Use case specified via command line
         usecaseName = options.name;
@@ -444,8 +457,8 @@ usecase
         Logger.error('Please specify a use case with --name or run without --no-prompt');
         process.exit(1);
       }
-      
-      await UseCaseManager.test(usecaseName);
+
+      await UseCaseManager.test(usecaseName, { cleanup: options.cleanup });
     } catch (error) {
       // UseCaseManager already logged the error
       process.exit(1);
@@ -458,7 +471,7 @@ usecase
   .option('-n, --name <name>', 'Use case name')
   .option('-a, --all', 'Clean up the currently deployed use case (if any)')
   .option('--no-prompt', 'Skip interactive prompts')
-  .action(async (options) => {
+  .action(async options => {
     try {
       if (options.all) {
         await UseCaseManager.cleanupAll();
@@ -486,6 +499,27 @@ usecase
     }
   });
 
+usecase
+  .command('generate-diagrams')
+  .description('Generate spec.diagram (Mermaid) for all use case YAML files')
+  .action(async () => {
+    try {
+      const { updated, skipped, errors } = await UseCaseManager.generateDiagramsForAll();
+      if (errors.length > 0) {
+        errors.forEach(({ file, error }) => Logger.error(`${file}: ${error}`));
+        process.exit(1);
+      }
+      console.log(chalk.green(`Updated ${updated.length} use case(s) with spec.diagram`));
+      updated.forEach(f => console.log(chalk.gray('  ') + f));
+      if (skipped.length > 0) {
+        console.log(chalk.gray(`Skipped ${skipped.length} (no steps or no features)`));
+      }
+    } catch (error) {
+      Logger.error(error.message);
+      process.exit(1);
+    }
+  });
+
 // Utility commands
 program
   .command('check-deps')
@@ -504,4 +538,3 @@ program.parse(process.argv);
 if (process.argv.length === 2) {
   program.help();
 }
-

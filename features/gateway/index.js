@@ -57,7 +57,10 @@ export class GatewayFeature extends Feature {
       name: overrides.metadata.name,
       namespace: overrides.metadata.namespace,
     });
-    this.log(`Gateway '${overrides.metadata.name}' set as default for HTTPRoute parentRefs`, 'info');
+    this.log(
+      `Gateway '${overrides.metadata.name}' set as default for HTTPRoute parentRefs`,
+      'info'
+    );
   }
 
   async cleanup() {

@@ -2,10 +2,32 @@ apiVersion: agentgateway.demo/v1
 kind: UseCase
 metadata:
   name: function-calling-demo
-  description: Demonstrates function calling (tools) with LLM providers
+  description: |
+    Demonstrate the LLM tool-use (function calling) flow end-to-end.
+
+    - Client sends a prompt with tool definitions attached
+    - LLM responds with a tool_call (function name + arguments)
+    - Client executes the tool and submits the result back for a final completion
+    - Scenarios: single-tool (weather lookup), multi-tool (knowledge-base + email)
   docs: https://kgateway.dev/docs/latest/agentgateway/llm/functions/
 
 spec:
+  diagram: |
+    sequenceDiagram
+      participant Client
+      participant AGW as AgentGateway
+      participant LLM as OpenAI
+      participant Tool as External Tool
+      Client->>AGW: prompt + tool definitions
+      AGW->>LLM: forward request
+      LLM-->>AGW: tool_call (function + args)
+      AGW-->>Client: tool_call request
+      Client->>Tool: execute tool
+      Tool-->>Client: tool result
+      Client->>AGW: tool result message
+      AGW->>LLM: forward with result
+      LLM-->>Client: final answer
+
   features:
     - name: providers
       config:
@@ -27,12 +49,12 @@ spec:
       steps:
         - action: send-request
           endpoint: /openai
-          prompt: "How is the current weather in Columbus?"
+          prompt: 'How is the current weather in Columbus?'
           body:
             model: gpt-3.5-turbo
             messages:
               - role: user
-                content: "How is the current weather in Columbus?"
+                content: 'How is the current weather in Columbus?'
             tools:
               - type: function
                 function:
@@ -61,12 +83,12 @@ spec:
       steps:
         - action: send-request
           endpoint: /openai
-          prompt: "Search for information about AI and send me an email summary"
+          prompt: 'Search for information about AI and send me an email summary'
           body:
             model: gpt-3.5-turbo
             messages:
               - role: user
-                content: "Search for information about AI and send me an email summary"
+                content: 'Search for information about AI and send me an email summary'
             tools:
               - type: function
                 function:

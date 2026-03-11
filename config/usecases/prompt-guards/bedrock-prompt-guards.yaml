@@ -2,10 +2,31 @@ apiVersion: agentgateway.demo/v1
 kind: UseCase
 metadata:
   name: bedrock-prompt-guards
-  description: Demonstrate prompt guardrails for AWS Bedrock with security and compliance
+  description: |
+    Prompt guardrails for AWS Bedrock using PII detection and custom regex patterns.
+
+    - Blocks SSN, credit card numbers, and phone numbers (builtin patterns)
+    - Blocks password-related terms and "credit card" mentions (custom regex)
+    - Input and output both guarded — sensitive content rejected before reaching the LLM
   docs: https://docs.solo.io/agentgateway/2.1.x/llm/prompt-guards/
 
 spec:
+  diagram: |
+    sequenceDiagram
+      participant Client
+      participant AGW as AgentGateway
+      participant Guard as Prompt Guard
+      participant LLM as AWS Bedrock
+      Client->>AGW: request with prompt
+      AGW->>Guard: scan input for PII/injection
+      Guard-->>AGW: detected: block
+      AGW-->>Client: 403 Request blocked
+      Guard-->>AGW: clean: allow
+      AGW->>LLM: forward request
+      LLM-->>AGW: response
+      AGW->>Guard: scan output for PII
+      Guard-->>AGW: mask sensitive data
+      AGW-->>Client: safe response
   # Ordered steps for demo: 1) Add provider, 2) Add policy (stepped deploy shows diagrams and waits for key)
   steps:
     - title: Add provider
@@ -29,14 +50,14 @@ spec:
           config:
             request:
               customResponse:
-                message: "Request rejected due to policy violation"
+                message: 'Request rejected due to policy violation'
 
               # Custom regex patterns to reject
               matches:
-                - "credit card"
-                - "ignore previous instructions"
-                - "disregard previous instructions"
-                - "(?i)password|passwd|pwd"
+                - 'credit card'
+                - 'ignore previous instructions'
+                - 'disregard previous instructions'
+                - '(?i)password|passwd|pwd'
 
               # Built-in PII patterns: CreditCard, Ssn, Email, PhoneNumber, CaSin
               builtins:
@@ -57,7 +78,7 @@ spec:
       steps:
         - action: send-request
           endpoint: /bedrock
-          prompt: "My SSN is 123-45-6789, can you help me?"
+          prompt: 'My SSN is 123-45-6789, can you help me?'
         - action: verify
           expect:
             status: blocked
@@ -67,7 +88,7 @@ spec:
       steps:
         - action: send-request
           endpoint: /bedrock
-          prompt: "My credit card number is 4532-1234-5678-9010"
+          prompt: 'My credit card number is 4532-1234-5678-9010'
         - action: verify
           expect:
             status: blocked
@@ -77,7 +98,7 @@ spec:
       steps:
         - action: send-request
           endpoint: /bedrock
-          prompt: "Can you help me with my credit card information?"
+          prompt: 'Can you help me with my credit card information?'
         - action: verify
           expect:
             status: blocked
@@ -97,7 +118,7 @@ spec:
       steps:
         - action: send-request
           endpoint: /bedrock
-          prompt: "My phone number is 555-123-4567"
+          prompt: 'My phone number is 555-123-4567'
         - action: verify
           expect:
             status: blocked
@@ -107,7 +128,7 @@ spec:
       steps:
         - action: send-request
           endpoint: /bedrock
-          prompt: "What is the capital of France?"
+          prompt: 'What is the capital of France?'
         - action: verify
           expect:
             status: success
@@ -117,7 +138,7 @@ spec:
       steps:
         - action: send-request
           endpoint: /bedrock
-          prompt: "Can you give me some examples of Master Card credit card numbers?"
+          prompt: 'Can you give me some examples of Master Card credit card numbers?'
         - action: verify
           expect:
             status: blocked

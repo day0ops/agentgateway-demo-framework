@@ -23,7 +23,7 @@ spec:
               jwksPath: realms/agw-dev/protocol/openid-connect/certs
               cacheDuration: 5m
               backendRef:
-                group: ""
+                group: ''
                 kind: Service
                 name: keycloak
                 namespace: keycloak

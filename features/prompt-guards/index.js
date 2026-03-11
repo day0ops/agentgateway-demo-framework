@@ -3,34 +3,34 @@ import { Logger, KubernetesHelper } from '../../src/lib/common.js';
 
 /**
  * Prompt Guards Feature
- * 
+ *
  * Implements request and response guardrails for LLM interactions using the
  * EnterpriseAgentgatewayPolicy API (spec.backend.ai.promptGuard).
- * 
+ *
  * Reference: https://docs.solo.io/agentgateway/2.1.x/llm/prompt-guards/
  * API Reference: https://docs.solo.io/agentgateway/2.1.x/reference/api/api/
  * Enterprise API: https://docs.solo.io/agentgateway/2.1.x/reference/api/solo/
- * 
+ *
  * This feature:
  * - Rejects unwanted requests with custom regex patterns or built-in PII detectors
  * - Moderates content using OpenAI's moderation API
  * - Masks sensitive data in LLM responses
  * - Targets HTTPRoute resources created by the providers feature
  * - Uses built-in patterns: CreditCard, Ssn, Email, PhoneNumber, CaSin
- * 
+ *
  * For webhook-based guardrails, see the guardrail-webhook feature.
- * 
+ *
  * Providers dependency:
  * When used alongside the providers feature, targetRefs are automatically
  * injected to point at each provider's HTTPRoute. Without providers, you must
  * supply targetRefs explicitly so the policy knows which routes to attach to.
  * See: features/providers/index.js
- * 
+ *
  * Enterprise API structure:
  * promptGuard.request and promptGuard.response are arrays (max 8 entries each).
  * Each request entry uses ExactlyOneOf: regex, webhook, or openAIModeration.
  * Each response entry uses ExactlyOneOf: regex or webhook.
- * 
+ *
  * Configuration:
  * {
  *   request: {
@@ -57,11 +57,7 @@ export class PromptGuardsFeature extends Feature {
   }
 
   async deploy() {
-    const { 
-      request = {},
-      response = {},
-      targetRefs = null
-    } = this.config;
+    const { request = {}, response = {}, targetRefs = null } = this.config;
 
     const usesModerationAPI = request.moderation?.openAIModeration;
     if (usesModerationAPI) {
@@ -72,10 +68,10 @@ export class PromptGuardsFeature extends Feature {
       spec: {
         backend: {
           ai: {
-            promptGuard: {}
-          }
-        }
-      }
+            promptGuard: {},
+          },
+        },
+      },
     };
 
     if (targetRefs) {
@@ -89,8 +85,8 @@ export class PromptGuardsFeature extends Feature {
       if (request.matches || request.builtins) {
         const regexGuard = {
           regex: {
-            action: 'Reject'
-          }
+            action: 'Reject',
+          },
         };
 
         if (request.matches && request.matches.length > 0) {
@@ -118,10 +114,10 @@ export class PromptGuardsFeature extends Feature {
           openAIModeration: {
             policies: {
               auth: {
-                secretRef: { name: 'openai-secret' }
-              }
-            }
-          }
+                secretRef: { name: 'openai-secret' },
+              },
+            },
+          },
         };
 
         if (request.moderation.openAIModeration.model) {
@@ -149,9 +145,9 @@ export class PromptGuardsFeature extends Feature {
         {
           regex: {
             action: 'Mask',
-            builtins: response.builtins
-          }
-        }
+            builtins: response.builtins,
+          },
+        },
       ];
     }
 
@@ -165,8 +161,8 @@ export class PromptGuardsFeature extends Feature {
     if (!apiKey) {
       throw new Error(
         `OPENAI_API_KEY environment variable is required for OpenAI moderation.\n\n` +
-        `Please set it before deploying:\n` +
-        `  export OPENAI_API_KEY="your-api-key"`
+          `Please set it before deploying:\n` +
+          `  export OPENAI_API_KEY="your-api-key"`
       );
     }
 
@@ -178,7 +174,7 @@ export class PromptGuardsFeature extends Feature {
 
     if (!secretExists) {
       const bearerToken = `Bearer ${apiKey}`;
-      
+
       await KubernetesHelper.createSecretFromLiteral(
         this.namespace,
         secretName,

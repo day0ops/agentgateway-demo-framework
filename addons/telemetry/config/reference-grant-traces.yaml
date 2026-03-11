@@ -1,7 +1,7 @@
 apiVersion: gateway.networking.k8s.io/v1beta1
 kind: ReferenceGrant
 metadata:
-  name: allow-otel-collector-traces-access
+  name: allow-tempo-access
   namespace: telemetry
   labels:
     app.kubernetes.io/managed-by: agentgateway-demo
@@ -12,6 +12,6 @@ spec:
       kind: EnterpriseAgentgatewayPolicy
       namespace: agentgateway-system
   to:
-    - group: ""
+    - group: ''
       kind: Service
-      name: opentelemetry-collector-traces
+      name: tempo-distributor

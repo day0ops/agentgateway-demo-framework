@@ -32,9 +32,9 @@ export class AddonInstaller {
 
     try {
       spinner.start(`Installing addon: ${name}...`);
-      
+
       const featureExists = FeatureManager.has(name);
-      
+
       if (!featureExists) {
         spinner.warn(`Addon '${name}' does not have a feature implementation, skipping`);
         return;
@@ -42,7 +42,7 @@ export class AddonInstaller {
 
       const mergedConfig = { ...config, ...(namespace && { namespace }) };
       await FeatureManager.deploy(name, mergedConfig);
-      
+
       spinner.succeed(`Addon '${name}' installed${description ? `: ${description}` : ''}`);
     } catch (error) {
       spinner.fail(`Failed to install addon '${name}': ${error.message}`);
@@ -64,10 +64,10 @@ export class AddonInstaller {
 
   static async cleanupAddon(addon) {
     const { name, namespace } = addon;
-    
+
     try {
       const featureExists = FeatureManager.has(name);
-      
+
       if (!featureExists) {
         Logger.warn(`Addon '${name}' does not have a feature implementation, skipping cleanup`);
         return;

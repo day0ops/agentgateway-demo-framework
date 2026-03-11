@@ -3,16 +3,29 @@ kind: UseCase
 metadata:
   name: global-token-based-rate-limiting
   description: |
-    Global input-token-based rate limiting using the Enterprise Rate Limit Server.
-    All proxy replicas consult a central rate limit server to share a single token
-    counter, ensuring consistent quotas across the entire fleet. A RateLimitConfig
-    with type TOKEN counts consumed input tokens rather than raw requests. This is
-    ideal for enforcing tenant-wide LLM usage budgets. The prompt "What is your
-    favorite poem?" consumes ~5 tokens, so a budget of 10 tokens per hour allows
-    roughly two requests before rate limiting kicks in.
+    Global input-token-based rate limiting shared across all proxy replicas.
+
+    - All replicas consult a central Rate Limit Server for a single shared counter
+    - RateLimitConfig type TOKEN counts input tokens, not raw request count
+    - Ideal for enforcing tenant-wide LLM usage budgets
+    - "What is your favorite poem?" consumes ~5 tokens
+    - A budget of 10 tokens/hour allows ~2 requests before returning 429
   docs: https://docs.solo.io/agentgateway/2.1.x/traffic-management/rate-limiting/
 
 spec:
+  diagram: |
+    sequenceDiagram
+      participant Client
+      participant AGW as AgentGateway
+      participant RLS as Rate Limit Server
+      participant LLM as OpenAI
+      Client->>AGW: request
+      AGW->>RLS: check shared token counter
+      RLS-->>AGW: limit exceeded (10 tokens/hr)
+      AGW-->>Client: 429 Too Many Requests
+      RLS-->>AGW: within limit, increment counter
+      AGW->>LLM: forward request
+      LLM-->>Client: response
   steps:
     - title: Add provider
       description: Configure the OpenAI LLM provider backend and route.
@@ -45,7 +58,7 @@ spec:
       steps:
         - action: send-request
           endpoint: /openai
-          prompt: "What is your favorite poem?"
+          prompt: 'What is your favorite poem?'
         - action: verify
           expect:
             status: success
@@ -55,13 +68,13 @@ spec:
       steps:
         - action: send-request
           endpoint: /openai
-          prompt: "What is your favorite poem?"
+          prompt: 'What is your favorite poem?'
         - action: send-request
           endpoint: /openai
-          prompt: "What is your favorite poem?"
+          prompt: 'What is your favorite poem?'
         - action: send-request
           endpoint: /openai
-          prompt: "What is your favorite poem?"
+          prompt: 'What is your favorite poem?'
         - action: verify
           expect:
             statusCode: 429

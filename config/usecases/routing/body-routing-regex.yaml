@@ -3,15 +3,24 @@ kind: UseCase
 metadata:
   name: body-routing-regex
   description: |
-    Two separate providers (Vertex AI and local Ollama), each with its own AgentgatewayBackend,
-    behind a single HTTPRoute (/chat). An EnterpriseAgentgatewayPolicy in the PreRouting phase
-    extracts the `model` field from the JSON request body and sets it as a header
-    (X-Gateway-Model-Name). Per-model HTTPRoute rules match on that header to route to
-    the correct backend. Each provider specifies a fallbackModel for failover support.
-    If no model is specified in the body, traffic round-robins across all backends.
+    Body-based model routing for chat completions behind a single /chat route.
+
+    - An EnterpriseAgentgatewayPolicy (PreRouting) extracts the `model` field from the
+      request body and sets it as the X-Gateway-Model-Name header
+    - HTTPRoute rules use regex matching on that header to select the correct backend
+    - Vertex AI and local Ollama each have their own AgentgatewayBackend
+    - Each provider specifies a fallbackModel for automatic failover
+    - Requests without a model field round-robin across all backends
   references:
     - https://docs.solo.io/agentgateway/2.1.x/reference/api/solo/#enterpriseagentgatewaypolicyspec
 spec:
+  diagram: |
+    flowchart LR
+      Client -->|model in body| AGW[AgentGateway]
+      AGW -->|google/gemini-.*| VertexAI[Vertex AI]
+      AGW -->|local model| Ollama[Ollama]
+      AGW -->|no model| RR[Round-Robin all]
+
   features:
     - name: providers
       config:
@@ -31,7 +40,8 @@ spec:
             providerName: openai-compatible
             model: llama3
             fallbackModel: llama3
-            host: host.minikube.internal
+            #host: host.minikube.internal
+            host: 192.168.162.8
             port: 11434
             path:
               full: /v1/chat/completions
@@ -43,7 +53,7 @@ spec:
         - action: send-request
           endpoint: /chat
           model: google/gemini-2.5-flash
-          prompt: "What is Kubernetes?"
+          prompt: 'What is Kubernetes?'
         - action: verify
           expect:
             status: success
@@ -54,7 +64,7 @@ spec:
         - action: send-request
           endpoint: /chat
           model: google/gemini-2.5-flash-lite
-          prompt: "What is Kubernetes?"
+          prompt: 'What is Kubernetes?'
         - action: verify
           expect:
             status: success
@@ -65,7 +75,7 @@ spec:
         - action: send-request
           endpoint: /chat
           model: llama3
-          prompt: "Say hello in one word."
+          prompt: 'Say hello in one word.'
         - action: verify
           expect:
             status: success
@@ -75,7 +85,7 @@ spec:
       steps:
         - action: send-request
           endpoint: /chat
-          prompt: "Hello"
+          prompt: 'Hello'
         - action: verify
           expect:
             status: success
@@ -86,7 +96,7 @@ spec:
         - action: send-request
           endpoint: /chat
           model: unknown-model-not-configured
-          prompt: "Hello"
+          prompt: 'Hello'
         - action: verify
           expect:
             statusCode: 404

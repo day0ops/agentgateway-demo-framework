@@ -3,16 +3,24 @@ kind: UseCase
 metadata:
   name: query-param-routing
   description: |
-    Multiple OpenAI model backends behind a single path (/openai). An HTTPRoute uses
-    fixed-path + query parameter matching to route requests to the correct model backend
-    based on the ?model= query parameter. Each model (gpt-3.5-turbo, gpt-4o-mini, gpt-4o)
-    has its own AgentgatewayBackend with a model override. Requests without a recognized
-    query parameter receive no match.
+    Route to different OpenAI model backends via a ?model= query parameter, all under /openai.
+
+    - gpt-3.5-turbo → dedicated AgentgatewayBackend with model override
+    - gpt-4o-mini   → dedicated AgentgatewayBackend with model override
+    - gpt-4o        → dedicated AgentgatewayBackend with model override
+    - Requests without a recognized ?model= value receive no match
   docs: https://kgateway.dev/docs/latest/agentgateway/llm/providers/
   references:
     - https://gateway-api.sigs.k8s.io/reference/spec/#gateway.networking.k8s.io/v1.HTTPQueryParamMatch
 
 spec:
+  diagram: |
+    flowchart LR
+      Client -->|"?model=X"| AGW[AgentGateway]
+      AGW -->|gpt-3.5| A[gpt-3.5-turbo]
+      AGW -->|gpt-4o-mini| B[gpt-4o-mini]
+      AGW -->|gpt-4o| C[gpt-4o]
+
   features:
     - name: providers
       config:
@@ -36,7 +44,7 @@ spec:
       steps:
         - action: send-request
           endpoint: /openai?model=gpt-3.5-turbo
-          prompt: "What is your favorite poem?"
+          prompt: 'What is your favorite poem?'
         - action: verify
           expect:
             status: success
@@ -46,7 +54,7 @@ spec:
       steps:
         - action: send-request
           endpoint: /openai?model=gpt-4o-mini
-          prompt: "What is your favorite poem?"
+          prompt: 'What is your favorite poem?'
         - action: verify
           expect:
             status: success
@@ -56,7 +64,7 @@ spec:
       steps:
         - action: send-request
           endpoint: /openai?model=gpt-4o
-          prompt: "What is your favorite poem?"
+          prompt: 'What is your favorite poem?'
         - action: verify
           expect:
             status: success
@@ -66,7 +74,7 @@ spec:
       steps:
         - action: send-request
           endpoint: /openai
-          prompt: "Hello"
+          prompt: 'Hello'
         - action: verify
           expect:
             statusCode: 404
@@ -76,7 +84,7 @@ spec:
       steps:
         - action: send-request
           endpoint: /openai?model=unknown-model
-          prompt: "Hello"
+          prompt: 'Hello'
         - action: verify
           expect:
             statusCode: 404

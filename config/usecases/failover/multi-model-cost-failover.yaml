@@ -2,10 +2,27 @@ apiVersion: agentgateway.demo/v1
 kind: UseCase
 metadata:
   name: multi-model-cost-failover
-  description: Cost-optimized failover across Gemini and Anthropic models on Vertex AI
+  description: |
+    Cost-optimized failover across Gemini and Anthropic models on Vertex AI.
+
+    - Priority 100 (cheap, load balanced):  Gemini Flash, Claude Haiku
+    - Priority 50  (premium, fallback only): Gemini Pro, Claude Sonnet
+    - Premium models only receive traffic when the primary tier fails
   docs: https://docs.solo.io/gateway/2.0.x/ai/llm/failover/
 
 spec:
+  diagram: |
+    sequenceDiagram
+      participant Client
+      participant AGW as AgentGateway
+      participant Cheap as Gemini Flash / Claude Haiku
+      participant Premium as Gemini Pro / Claude Sonnet
+      Client->>AGW: request
+      AGW->>Cheap: route to cheap models (priority 100)
+      Cheap-->>AGW: upstream error
+      AGW->>Premium: failover to premium models
+      Premium-->>Client: response
+
   features:
     - name: model-failover
       description: Cheaper Vertex AI models first, premium models as fallback
@@ -26,8 +43,8 @@ spec:
                 routes:
                   /v1/messages: messages
                   /count_tokens: anthropicTokenCount
-                  ":rawPredict": messages
-                  ":streamRawPredict": messages
+                  ':rawPredict': messages
+                  ':streamRawPredict': messages
 
           # Priority 50 - Premium models (fallback only)
           - name: vertex-ai
@@ -43,8 +60,8 @@ spec:
                 routes:
                   /v1/messages: messages
                   /count_tokens: anthropicTokenCount
-                  ":rawPredict": messages
-                  ":streamRawPredict": messages
+                  ':rawPredict': messages
+                  ':streamRawPredict': messages
 
   tests:
     - name: test-cheaper-models-first
@@ -52,7 +69,7 @@ spec:
       steps:
         - action: send-request
           endpoint: /model
-          prompt: "What is machine learning?"
+          prompt: 'What is machine learning?'
         - action: verify
           expect:
             status: success
@@ -65,7 +82,7 @@ spec:
       steps:
         - action: send-request
           endpoint: /model
-          prompt: "Explain AI in simple terms"
+          prompt: 'Explain AI in simple terms'
         - action: verify
           expect:
             status: success
@@ -78,7 +95,7 @@ spec:
       steps:
         - action: send-request
           endpoint: /model
-          prompt: "Hello, how are you?"
+          prompt: 'Hello, how are you?'
         - action: verify
           expect:
             status: success

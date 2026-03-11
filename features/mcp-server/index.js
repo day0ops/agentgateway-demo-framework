@@ -58,6 +58,7 @@ import { KubernetesHelper } from '../../src/lib/common.js';
  *   }>,
  *   routeName: string,             // HTTPRoute name (default: 'mcp')
  *   pathPrefix: string,            // Route path prefix (default: none — matches all paths)
+ *   pathRewrite: string | null,   // Replace path prefix with this before forwarding (e.g. '/'); null = no rewrite
  * }
  */
 export class McpServerFeature extends Feature {
@@ -65,7 +66,7 @@ export class McpServerFeature extends Feature {
     super(name, config);
 
     this.shouldDeployServer = config.deployServer !== false;
-    this.image = config.image || 'mcp-stock-server:latest';
+    this.image = Feature.resolveImage(config.image || 'mcp-stock-server:latest');
     this.imagePullPolicy = config.imagePullPolicy || 'IfNotPresent';
     this.serverName = config.serverName || 'mcp-stock-server';
     this.serverPort = config.serverPort || 8000;
@@ -82,6 +83,7 @@ export class McpServerFeature extends Feature {
 
     this.routeName = config.routeName || 'mcp';
     this.pathPrefix = config.pathPrefix || null;
+    this.pathRewrite = config.pathRewrite !== undefined ? config.pathRewrite : null;
   }
 
   getFeaturePath() {
@@ -106,13 +108,17 @@ export class McpServerFeature extends Feature {
         const isSelector = !!t.matchLabels;
         const isStatic = !!t.host;
         if (!isSelector && !isStatic) {
-          throw new Error(`Target '${t.name}' must have either 'host' (static) or 'matchLabels' (dynamic)`);
+          throw new Error(
+            `Target '${t.name}' must have either 'host' (static) or 'matchLabels' (dynamic)`
+          );
         }
         if (isSelector && isStatic) {
           throw new Error(`Target '${t.name}' cannot have both 'host' and 'matchLabels'`);
         }
         if (isStatic && t.protocol && !validProtocols.includes(t.protocol)) {
-          throw new Error(`Target '${t.name}' protocol must be one of: ${validProtocols.join(', ')}`);
+          throw new Error(
+            `Target '${t.name}' protocol must be one of: ${validProtocols.join(', ')}`
+          );
         }
       }
     }
@@ -225,7 +231,7 @@ export class McpServerFeature extends Feature {
 
   async deployWorkloadFor(server) {
     const name = server.name;
-    const image = server.image;
+    const image = Feature.resolveImage(server.image);
     const imagePullPolicy = server.imagePullPolicy || this.imagePullPolicy;
     const serverPort = server.serverPort || this.serverPort;
     const servicePort = server.servicePort || this.servicePort;
@@ -374,7 +380,10 @@ export class McpServerFeature extends Feature {
     const isDynamic = targets.some(t => t.selector);
     const mode = isDynamic ? 'dynamic' : 'static';
     await this.applyYamlFile('backend.yaml', overrides);
-    this.log(`AgentgatewayBackend '${this.backendName}' created with ${targets.length} ${mode} MCP target(s)`, 'info');
+    this.log(
+      `AgentgatewayBackend '${this.backendName}' created with ${targets.length} ${mode} MCP target(s)`,
+      'info'
+    );
   }
 
   async deployHTTPRoute() {
@@ -396,6 +405,17 @@ export class McpServerFeature extends Feature {
           path: {
             type: 'PathPrefix',
             value: this.pathPrefix,
+          },
+        },
+      ];
+    }
+
+    if (this.pathRewrite != null) {
+      rule.filters = [
+        {
+          type: 'URLRewrite',
+          urlRewrite: {
+            path: { type: 'ReplacePrefixMatch', replacePrefixMatch: this.pathRewrite },
           },
         },
       ];
@@ -423,7 +443,8 @@ export class McpServerFeature extends Feature {
 
     await this.applyYamlFile('httproute.yaml', overrides);
     const pathMsg = this.pathPrefix ? ` at ${this.pathPrefix}` : '';
-    this.log(`HTTPRoute '${this.routeName}' created${pathMsg}`, 'info');
+    const rewriteMsg = this.pathRewrite != null ? ` (rewrite → ${this.pathRewrite})` : '';
+    this.log(`HTTPRoute '${this.routeName}' created${pathMsg}${rewriteMsg}`, 'info');
   }
 
   async cleanup() {

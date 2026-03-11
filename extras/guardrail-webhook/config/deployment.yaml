@@ -35,11 +35,11 @@ spec:
                   optional: true
           resources:
             requests:
-              memory: "128Mi"
-              cpu: "100m"
+              memory: '128Mi'
+              cpu: '100m'
             limits:
-              memory: "256Mi"
-              cpu: "200m"
+              memory: '256Mi'
+              cpu: '200m'
           readinessProbe:
             httpGet:
               path: /docs

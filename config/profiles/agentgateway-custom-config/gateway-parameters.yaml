@@ -1,13 +1,9 @@
-apiVersion: gateway.kgateway.dev/v1alpha1
-kind: GatewayParameters
+apiVersion: enterpriseagentgateway.solo.io/v1alpha1
+kind: EnterpriseAgentgatewayParameters
 metadata:
-  name: agentgateway-config
-  namespace: kgateway-system
+  name: agentgateway-custom-params
+  namespace: agentgateway-system
 spec:
   kube:
     agentgateway:
-      enabled: true
-      customConfigMapName: agentgateway-config
-
-
-
+      customConfigMapName: agentgateway-custom-config

@@ -1,13 +1,19 @@
+IMAGE_REPO  ?=
+IMAGE_PREFIX := $(if $(IMAGE_REPO),$(IMAGE_REPO)/,)
 IMAGE_NAME  ?= opik-guardrail-webhook
 IMAGE_TAG   ?= latest
 NAMESPACE   ?= agentgateway-system
 PLATFORMS   ?= linux/amd64,linux/arm64
 
-.PHONY: build deploy undeploy logs
+.PHONY: build push deploy undeploy logs
 
 build: ## Build multi-arch image (amd64 + arm64)
 	docker buildx build --platform $(PLATFORMS) \
-		--load -t $(IMAGE_NAME):$(IMAGE_TAG) server/
+		--load -t $(IMAGE_PREFIX)$(IMAGE_NAME):$(IMAGE_TAG) server/
+
+push: ## Build and push multi-arch image (amd64 + arm64)
+	docker buildx build --platform $(PLATFORMS) \
+		--push -t $(IMAGE_PREFIX)$(IMAGE_NAME):$(IMAGE_TAG) server/
 
 deploy: ## Deploy the guardrail webhook to K8s
 	kubectl apply -f config/serviceaccount.yaml
@@ -21,7 +27,7 @@ deploy: ## Deploy the guardrail webhook to K8s
 	else \
 		echo "OPIK_API_KEY not set — Opik tracing will be disabled"; \
 	fi
-	sed 's|image: opik-guardrail-webhook:latest|image: $(IMAGE_NAME):$(IMAGE_TAG)|' \
+	sed 's|image: opik-guardrail-webhook:latest|image: $(IMAGE_PREFIX)$(IMAGE_NAME):$(IMAGE_TAG)|' \
 		config/deployment.yaml | kubectl apply -f -
 	kubectl rollout status deployment/ai-guardrail-webhook -n $(NAMESPACE) --timeout=60s
 

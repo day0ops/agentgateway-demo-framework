@@ -2,10 +2,30 @@ apiVersion: agentgateway.demo/v1
 kind: UseCase
 metadata:
   name: oauth-access-token-validation
-  description: OAuth access token (JWT) validation with Keycloak IdP and ext-auth
+  description: |
+    Validate OAuth access tokens (JWTs) at the gateway via ext-auth and Keycloak.
+
+    - Gateway fetches Keycloak's JWKS and verifies token signature and claims
+    - Invalid or missing tokens receive a 403 Forbidden
+    - Valid tokens are forwarded transparently to the upstream LLM
   docs: https://docs.solo.io/agentgateway/2.1.x/security/extauth/oauth/access-token/
 
 spec:
+  diagram: |
+    sequenceDiagram
+      participant Client
+      participant KC as Keycloak
+      participant AGW as AgentGateway
+      participant LLM as OpenAI
+      Client->>KC: POST /token (out-of-band)
+      KC-->>Client: access token JWT
+      Client->>AGW: request + Bearer JWT
+      AGW->>KC: fetch JWKS + validate signature
+      KC-->>AGW: invalid
+      AGW-->>Client: 403 Forbidden
+      KC-->>AGW: valid
+      AGW->>LLM: forward request
+      LLM-->>Client: response
   steps:
     - title: Deploy OpenAI provider
       description: >
@@ -39,7 +59,7 @@ spec:
       steps:
         - action: send-request
           endpoint: /openai
-          prompt: "What is 2+2?"
+          prompt: 'What is 2+2?'
         - action: verify
           expect:
             status: 403
@@ -58,8 +78,8 @@ spec:
         - action: send-request
           endpoint: /openai
           auth: bearer
-          prompt: "What is 2+2?"
+          prompt: 'What is 2+2?'
         - action: verify
           expect:
             status: success
-            contains: "4"
+            contains: '4'

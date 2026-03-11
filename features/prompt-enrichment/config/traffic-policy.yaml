@@ -16,4 +16,4 @@ spec:
       prompt:
         prepend:
           - role: SYSTEM
-            content: "You are a helpful AI assistant."
+            content: 'You are a helpful AI assistant.'

@@ -2,10 +2,33 @@ apiVersion: agentgateway.demo/v1
 kind: UseCase
 metadata:
   name: obo-token-exchange
-  description: OBO (On Behalf Of) token exchange with Keycloak IdP and STS
+  description: |
+    OBO (On-Behalf-Of) token exchange via the AGW Security Token Service (STS).
+
+    - User authenticates with Keycloak and obtains a JWT
+    - The JWT is exchanged with the STS for a short-lived delegated token
+    - The MCP route validates exclusively against the STS JWKS — Keycloak is invisible downstream
   docs: https://docs.solo.io/agentgateway/2.1.x/security/obo-elicitations/obo/
 
 spec:
+  diagram: |
+    sequenceDiagram
+      participant Client
+      participant KC as Keycloak
+      participant STS as AGW STS :7777
+      participant AGW as AgentGateway
+      participant MCP as MCP Server
+      Client->>KC: authenticate
+      KC-->>Client: user JWT
+      Client->>STS: token-exchange (OBO)
+      STS->>KC: validate subject JWT via JWKS
+      KC-->>STS: valid
+      STS-->>Client: OBO token
+      Client->>AGW: POST /mcp + Bearer OBO
+      AGW->>STS: validate OBO via JWKS
+      STS-->>AGW: valid
+      AGW->>MCP: forward request
+      MCP-->>Client: tool response
   # Stepped demo flow: provider first, then JWT policy
   steps:
     - title: Deploy MCP server
@@ -16,8 +39,8 @@ spec:
         - name: mcp-server
           config:
             deployServer: true
-            image: mcp-stock-server:latest
-            serverName: mcp-stock-server
+            image: stock-server-mcp:latest
+            serverName: stock-server-mcp
             serverPort: 8000
             servicePort: 80
             protocol: StreamableHTTP

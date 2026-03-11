@@ -11,17 +11,20 @@ const PROJECT_ROOT = join(__dirname, '../..');
 
 /**
  * Profile management utilities
- * Handles kgateway installation profiles with extensible service support
+ * Handles agentgateway installation profiles with extensible service support
  */
 export class ProfileManager {
   static PROFILES_DIR = join(PROJECT_ROOT, 'config/profiles');
-  
+
   static DESCRIPTIONS = {
-    'standard-agentgateway': 'Standard AgentGateway installation',
-    'agentgateway-with-observability': 'AgentGateway with full observability stack (Solo UI,Prometheus, Grafana, Loki, Tempo)',
-    'agentgateway-with-solo-ui': 'AgentGateway with Solo UI stack',
-    'agentgateway-custom-config': 'AgentGateway with custom configuration',
-    'agentgateway-with-obo': 'AgentGateway with OBO token exchange (Keycloak + STS)',
+    'agentgateway-standard': 'Standard installation',
+    'agentgateway-with-observability':
+      'Full observability stack (Solo UI, Prometheus, Grafana, Loki, Tempo)',
+    'agentgateway-with-solo-ui': 'Observability with Solo UI stack',
+    'agentgateway-custom-config': 'Custom configuration',
+    'agentgateway-custom-version':
+      'Custom version, OCI registry, and controller extraEnv (e.g. Gateway API experimental)',
+    'agentgateway-with-keycloak': 'Includes Keycloak integration with the full observability stack',
   };
 
   /**
@@ -32,7 +35,7 @@ export class ProfileManager {
     try {
       const files = await readdir(this.PROFILES_DIR);
       const yamlFiles = files.filter(f => f.endsWith('.yaml'));
-      
+
       return yamlFiles.map(file => {
         const name = basename(file, '.yaml');
         return {
@@ -54,11 +57,11 @@ export class ProfileManager {
   static async get(name) {
     const profiles = await this.list();
     const profile = profiles.find(p => p.name === name);
-    
+
     if (!profile) {
       throw new Error(`Profile '${name}' not found`);
     }
-    
+
     return profile;
   }
 
@@ -85,11 +88,11 @@ export class ProfileManager {
     try {
       const content = await readFile(profilePath, 'utf8');
       const profile = yaml.load(content);
-      
+
       return {
         helmValues: profile.helmValues || profile,
         addons: profile.addons || [],
-        resources: profile.resources || []
+        resources: profile.resources || [],
       };
     } catch (error) {
       throw new Error(`Failed to load profile: ${error.message}`);
@@ -104,25 +107,28 @@ export class ProfileManager {
   static async select(defaultProfile = 'standard') {
     try {
       const profiles = await this.list();
-      
+
       if (profiles.length === 0) {
         throw new Error('No profiles found in config/profiles/');
       }
 
-      const choices = profiles.map(profile => ({
-        name: `${profile.name.padEnd(12)} - ${profile.description}`,
-        value: profile.name,
-        short: profile.name,
-      }));
+      const choices = profiles
+        .slice()
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map(profile => ({
+          name: `${profile.name.padEnd(12)} - ${profile.description}`,
+          value: profile.name,
+          short: profile.name,
+        }));
 
       const selectedName = await Prompts.select(
-        'Select kgateway installation profile:',
+        'Select agentgateway installation profile:',
         choices,
         defaultProfile
       );
 
       const profile = profiles.find(p => p.name === selectedName);
-      
+
       return {
         name: profile.name,
         file: profile.file,
@@ -141,4 +147,3 @@ export class ProfileManager {
     this.DESCRIPTIONS[name] = description;
   }
 }
-

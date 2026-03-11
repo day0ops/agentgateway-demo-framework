@@ -3,9 +3,19 @@ apiVersion: agentgateway.demo/v1
 kind: UseCase
 metadata:
   name: ollama-with-custom-gateway
-  description: Local Ollama (Llama 3) provider with custom Gateway (override)
+  description: |
+    Deploy a local Ollama (Llama 3) provider with a custom Gateway resource override.
+
+    - Defines a custom Gateway with its own listener configuration
+    - Overrides the default Gateway installed by the profile
+    - Demonstrates decoupling a provider route from the platform-managed default Gateway
 
 spec:
+  diagram: |
+    flowchart LR
+      Client --> CG[Custom Gateway :8080]
+      CG --> Ollama[Ollama llama3 local]
+
   features:
     - name: gateway
       config:
@@ -37,13 +47,13 @@ spec:
           kind: Gateway
           name: custom-gateway
           expect:
-            - jsonpath: "{.spec.listeners[0].name}"
+            - jsonpath: '{.spec.listeners[0].name}'
               value: http
-            - jsonpath: "{.spec.listeners[0].port}"
-              value: "8080"
-            - jsonpath: "{.spec.listeners[0].protocol}"
+            - jsonpath: '{.spec.listeners[0].port}'
+              value: '8080'
+            - jsonpath: '{.spec.listeners[0].protocol}'
               value: HTTP
-            - jsonpath: "{.spec.listeners[0].allowedRoutes.namespaces.from}"
+            - jsonpath: '{.spec.listeners[0].allowedRoutes.namespaces.from}'
               value: All
 
     - name: test-custom-gateway-listener
@@ -61,7 +71,7 @@ spec:
       steps:
         - action: send-request
           endpoint: /ollama
-          prompt: "What is 2+2?"
+          prompt: 'What is 2+2?'
         - action: verify
           expect:
             status: success

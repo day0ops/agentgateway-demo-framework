@@ -89,7 +89,12 @@ export class ModelFailoverFeature extends Feature {
 
   async cleanup() {
     await this.deleteResource('HTTPRoute', 'model-failover');
-    await this.deleteResource('AgentgatewayBackend', 'model-failover', this.namespace, 'agentgateway.dev');
+    await this.deleteResource(
+      'AgentgatewayBackend',
+      'model-failover',
+      this.namespace,
+      'agentgateway.dev'
+    );
 
     const cleaned = new Set();
     for (const p of this.providers) {
@@ -141,11 +146,18 @@ export class ModelFailoverFeature extends Feature {
 
   async getProviderBackendConfig(providerName) {
     try {
-      const result = await KubernetesHelper.kubectl([
-        'get', 'agentgatewaybackends.agentgateway.dev', providerName,
-        '-n', this.namespace,
-        '-o', 'json'
-      ], { ignoreError: true });
+      const result = await KubernetesHelper.kubectl(
+        [
+          'get',
+          'agentgatewaybackends.agentgateway.dev',
+          providerName,
+          '-n',
+          this.namespace,
+          '-o',
+          'json',
+        ],
+        { ignoreError: true }
+      );
 
       if (result.exitCode !== 0 || !result.stdout) {
         return { name: providerName };
@@ -219,9 +231,7 @@ export class ModelFailoverFeature extends Feature {
       policies.auth = backendConfig.auth;
     } else if (!hasLookedUpConfig) {
       const secretName = ModelFailoverFeature.getSecretName(baseName);
-      const authPolicy = this._providerHelper.getBackendAuthPolicy(
-        baseName, secretName, overrides,
-      );
+      const authPolicy = this._providerHelper.getBackendAuthPolicy(baseName, secretName, overrides);
       if (authPolicy && Object.keys(authPolicy).length > 0) {
         policies.auth = authPolicy;
       }
@@ -272,9 +282,7 @@ export class ModelFailoverFeature extends Feature {
         labels: { 'agentgateway.dev/feature': 'model-failover' },
       },
       spec: {
-        parentRefs: [
-          { name: gatewayRef.name, namespace: gatewayRef.namespace },
-        ],
+        parentRefs: [{ name: gatewayRef.name, namespace: gatewayRef.namespace }],
         rules: [
           {
             matches: [{ path: { value: this.pathPrefix } }],

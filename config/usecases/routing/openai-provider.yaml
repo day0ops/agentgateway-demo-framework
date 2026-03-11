@@ -2,10 +2,20 @@ apiVersion: agentgateway.demo/v1
 kind: UseCase
 metadata:
   name: openai-provider
-  description: Simple OpenAI LLM provider call
+  description: |
+    The minimal baseline: a single OpenAI (gpt-4o-mini) provider behind agentgateway.
+
+    - providers feature with default settings at /openai
+    - No extra policies, auth, or routing logic applied
+    - Verifies end-to-end LLM request routing is functional
   docs: https://kgateway.dev/docs/latest/agentgateway/llm/providers/
 
 spec:
+  diagram: |
+    flowchart LR
+      Client --> AGW[AgentGateway]
+      AGW --> OpenAI[OpenAI]
+
   features:
     - name: providers
       config:
@@ -21,7 +31,7 @@ spec:
       steps:
         - action: send-request
           endpoint: /openai
-          prompt: "Hello, how are you?"
+          prompt: 'Hello, how are you?'
         - action: verify
           expect:
             status: success
@@ -31,8 +41,8 @@ spec:
       steps:
         - action: send-request
           endpoint: /openai
-          prompt: "What is 2+2?"
+          prompt: 'What is 2+2?'
         - action: verify
           expect:
             status: success
-            contains: "4"
+            contains: '4'

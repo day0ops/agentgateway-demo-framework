@@ -8,10 +8,10 @@ spec:
   accessModes:
     - ReadWriteOnce
   persistentVolumeReclaimPolicy: Retain
-  storageClassName: ""
+  storageClassName: ''
   claimRef:
     namespace: loki
     name: storage-loki-0
   hostPath:
-    path: "/mnt/data/loki"
+    path: '/mnt/data/loki'
     type: DirectoryOrCreate

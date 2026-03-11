@@ -1,158 +1,294 @@
 import { Feature } from '../../src/lib/feature.js';
-import { Logger, KubernetesHelper, CommandRunner } from '../../src/lib/common.js';
+import { KubernetesHelper, CommandRunner } from '../../src/lib/common.js';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { readFile, readdir } from 'fs/promises';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const CONFIG_DIR = join(__dirname, 'config');
+const DASHBOARDS_DIR = join(__dirname, 'dashboards');
 
 // Helm chart versions
-const PROMETHEUS_STACK_VERSION = '65.1.0';
+const PROMETHEUS_STACK_VERSION = '80.4.2';
 const LOKI_VERSION = '6.6.2';
-const TEMPO_VERSION = '1.7.1';
-const OTEL_COLLECTOR_VERSION = '0.97.1';
+const TEMPO_DISTRIBUTED_VERSION = '1.29.0';
+const ALLOY_VERSION = '0.12.0';
 
 /**
  * Telemetry Feature
- * 
- * Installs a complete observability stack for kgateway based on OpenTelemetry.
- * 
- * Reference: https://kgateway.dev/docs/latest/observability/otel-stack/
- * 
+ *
+ * Installs a complete observability stack for agentgateway.
+ *
+ * Reference: https://github.com/solo-io/fe-enterprise-agentgateway-workshop/blob/main/002-set-up-monitoring-tools.md
+ *
  * This feature installs:
  * - Prometheus and Grafana (kube-prometheus-stack)
- * - OpenTelemetry collectors (metrics, logs, traces)
+ * - Grafana Tempo Distributed (trace aggregation with OTLP receiver)
  * - Grafana Loki (log aggregation)
- * - Grafana Tempo (trace aggregation)
- * - HTTPListenerPolicy resources for log and trace collection
- * - Required ReferenceGrants
- * 
+ * - Grafana Alloy (log scraping from pods)
+ * - PodMonitor for agentgateway metrics scraping
+ * - EnterpriseAgentgatewayPolicy resources for trace collection
+ * - Grafana dashboards (Overview, Budget, Performance, Control Plane)
+ *
  * Configuration:
  * {
  *   telemetryNamespace: string,  // Default: 'telemetry'
+ *   gatewayNamespace: string,    // Namespace where gateway policies are applied (default: 'agentgateway-system')
  *   enableLogs: boolean,          // Default: true
  *   enableTraces: boolean,        // Default: true
- *   enableMetrics: boolean        // Default: true
+ *   enableMetrics: boolean,       // Default: true
+ *   retention: string,            // Default: '120h' (5 days) - retention period for metrics, logs, traces
+ *   grafanaServiceType: string,   // Default: 'LoadBalancer' - Grafana service type (ClusterIP, LoadBalancer, NodePort)
+ *   nodeSelector: object          // Default: {} (e.g., { nodeclass: 'worker' })
  * }
  */
 export class TelemetryFeature extends Feature {
   constructor(name, config) {
     super(name, config);
     this.telemetryNamespace = config.telemetryNamespace || 'telemetry';
+    this.gatewayNamespace = config.gatewayNamespace || this.namespace;
     this.enableLogs = config.enableLogs !== false;
     this.enableTraces = config.enableTraces !== false;
     this.enableMetrics = config.enableMetrics !== false;
+    this.retention = config.retention || '120h'; // 5 days default
+    this.grafanaServiceType = config.grafanaServiceType || 'LoadBalancer';
+    this.nodeSelector = config.nodeSelector || {};
   }
 
   validate() {
-    // All configuration is optional
     return true;
   }
 
-  async deploy() {
-    this.log('Installing OpenTelemetry observability stack...', 'info');
+  /**
+   * Override applyYamlFile to use addon's config directory instead of features/
+   */
+  async applyYamlFile(filename, overrides = {}) {
+    const yaml = (await import('js-yaml')).default;
+    const configPath = join(CONFIG_DIR, filename);
 
-    // Step 1: Create telemetry namespace (must exist before Helm installations)
+    try {
+      const content = await readFile(configPath, 'utf8');
+      let resource = yaml.load(content);
+
+      if (resource.metadata && resource.metadata.namespace !== this.namespace) {
+        resource.metadata.namespace = this.namespace;
+      }
+
+      if (Object.keys(overrides).length > 0) {
+        resource = this.deepMerge(resource, overrides);
+      }
+
+      await this.applyResource(resource);
+    } catch (error) {
+      throw new Error(`Failed to apply YAML file ${filename}: ${error.message}`);
+    }
+  }
+
+  /**
+   * Build Helm --set args for nodeSelector
+   */
+  buildNodeSelectorArgs(prefix) {
+    const args = [];
+    const pathPrefix = prefix ? `${prefix}.` : '';
+    for (const [key, value] of Object.entries(this.nodeSelector)) {
+      args.push('--set', `${pathPrefix}nodeSelector.${key}=${value}`);
+    }
+    return args;
+  }
+
+  async deploy() {
+    this.log('Installing observability stack...', 'info');
+
+    // Step 1: Create telemetry namespace
     await KubernetesHelper.ensureNamespace(this.telemetryNamespace, this.spinner);
     this.log(`Namespace '${this.telemetryNamespace}' ready`, 'info');
 
-    // Step 2: Install Prometheus and Grafana
-    await this.installPrometheusStack();
-
-    // Step 3: Install OpenTelemetry collectors
-    if (this.enableMetrics) {
-      await this.installOTelCollector('metrics');
-    }
-    if (this.enableLogs) {
-      await this.installLoki();
-      await this.installOTelCollector('logs');
-    }
+    // Step 2: Install Tempo first (needed for Grafana datasource)
     if (this.enableTraces) {
       await this.installTempo();
-      await this.installOTelCollector('traces');
     }
 
-    // Step 4: Create HTTPListenerPolicy resources
+    // Step 3: Install Loki (needed for Grafana datasource)
     if (this.enableLogs) {
-      await this.applyYamlFile('logging-policy.yaml');
+      await this.installLoki();
+      await this.installAlloy();
+    }
+
+    // Step 4: Install Prometheus and Grafana with datasources configured
+    await this.installPrometheusStack();
+
+    // Step 5: Install Grafana dashboards
+    await this.installDashboards();
+
+    // Step 6: Create PodMonitors for agentgateway metrics
+    if (this.enableMetrics) {
+      await this.applyYamlFile('pod-monitor.yaml');
+      await this.applyYamlFile('pod-monitor-control-plane.yaml');
+      // ServiceMonitor for kubelet/cAdvisor (container CPU/memory metrics on Talos)
+      await this.applyYamlFile('service-monitor-kubelet.yaml');
+    }
+
+    // Step 7: Create EnterpriseAgentgatewayPolicy resources
+    if (this.enableLogs) {
+      await this.applyYamlFile('logging-policy.yaml', {
+        metadata: { namespace: this.gatewayNamespace },
+      });
       await this.applyYamlFile('reference-grant-logs.yaml');
     }
     if (this.enableTraces) {
-      await this.applyYamlFile('tracing-policy.yaml');
+      // Deploy fan-out collector to route traces to both Solo UI (ClickHouse) and Tempo (Grafana)
+      // Note: Solo UI addon must be configured with tracingBackend pointing to fan-out-collector
+      await this.installFanOutCollector();
       await this.applyYamlFile('reference-grant-traces.yaml');
     }
 
-    this.log('OpenTelemetry stack installed successfully', 'success');
+    this.log('Observability stack installed successfully', 'success');
+  }
+
+  /**
+   * Install fan-out OTEL collector for routing traces to multiple backends
+   * Routes to both solo-enterprise-telemetry-collector (ClickHouse) and tempo-distributor (Grafana)
+   *
+   * To enable fan-out, configure solo-ui addon with:
+   *   tracingBackend: { name: 'fan-out-collector', namespace: 'telemetry', port: 4317 }
+   */
+  async installFanOutCollector() {
+    this.log('Installing fan-out collector for trace routing...', 'info');
+
+    await this.applyMultiDocYamlFile('fan-out-collector.yaml');
+    await this.waitForDeployment('fan-out-collector', 120);
+
+    this.log('Fan-out collector installed', 'info');
+    this.log(
+      'Configure solo-ui with tracingBackend: { name: "fan-out-collector", namespace: "telemetry" }',
+      'info'
+    );
+  }
+
+  /**
+   * Apply a YAML file containing multiple documents (separated by ---)
+   */
+  async applyMultiDocYamlFile(filename) {
+    const yaml = (await import('js-yaml')).default;
+    const configPath = join(CONFIG_DIR, filename);
+
+    try {
+      const content = await readFile(configPath, 'utf8');
+      const documents = yaml.loadAll(content);
+
+      for (const doc of documents) {
+        if (doc) {
+          await this.applyResource(doc);
+        }
+      }
+    } catch (error) {
+      throw new Error(`Failed to apply multi-doc YAML file ${filename}: ${error.message}`);
+    }
   }
 
   async cleanup() {
-    this.log('Cleaning up OpenTelemetry stack...', 'info');
+    this.log('Cleaning up observability stack...', 'info');
 
-    // Delete EnterpriseAgentgatewayPolicies (logging and tracing)
-    await this.deleteResource('EnterpriseAgentgatewayPolicy', 'logging', this.namespace);
-    await this.deleteResource('EnterpriseAgentgatewayPolicy', 'tracing', this.namespace);
+    // Delete EnterpriseAgentgatewayPolicies
+    await this.deleteResource(
+      'EnterpriseAgentgatewayPolicy',
+      'logging-policy',
+      this.gatewayNamespace
+    );
+    await this.deleteResource(
+      'EnterpriseAgentgatewayPolicy',
+      'tracing-policy',
+      this.gatewayNamespace
+    );
+
+    // Delete PodMonitors and ServiceMonitors
+    await this.deleteResource('PodMonitor', 'agentgateway-metrics', this.telemetryNamespace);
+    await this.deleteResource(
+      'PodMonitor',
+      'agentgateway-control-plane-metrics',
+      this.telemetryNamespace
+    );
+    await this.deleteResource('ServiceMonitor', 'kubelet', this.telemetryNamespace);
 
     // Delete ReferenceGrants
-    await this.deleteResource('ReferenceGrant', 'allow-otel-collector-logs-access', this.telemetryNamespace);
-    await this.deleteResource('ReferenceGrant', 'allow-otel-collector-traces-access', this.telemetryNamespace);
+    await this.deleteResource('ReferenceGrant', 'allow-tempo-access', this.telemetryNamespace);
+    await this.deleteResource('ReferenceGrant', 'allow-loki-access', this.telemetryNamespace);
+    await this.deleteResource(
+      'ReferenceGrant',
+      'allow-fan-out-collector-access',
+      this.telemetryNamespace
+    );
 
-    // Uninstall Helm charts (idempotent - won't fail if not found)
-    const releases = [
-      'opentelemetry-collector-metrics',
-      'opentelemetry-collector-logs',
-      'opentelemetry-collector-traces',
-      'loki',
-      'tempo',
-      'kube-prometheus-stack'
+    // Delete fan-out collector resources
+    await this.deleteResource('Deployment', 'fan-out-collector', this.telemetryNamespace);
+    await this.deleteResource('Service', 'fan-out-collector', this.telemetryNamespace);
+    await this.deleteResource('ConfigMap', 'fan-out-collector-config', this.telemetryNamespace);
+
+    // Delete dashboard ConfigMaps
+    const dashboardNames = [
+      'agentgateway-overview',
+      'agentgateway-cost',
+      'agentgateway-budget-enforcement',
+      'agentgateway-performance',
+      'agentgateway-control-plane',
     ];
+    for (const name of dashboardNames) {
+      await this.deleteResource('ConfigMap', `dashboard-${name}`, this.telemetryNamespace);
+    }
+
+    // Uninstall Helm charts
+    const releases = ['alloy', 'loki', 'tempo', 'kube-prometheus-stack'];
 
     for (const release of releases) {
       try {
-        await CommandRunner.run('helm', [
-          'uninstall', release,
-          '-n', this.telemetryNamespace
-        ], { ignoreError: true });
-      } catch (error) {
+        await CommandRunner.run('helm', ['uninstall', release, '-n', this.telemetryNamespace], {
+          ignoreError: true,
+        });
+      } catch (_error) {
         // Ignore errors - release may not exist
       }
     }
 
-    this.log('OpenTelemetry stack cleaned up', 'success');
+    this.log('Observability stack cleaned up', 'success');
   }
 
   /**
-   * Install Prometheus and Grafana stack
+   * Install Grafana Tempo Distributed
    */
-  async installPrometheusStack() {
-    this.log('Installing Prometheus and Grafana...', 'info');
+  async installTempo() {
+    this.log('Installing Grafana Tempo...', 'info');
 
-    // Add Prometheus community Helm repo
     try {
-      await CommandRunner.run('helm', ['repo', 'add', 'prometheus-community', 
-        'https://prometheus-community.github.io/helm-charts'], { ignoreError: true });
-      await CommandRunner.run('helm', ['repo', 'update'], { ignoreError: true });
-    } catch (error) {
+      await CommandRunner.run(
+        'helm',
+        ['repo', 'add', 'grafana', 'https://grafana.github.io/helm-charts'],
+        { ignoreError: true }
+      );
+      await CommandRunner.run('helm', ['repo', 'update', 'grafana'], { ignoreError: true });
+    } catch (_error) {
       // Repo might already exist
     }
 
-    // Install/upgrade kube-prometheus-stack
-    await KubernetesHelper.helm([
-      'upgrade', '-i', 'kube-prometheus-stack',
-      'prometheus-community/kube-prometheus-stack',
-      '-n', this.telemetryNamespace,
-      '--version', PROMETHEUS_STACK_VERSION,
-      '-f', join(CONFIG_DIR, 'prometheus-values.yaml'),
+    const helmArgs = [
+      'upgrade',
+      '-i',
+      'tempo',
+      'grafana/tempo-distributed',
+      '-n',
+      this.telemetryNamespace,
+      '--version',
+      TEMPO_DISTRIBUTED_VERSION,
+      '-f',
+      join(CONFIG_DIR, 'tempo-values.yaml'),
       '--create-namespace',
-      '--wait'
-    ]);
+      '--wait',
+    ];
+    await KubernetesHelper.helm(helmArgs);
 
-    // Wait for key deployments to be ready
-    await this.waitForDeployment('kube-prometheus-stack-operator', 120);
-    await this.waitForDeployment('kube-prometheus-stack-grafana', 120);
-    
-    // Wait for StatefulSets
-    await this.waitForStatefulSet('prometheus-kube-prometheus-stack-prometheus', 120);
+    // Wait for key components
+    await this.waitForDeployment('tempo-distributor', 120);
+    await this.waitForDeployment('tempo-query-frontend', 120);
   }
 
   /**
@@ -161,158 +297,207 @@ export class TelemetryFeature extends Feature {
   async installLoki() {
     this.log('Installing Grafana Loki...', 'info');
 
-    // Add Grafana Helm repo
     try {
-      await CommandRunner.run('helm', ['repo', 'add', 'grafana', 
-        'https://grafana.github.io/helm-charts'], { ignoreError: true });
-      await CommandRunner.run('helm', ['repo', 'update'], { ignoreError: true });
-    } catch (error) {
+      await CommandRunner.run(
+        'helm',
+        ['repo', 'add', 'grafana', 'https://grafana.github.io/helm-charts'],
+        { ignoreError: true }
+      );
+      await CommandRunner.run('helm', ['repo', 'update', 'grafana'], { ignoreError: true });
+    } catch (_error) {
       // Repo might already exist
     }
 
-    // Install/upgrade Loki
-    await KubernetesHelper.helm([
-      'upgrade', '-i', 'loki',
+    const helmArgs = [
+      'upgrade',
+      '-i',
+      'loki',
       'grafana/loki',
-      '-n', this.telemetryNamespace,
-      '--version', LOKI_VERSION,
-      '-f', join(CONFIG_DIR, 'loki-values.yaml'),
+      '-n',
+      this.telemetryNamespace,
+      '--version',
+      LOKI_VERSION,
+      '-f',
+      join(CONFIG_DIR, 'loki-values.yaml'),
       '--create-namespace',
-      '--wait'
-    ]);
+      '--wait',
+      '--set',
+      `loki.limits_config.retention_period=${this.retention}`,
+      '--set',
+      `loki.limits_config.reject_old_samples_max_age=${this.retention}`,
+      ...this.buildNodeSelectorArgs('singleBinary'),
+    ];
+    await KubernetesHelper.helm(helmArgs);
 
-    // Wait for Loki StatefulSet to be ready
     await this.waitForStatefulSet('loki', 120);
   }
 
   /**
-   * Install Grafana Tempo
+   * Install Grafana Alloy for log scraping
    */
-  async installTempo() {
-    this.log('Installing Grafana Tempo...', 'info');
+  async installAlloy() {
+    this.log('Installing Grafana Alloy for log collection...', 'info');
 
-    // Install/upgrade Tempo
-    await KubernetesHelper.helm([
-      'upgrade', '-i', 'tempo',
-      'grafana/tempo',
-      '-n', this.telemetryNamespace,
-      '--version', TEMPO_VERSION,
-      '-f', join(CONFIG_DIR, 'tempo-values.yaml'),
+    const helmArgs = [
+      'upgrade',
+      '-i',
+      'alloy',
+      'grafana/alloy',
+      '-n',
+      this.telemetryNamespace,
+      '--version',
+      ALLOY_VERSION,
+      '-f',
+      join(CONFIG_DIR, 'alloy-values.yaml'),
       '--create-namespace',
-      '--wait'
-    ]);
+      '--wait',
+    ];
+    await KubernetesHelper.helm(helmArgs);
 
-    // Wait for Tempo deployment to be ready
-    await this.waitForDeployment('tempo', 120);
+    await this.waitForDaemonSet('alloy', 120);
   }
 
   /**
-   * Install OpenTelemetry collector
+   * Install Prometheus and Grafana stack
    */
-  async installOTelCollector(type) {
-    const releaseName = `opentelemetry-collector-${type}`;
+  async installPrometheusStack() {
+    this.log('Installing Prometheus and Grafana...', 'info');
 
-    this.log(`Installing OpenTelemetry collector (${type})...`, 'info');
-
-    // Add OpenTelemetry Helm repo
     try {
-      await CommandRunner.run('helm', ['repo', 'add', 'open-telemetry', 
-        'https://open-telemetry.github.io/opentelemetry-helm-charts'], { ignoreError: true });
-      await CommandRunner.run('helm', ['repo', 'update'], { ignoreError: true });
-    } catch (error) {
+      await CommandRunner.run(
+        'helm',
+        [
+          'repo',
+          'add',
+          'prometheus-community',
+          'https://prometheus-community.github.io/helm-charts',
+        ],
+        { ignoreError: true }
+      );
+      await CommandRunner.run('helm', ['repo', 'update', 'prometheus-community'], {
+        ignoreError: true,
+      });
+    } catch (_error) {
       // Repo might already exist
     }
 
-    // Install/upgrade with type-specific values file
-    await KubernetesHelper.helm([
-      'upgrade', '-i', releaseName,
-      'open-telemetry/opentelemetry-collector',
-      '-n', this.telemetryNamespace,
-      '--version', OTEL_COLLECTOR_VERSION,
-      '-f', join(CONFIG_DIR, `otel-collector-${type}-values.yaml`),
+    const helmArgs = [
+      'upgrade',
+      '-i',
+      'kube-prometheus-stack',
+      'prometheus-community/kube-prometheus-stack',
+      '-n',
+      this.telemetryNamespace,
+      '--version',
+      PROMETHEUS_STACK_VERSION,
+      '-f',
+      join(CONFIG_DIR, 'prometheus-values.yaml'),
       '--create-namespace',
-      '--wait'
-    ]);
+      '--wait',
+      '--set',
+      `prometheus.prometheusSpec.retention=${this.retention}`,
+      '--set',
+      `grafana.service.type=${this.grafanaServiceType}`,
+      ...this.buildNodeSelectorArgs('prometheus.prometheusSpec'),
+      ...this.buildNodeSelectorArgs('grafana'),
+    ];
+    await KubernetesHelper.helm(helmArgs);
 
-    // Wait for collector to be ready
-    // Logs collector runs as DaemonSet, others as Deployment
-    if (type === 'logs') {
-      await this.waitForDaemonSet(releaseName, 120);
-    } else {
-      await this.waitForDeployment(releaseName, 120);
-    }
+    await this.waitForDeployment('kube-prometheus-stack-operator', 120);
+    await this.waitForDeployment('kube-prometheus-stack-grafana', 120);
+    await this.waitForStatefulSet('prometheus-kube-prometheus-stack-prometheus', 120);
   }
 
   /**
-   * Wait for a deployment to be ready
+   * Install Grafana dashboards as ConfigMaps
    */
+  async installDashboards() {
+    this.log('Installing Grafana dashboards...', 'info');
+
+    try {
+      const files = await readdir(DASHBOARDS_DIR);
+      const dashboardFiles = files.filter(f => f.endsWith('.json'));
+
+      for (const file of dashboardFiles) {
+        const dashboardPath = join(DASHBOARDS_DIR, file);
+        const content = await readFile(dashboardPath, 'utf8');
+        const name = file.replace('.json', '');
+
+        const configMap = {
+          apiVersion: 'v1',
+          kind: 'ConfigMap',
+          metadata: {
+            name: `dashboard-${name}`,
+            namespace: this.telemetryNamespace,
+            labels: {
+              grafana_dashboard: '1',
+              'app.kubernetes.io/managed-by': 'agentgateway-demo',
+            },
+          },
+          data: {
+            [`${name}.json`]: content,
+          },
+        };
+
+        await this.applyResource(configMap);
+        this.log(`Dashboard '${name}' installed`, 'info');
+      }
+    } catch (error) {
+      this.log(`Warning: Failed to install dashboards: ${error.message}`, 'warn');
+    }
+  }
+
   async waitForDeployment(name, timeout = 120) {
     this.log(`Waiting for deployment ${name} to be ready...`, 'info');
-    
+
     try {
       await KubernetesHelper.waitForDeployment(
-        this.telemetryNamespace, 
-        name, 
+        this.telemetryNamespace,
+        name,
         timeout,
         this.spinner
       );
-    } catch (error) {
+    } catch (_error) {
       this.log(`Deployment ${name} may take longer to be ready`, 'warn');
     }
   }
 
-  /**
-   * Wait for a StatefulSet to be ready
-   */
   async waitForStatefulSet(name, timeout = 120) {
     this.log(`Waiting for statefulset ${name} to be ready...`, 'info');
-    
+
     try {
-      await KubernetesHelper.kubectl([
-        'wait',
-        '--for=condition=ready',
-        `statefulset/${name}`,
-        '-n', this.telemetryNamespace,
-        `--timeout=${timeout}s`
-      ], { spinner: this.spinner });
-    } catch (error) {
+      await KubernetesHelper.kubectl(
+        [
+          'wait',
+          '--for=condition=ready',
+          `statefulset/${name}`,
+          '-n',
+          this.telemetryNamespace,
+          `--timeout=${timeout}s`,
+        ],
+        { spinner: this.spinner }
+      );
+    } catch (_error) {
       this.log(`StatefulSet ${name} may take longer to be ready`, 'warn');
     }
   }
 
-  /**
-   * Wait for a DaemonSet to be ready
-   */
   async waitForDaemonSet(name, timeout = 120) {
     this.log(`Waiting for daemonset ${name} to be ready...`, 'info');
-    
+
     try {
-      // Wait for DaemonSet to have at least one pod running
-      const startTime = Date.now();
-      const timeoutMs = timeout * 1000;
-      
-      while (Date.now() - startTime < timeoutMs) {
-        try {
-          const result = await KubernetesHelper.kubectl([
-            'get', 'daemonset', name,
-            '-n', this.telemetryNamespace,
-            '-o', 'jsonpath={.status.numberReady}'
-          ], { ignoreError: true, spinner: this.spinner });
-          
-          const numberReady = parseInt(result.stdout.trim(), 10);
-          if (numberReady > 0) {
-            this.log(`DaemonSet ${name} has ${numberReady} pod(s) ready`, 'info');
-            return;
-          }
-        } catch (error) {
-          // Continue waiting
-        }
-        
-        await new Promise(resolve => setTimeout(resolve, 2000));
-      }
-      
-      this.log(`DaemonSet ${name} may take longer to be ready`, 'warn');
-    } catch (error) {
+      await KubernetesHelper.kubectl(
+        [
+          'rollout',
+          'status',
+          `daemonset/${name}`,
+          '-n',
+          this.telemetryNamespace,
+          `--timeout=${timeout}s`,
+        ],
+        { spinner: this.spinner }
+      );
+    } catch (_error) {
       this.log(`DaemonSet ${name} may take longer to be ready`, 'warn');
     }
   }
@@ -321,4 +506,3 @@ export class TelemetryFeature extends Feature {
 export function createTelemetryFeature(config) {
   return new TelemetryFeature('telemetry', config);
 }
-

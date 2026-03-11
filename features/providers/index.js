@@ -3,7 +3,7 @@ import { Logger, KubernetesHelper } from '../../src/lib/common.js';
 
 /**
  * Providers Feature
- * 
+ *
  * Configures LLM providers for agentgateway with complete AgentgatewayBackend and HTTPRoute setup.
  * This feature:
  * - Creates Kubernetes secrets for provider API keys and credentials
@@ -11,11 +11,11 @@ import { Logger, KubernetesHelper } from '../../src/lib/common.js';
  * - Creates HTTPRoute resources with configurable path prefixes
  * - Supports multiple LLM providers (OpenAI, Anthropic, Azure, Gemini, Bedrock, etc.)
  * - Validates required environment variables
- * 
+ *
  * Reference: https://kgateway.dev/docs/latest/agentgateway/llm/providers/
- * 
+ *
  * Configuration (two modes):
- * 
+ *
  * Mode 1: Single providers (backward compatible):
  * {
  *   providers: [
@@ -31,7 +31,7 @@ import { Logger, KubernetesHelper } from '../../src/lib/common.js';
  *     }
  *   ]
  * }
- * 
+ *
  * Mode 2: Groups (priority groups with optional multiple providers per group):
  * - Multiple groups: list order = failover priority (first group highest).
  * - Multiple providers in one group: load balanced within that group.
@@ -85,12 +85,12 @@ import { Logger, KubernetesHelper } from '../../src/lib/common.js';
  *   ],
  *   pathPrefix: string            // Optional: HTTP path prefix (default: '/providers')
  * }
- * 
+ *
  * Simple configuration (backward compatible):
  * {
  *   providers: ['openai', 'bedrock']  // Uses defaults
  * }
- * 
+ *
  * Required environment variables by provider:
  * - OpenAI: OPENAI_API_KEY
  * - Anthropic: ANTHROPIC_API_KEY
@@ -106,7 +106,7 @@ export class ProvidersFeature extends Feature {
     super(name, config);
     // Check if using groups mode or single providers mode
     this.useGroups = !!config.groups;
-    
+
     if (this.useGroups) {
       this.groups = config.groups || [];
       this.pathPrefix = config.pathPrefix || '/providers';
@@ -114,12 +114,18 @@ export class ProvidersFeature extends Feature {
       // Normalize providers to objects with configuration (backward compatible)
       this.normalizedProviders = this.normalizeProviders(config.providers || []);
       this.bodyRouting = !!config.bodyRouting;
-      this.bodyRoutingFallback = this.bodyRouting
-        && this.normalizedProviders.some(p => p.fallbackModel);  // failover only when fallbackModel(s) exist
+      this.bodyRoutingFallback =
+        this.bodyRouting && this.normalizedProviders.some(p => p.fallbackModel); // failover only when fallbackModel(s) exist
       this.queryParamRouting = !!config.queryParamRouting;
       this.queryParamName = config.queryParamName || 'model';
       this.singleRoute = this.bodyRouting || this.queryParamRouting || !!config.singleRoute;
       this.pathPrefix = config.pathPrefix || '/chat';
+      // Derive unique resource names from pathPrefix so multiple instances don't collide
+      const pathKey =
+        this.pathPrefix.replace(/\//g, '-').replace(/^-/, '').replace(/-$/, '') || 'default';
+      this.routeName = `providers-${pathKey}-route`;
+      this.policyName = `body-routing-policy-${pathKey}`;
+      this.fallbackBackendName = `providers-fallback-${pathKey}`;
     }
   }
 
@@ -137,10 +143,10 @@ export class ProvidersFeature extends Feature {
         // In single provider mode, name and providerName are the same
         return {
           name: provider,
-          providerName: provider,  // providerName defaults to name for backward compatibility
+          providerName: provider, // providerName defaults to name for backward compatibility
           pathPrefix: `/${provider}`,
           model: this.getDefaultModel(provider),
-          region: provider === 'bedrock' ? 'us-east-1' : undefined
+          region: provider === 'bedrock' ? 'us-east-1' : undefined,
         };
       } else {
         // Object format: fill in defaults; preserve authMode, guardrail, policies, etc.
@@ -154,9 +160,9 @@ export class ProvidersFeature extends Feature {
           model: provider.model || undefined,
           region: provider.region || undefined,
           location: provider.location || undefined,
-          authMode: provider.authMode,  // Bedrock: 'credentials' => auth.aws.secretRef
-          modelMatch: provider.modelMatch,  // 'RegularExpression' for regex header matching in body routing
-          fallbackModel: provider.fallbackModel,  // concrete model name for the failover groups backend
+          authMode: provider.authMode, // Bedrock: 'credentials' => auth.aws.secretRef
+          modelMatch: provider.modelMatch, // 'RegularExpression' for regex header matching in body routing
+          fallbackModel: provider.fallbackModel, // concrete model name for the failover groups backend
           ...(provider.guardrail ? { guardrail: provider.guardrail } : {}),
           ...(provider.policies ? { policies: provider.policies } : {}),
           ...(provider.pathRewrite != null ? { pathRewrite: provider.pathRewrite } : {}),
@@ -203,7 +209,7 @@ export class ProvidersFeature extends Feature {
       bedrock: 'global.amazon.nova-2-lite-v1:0',
       gemini: 'google/gemini-2.5-flash',
       'vertex-ai': 'google/gemini-2.5-flash',
-      'openai-compatible': ''
+      'openai-compatible': '',
     };
     return defaults[providerName] || '';
   }
@@ -213,23 +219,25 @@ export class ProvidersFeature extends Feature {
       if (!this.groups || this.groups.length === 0) {
         throw new Error('No groups specified for providers feature');
       }
-      
+
       // Validate each group has providers
       for (const group of this.groups) {
         if (!group.providers || group.providers.length === 0) {
           throw new Error('Each group must have at least one provider');
         }
       }
-      
+
       // Check for duplicate provider names (free-form identifiers) across groups
       // name is used as SectionName in NamedLLMProvider and must be unique
       const providerNames = new Set();
       for (const group of this.groups) {
         for (const provider of group.providers) {
           const config = typeof provider === 'string' ? { name: provider } : provider;
-          const providerName = config.name;  // Use name (free-form identifier) for uniqueness check
+          const providerName = config.name; // Use name (free-form identifier) for uniqueness check
           if (providerNames.has(providerName)) {
-            throw new Error(`Provider name '${providerName}' must be unique across all groups (used as SectionName)`);
+            throw new Error(
+              `Provider name '${providerName}' must be unique across all groups (used as SectionName)`
+            );
           }
           providerNames.add(providerName);
         }
@@ -264,9 +272,9 @@ export class ProvidersFeature extends Feature {
         // name is the free-form identifier used as SectionName
         const providerName = providerConfig.providerName || providerConfig.name;
         allProviders.push({
-          name: providerConfig.name,  // Free-form identifier
-          providerName: providerName,  // Actual provider type
-          config: providerConfig
+          name: providerConfig.name, // Free-form identifier
+          providerName: providerName, // Actual provider type
+          config: providerConfig,
         });
       }
     }
@@ -289,7 +297,7 @@ export class ProvidersFeature extends Feature {
         );
         throw new Error(
           `Missing required environment variables for providers:\n${errorMessages.join('\n')}\n\n` +
-          `Please set the required environment variables before deploying.`
+            `Please set the required environment variables before deploying.`
         );
       }
     }
@@ -343,7 +351,7 @@ export class ProvidersFeature extends Feature {
         );
         throw new Error(
           `Missing required environment variables for providers:\n${errorMessages.join('\n')}\n\n` +
-          `Please set the required environment variables before deploying.`
+            `Please set the required environment variables before deploying.`
         );
       }
     }
@@ -364,7 +372,10 @@ export class ProvidersFeature extends Feature {
       if (!this.singleRoute) {
         await this.createHTTPRoute(provider);
       }
-      this.log(`Provider ${provider.name} configured${this.singleRoute ? '' : ` at ${provider.pathPrefix}`}`, 'info');
+      this.log(
+        `Provider ${provider.name} configured${this.singleRoute ? '' : ` at ${provider.pathPrefix}`}`,
+        'info'
+      );
     }
     if (this.singleRoute && this.normalizedProviders.length > 0) {
       if (this.bodyRouting) {
@@ -451,8 +462,13 @@ export class ProvidersFeature extends Feature {
     if (this.useGroups) {
       // Cleanup groups mode
       await this.deleteResource('HTTPRoute', 'providers-groups');
-      await this.deleteResource('AgentgatewayBackend', 'providers-groups', this.namespace, 'agentgateway.dev');
-      
+      await this.deleteResource(
+        'AgentgatewayBackend',
+        'providers-groups',
+        this.namespace,
+        'agentgateway.dev'
+      );
+
       // Delete secrets only for providers that had auth (e.g. skip openai-compatible with no auth)
       const providerNames = new Set();
       for (const group of this.groups) {
@@ -471,11 +487,11 @@ export class ProvidersFeature extends Feature {
     } else {
       // Cleanup single provider mode
       if (this.singleRoute) {
-        await this.deleteResource('HTTPRoute', 'providers-single-route');
+        await this.deleteResource('HTTPRoute', this.routeName);
         if (this.bodyRouting) {
-          await this.deleteResource('EnterpriseAgentgatewayPolicy', 'body-routing-policy');
+          await this.deleteResource('EnterpriseAgentgatewayPolicy', this.policyName);
           if (this.bodyRoutingFallback) {
-            await this.deleteResource('AgentgatewayBackend', 'providers-fallback');
+            await this.deleteResource('AgentgatewayBackend', this.fallbackBackendName);
           }
         }
       }
@@ -488,10 +504,20 @@ export class ProvidersFeature extends Feature {
         if (!this.singleRoute) {
           await this.deleteResource('HTTPRoute', provider.name);
         }
-        await this.deleteResource('AgentgatewayBackend', provider.name, this.namespace, 'agentgateway.dev');
+        await this.deleteResource(
+          'AgentgatewayBackend',
+          provider.name,
+          this.namespace,
+          'agentgateway.dev'
+        );
         if (this.getRequiredEnvVars(provider).length > 0) {
           const providerName = provider.providerName || provider.name;
-          const secretName = providerName === 'bedrock' ? 'bedrock-secret' : (providerName === 'gemini' ? 'google-secret' : `${providerName}-secret`);
+          const secretName =
+            providerName === 'bedrock'
+              ? 'bedrock-secret'
+              : providerName === 'gemini'
+                ? 'google-secret'
+                : `${providerName}-secret`;
           await this.deleteResource('Secret', secretName);
         }
       }
@@ -589,9 +615,8 @@ export class ProvidersFeature extends Feature {
     const authPolicy = this.getBackendAuthPolicy(providerName, secretName, provider);
     const hasAuth = authPolicy && Object.keys(authPolicy).length > 0;
     // When modelMatch is RegularExpression the model is a routing pattern, not an actual model name
-    const backendProvider = provider.modelMatch === 'RegularExpression'
-      ? { ...provider, model: undefined }
-      : provider;
+    const backendProvider =
+      provider.modelMatch === 'RegularExpression' ? { ...provider, model: undefined } : provider;
     const llmConfig = this.getBackendLLMConfig(backendProvider);
     // host, port, path (when present) live under spec.ai.provider alongside openai/vertexai
     const aiSpec = { provider: llmConfig };
@@ -608,7 +633,11 @@ export class ProvidersFeature extends Feature {
         policies: (() => {
           const p = {};
           p.auth = hasAuth ? authPolicy : undefined;
-          const aiPolicy = ProvidersFeature.mergeAiPolicy(providerName, provider.model, provider.policies?.ai);
+          const aiPolicy = ProvidersFeature.mergeAiPolicy(
+            providerName,
+            provider.model,
+            provider.policies?.ai
+          );
           if (aiPolicy) p.ai = aiPolicy;
           return Object.values(p).some(v => v !== undefined) ? p : undefined;
         })(),
@@ -653,15 +682,15 @@ export class ProvidersFeature extends Feature {
           model: provider.model,
           region: provider.region || 'us-east-1',
         };
-        
+
         // Add guardrail configuration if provided
         if (provider.guardrail) {
           config.bedrock.guardrail = {};
-          
+
           if (provider.guardrail.guardrailId) {
             config.bedrock.guardrail.guardrailId = provider.guardrail.guardrailId;
           }
-          
+
           if (provider.guardrail.guardrailVersion) {
             config.bedrock.guardrail.guardrailVersion = provider.guardrail.guardrailVersion;
           }
@@ -679,15 +708,15 @@ export class ProvidersFeature extends Feature {
         if (!projectId || projectId.length < 1) {
           throw new Error(
             `Vertex AI provider "${provider.name}" requires projectId. ` +
-            'Set spec.providers[].projectId in the use case config or set the GCP_PROJECT environment variable.'
+              'Set spec.providers[].projectId in the use case config or set the GCP_PROJECT environment variable.'
           );
         }
         config.vertexai = {
           model: ProvidersFeature.normalizeAnthropicModel(provider.model),
           projectId,
-          region: provider.location || process.env.GCP_LOCATION || 'us-central1'
+          region: provider.location || process.env.GCP_LOCATION || 'us-central1',
         };
-        
+
         // Add optional modelPath if specified
         if (provider.modelPath) {
           config.vertexai.modelPath = provider.modelPath;
@@ -701,7 +730,8 @@ export class ProvidersFeature extends Feature {
         const host = provider.host ?? defaults.host;
         const port = provider.port ?? defaults.port;
         const pathObj = provider.path ? { ...defaults.path, ...provider.path } : defaults.path;
-        const pathStr = typeof pathObj === 'string' ? pathObj : (pathObj?.full ?? '/v1/chat/completions');
+        const pathStr =
+          typeof pathObj === 'string' ? pathObj : (pathObj?.full ?? '/v1/chat/completions');
         config.openai = { model: provider.model };
         if (provider.authHeader) config.openai.authHeader = provider.authHeader;
         config.host = host;
@@ -779,7 +809,10 @@ export class ProvidersFeature extends Feature {
 
     await this.applyYamlFile('httproute.yaml', overrides);
     const rewriteMsg = provider.pathRewrite != null ? ` (rewrite → ${provider.pathRewrite})` : '';
-    this.log(`HTTPRoute created for ${provider.name} at ${provider.pathPrefix}${rewriteMsg}`, 'info');
+    this.log(
+      `HTTPRoute created for ${provider.name} at ${provider.pathPrefix}${rewriteMsg}`,
+      'info'
+    );
   }
 
   /**
@@ -796,7 +829,7 @@ export class ProvidersFeature extends Feature {
     }));
     const overrides = {
       metadata: {
-        name: 'providers-single-route',
+        name: this.routeName,
         namespace: this.namespace,
         labels: {
           'agentgateway.dev/feature': this.name,
@@ -804,9 +837,7 @@ export class ProvidersFeature extends Feature {
         },
       },
       spec: {
-        parentRefs: [
-          { name: gatewayRef.name, namespace: gatewayRef.namespace },
-        ],
+        parentRefs: [{ name: gatewayRef.name, namespace: gatewayRef.namespace }],
         rules: [
           {
             matches: [{ path: { value: this.pathPrefix } }],
@@ -816,7 +847,10 @@ export class ProvidersFeature extends Feature {
       },
     };
     await this.applyYamlFile('httproute.yaml', overrides);
-    this.log(`HTTPRoute created (single route) at ${this.pathPrefix} with ${backendRefs.length} backendRefs`, 'info');
+    this.log(
+      `HTTPRoute created (single route) at ${this.pathPrefix} with ${backendRefs.length} backendRefs`,
+      'info'
+    );
   }
 
   /**
@@ -847,7 +881,7 @@ export class ProvidersFeature extends Feature {
       apiVersion: 'enterpriseagentgateway.solo.io/v1alpha1',
       kind: 'EnterpriseAgentgatewayPolicy',
       metadata: {
-        name: 'body-routing-policy',
+        name: this.policyName,
         namespace: this.namespace,
         labels: {
           'app.kubernetes.io/managed-by': 'agentgateway-demo',
@@ -855,11 +889,13 @@ export class ProvidersFeature extends Feature {
         },
       },
       spec: {
-        targetRefs: [{
-          group: 'gateway.networking.k8s.io',
-          kind: 'Gateway',
-          name: gatewayRef.name,
-        }],
+        targetRefs: [
+          {
+            group: 'gateway.networking.k8s.io',
+            kind: 'Gateway',
+            name: gatewayRef.name,
+          },
+        ],
         traffic: {
           phase: 'PreRouting',
           transformation: {
@@ -872,7 +908,10 @@ export class ProvidersFeature extends Feature {
     };
 
     await this.applyResource(policy);
-    this.log('EnterpriseAgentgatewayPolicy created for body-based routing (PreRouting: model → X-Gateway-Model-Name)', 'info');
+    this.log(
+      'EnterpriseAgentgatewayPolicy created for body-based routing (PreRouting: model → X-Gateway-Model-Name)',
+      'info'
+    );
   }
 
   /**
@@ -888,8 +927,9 @@ export class ProvidersFeature extends Feature {
     for (const provider of this.normalizedProviders) {
       const providerName = provider.providerName || provider.name;
       // Use fallbackModel (concrete name) for the failover group; fall back to model if not a regex
-      const fallbackModel = provider.fallbackModel
-        || (provider.modelMatch === 'RegularExpression' ? undefined : provider.model);
+      const fallbackModel =
+        provider.fallbackModel ||
+        (provider.modelMatch === 'RegularExpression' ? undefined : provider.model);
       const backendProvider = { ...provider, model: fallbackModel };
       const llmConfig = this.getBackendLLMConfig(backendProvider);
 
@@ -912,7 +952,11 @@ export class ProvidersFeature extends Feature {
 
       const authPolicy = this.getBackendAuthPolicy(providerName, secretName, provider);
       const hasAuth = authPolicy && Object.keys(authPolicy).length > 0;
-      const aiPolicy = ProvidersFeature.mergeAiPolicy(providerName, fallbackModel, provider.policies?.ai);
+      const aiPolicy = ProvidersFeature.mergeAiPolicy(
+        providerName,
+        fallbackModel,
+        provider.policies?.ai
+      );
       const policies = {};
       if (hasAuth) policies.auth = authPolicy;
       if (aiPolicy) policies.ai = aiPolicy;
@@ -926,7 +970,7 @@ export class ProvidersFeature extends Feature {
 
     const overrides = {
       metadata: {
-        name: 'providers-fallback',
+        name: this.fallbackBackendName,
         namespace: this.namespace,
         labels: {
           'agentgateway.dev/feature': this.name,
@@ -945,7 +989,7 @@ export class ProvidersFeature extends Feature {
     await this.applyYamlFile('backend.yaml', overrides);
     this.log(
       `AgentgatewayBackend created for fallback with ${groups.length} failover group(s)`,
-      'info',
+      'info'
     );
   }
 
@@ -975,27 +1019,33 @@ export class ProvidersFeature extends Feature {
           headerMatch.type = 'RegularExpression';
         }
         const rule = {
-          matches: [{
-            path: { value: this.pathPrefix },
-            headers: [headerMatch],
-          }],
-          backendRefs: [{
-            name: provider.name,
-            namespace: this.namespace,
-            group: 'agentgateway.dev',
-            kind: 'AgentgatewayBackend',
-          }],
+          matches: [
+            {
+              path: { value: this.pathPrefix },
+              headers: [headerMatch],
+            },
+          ],
+          backendRefs: [
+            {
+              name: provider.name,
+              namespace: this.namespace,
+              group: 'agentgateway.dev',
+              kind: 'AgentgatewayBackend',
+            },
+          ],
         };
         if (provider.pathRewrite != null) {
-          rule.filters = [{
-            type: 'URLRewrite',
-            urlRewrite: {
-              path: {
-                type: 'ReplacePrefixMatch',
-                replacePrefixMatch: provider.pathRewrite,
+          rule.filters = [
+            {
+              type: 'URLRewrite',
+              urlRewrite: {
+                path: {
+                  type: 'ReplacePrefixMatch',
+                  replacePrefixMatch: provider.pathRewrite,
+                },
               },
             },
-          }];
+          ];
         }
         return rule;
       });
@@ -1006,25 +1056,31 @@ export class ProvidersFeature extends Feature {
     // Unknown models (X-Gateway-Model-Status: "specified" but no model rule match) → 404
     if (this.bodyRoutingFallback) {
       rules.push({
-        matches: [{
-          path: { value: this.pathPrefix },
-          headers: [{
-            name: 'X-Gateway-Model-Status',
-            value: 'unspecified',
-          }],
-        }],
-        backendRefs: [{
-          name: 'providers-fallback',
-          namespace: this.namespace,
-          group: 'agentgateway.dev',
-          kind: 'AgentgatewayBackend',
-        }],
+        matches: [
+          {
+            path: { value: this.pathPrefix },
+            headers: [
+              {
+                name: 'X-Gateway-Model-Status',
+                value: 'unspecified',
+              },
+            ],
+          },
+        ],
+        backendRefs: [
+          {
+            name: this.fallbackBackendName,
+            namespace: this.namespace,
+            group: 'agentgateway.dev',
+            kind: 'AgentgatewayBackend',
+          },
+        ],
       });
     }
 
     const overrides = {
       metadata: {
-        name: 'providers-single-route',
+        name: this.routeName,
         namespace: this.namespace,
         labels: {
           'agentgateway.dev/feature': this.name,
@@ -1032,9 +1088,7 @@ export class ProvidersFeature extends Feature {
         },
       },
       spec: {
-        parentRefs: [
-          { name: gatewayRef.name, namespace: gatewayRef.namespace },
-        ],
+        parentRefs: [{ name: gatewayRef.name, namespace: gatewayRef.namespace }],
         rules,
       },
     };
@@ -1043,7 +1097,7 @@ export class ProvidersFeature extends Feature {
     const fallbackMsg = this.bodyRoutingFallback ? ' + failover fallback' : '';
     this.log(
       `HTTPRoute created (body routing) at ${this.pathPrefix} with ${modelRules.length} model rule(s)${fallbackMsg}`,
-      'info',
+      'info'
     );
   }
 
@@ -1061,39 +1115,47 @@ export class ProvidersFeature extends Feature {
       .filter(p => p.model)
       .map(provider => {
         const rule = {
-          matches: [{
-            path: { value: this.pathPrefix },
-            queryParams: [{
-              type: 'Exact',
-              name: this.queryParamName,
-              value: provider.model,
-            }],
-          }],
-          backendRefs: [{
-            name: provider.name,
-            namespace: this.namespace,
-            group: 'agentgateway.dev',
-            kind: 'AgentgatewayBackend',
-          }],
+          matches: [
+            {
+              path: { value: this.pathPrefix },
+              queryParams: [
+                {
+                  type: 'Exact',
+                  name: this.queryParamName,
+                  value: provider.model,
+                },
+              ],
+            },
+          ],
+          backendRefs: [
+            {
+              name: provider.name,
+              namespace: this.namespace,
+              group: 'agentgateway.dev',
+              kind: 'AgentgatewayBackend',
+            },
+          ],
           timeouts: { request: '120s' },
         };
         if (provider.pathRewrite != null) {
-          rule.filters = [{
-            type: 'URLRewrite',
-            urlRewrite: {
-              path: {
-                type: 'ReplacePrefixMatch',
-                replacePrefixMatch: provider.pathRewrite,
+          rule.filters = [
+            {
+              type: 'URLRewrite',
+              urlRewrite: {
+                path: {
+                  type: 'ReplacePrefixMatch',
+                  replacePrefixMatch: provider.pathRewrite,
+                },
               },
             },
-          }];
+          ];
         }
         return rule;
       });
 
     const overrides = {
       metadata: {
-        name: 'providers-single-route',
+        name: this.routeName,
         namespace: this.namespace,
         labels: {
           'agentgateway.dev/feature': this.name,
@@ -1101,9 +1163,7 @@ export class ProvidersFeature extends Feature {
         },
       },
       spec: {
-        parentRefs: [
-          { name: gatewayRef.name, namespace: gatewayRef.namespace },
-        ],
+        parentRefs: [{ name: gatewayRef.name, namespace: gatewayRef.namespace }],
         rules,
       },
     };
@@ -1111,7 +1171,7 @@ export class ProvidersFeature extends Feature {
     await this.applyYamlFile('httproute.yaml', overrides);
     this.log(
       `HTTPRoute created (query param routing) at ${this.pathPrefix}?${this.queryParamName}=… with ${rules.length} rule(s)`,
-      'info',
+      'info'
     );
   }
 
@@ -1120,7 +1180,7 @@ export class ProvidersFeature extends Feature {
    * @param {string|{ providerName?: string, name?: string, authMode?: string, policies?: { auth?: { secretRef?: object } } }} provider - Provider name (string) or config object. For Bedrock, authMode=credentials => AWS_ACCESS_KEY_ID/SECRET; otherwise => AWS_BEDROCK_API_KEY. For openai-compatible, no auth (no policies.auth.secretRef) => no env required.
    */
   getRequiredEnvVars(provider) {
-    const name = typeof provider === 'string' ? provider : (provider.providerName || provider.name);
+    const name = typeof provider === 'string' ? provider : provider.providerName || provider.name;
     const authMode = typeof provider === 'object' ? provider.authMode : undefined;
 
     if (authMode === 'passthrough') return [];
@@ -1172,40 +1232,43 @@ export class ProvidersFeature extends Feature {
 
       for (const providerConfig of groupConfig.providers) {
         // Parse provider config
-        const config = typeof providerConfig === 'string' 
-          ? { name: providerConfig } 
-          : providerConfig;
-        
+        const config =
+          typeof providerConfig === 'string' ? { name: providerConfig } : providerConfig;
+
         // name is the free-form identifier used as SectionName in NamedLLMProvider
         const providerName = config.name;
-        
+
         // providerName is the actual provider type (openai, vertex-ai, etc.) used for:
         // - Secret naming
         // - Provider configuration lookup
         // - Environment variable validation
         const actualProviderName = config.providerName || config.name;
-        
+
         // Build provider object for getBackendLLMConfig (openai-compatible defaults applied there)
         const providerObj = {
-          name: actualProviderName,  // Use actual provider type for config
-          ...config  // Include all other config (model, region, host, port, path, etc.)
+          name: actualProviderName, // Use actual provider type for config
+          ...config, // Include all other config (model, region, host, port, path, etc.)
         };
 
         // Get LLM provider configuration (returns object with provider type as key, e.g., { openai: {...} })
         const llmConfig = this.getBackendLLMConfig(providerObj);
-        
+
         // Build NamedLLMProvider structure
         // The API expects: { name: "section-name", openai: {...}, policies: {...} }
         // name is used as SectionName for targeting with targetRefs[].sectionName
         // The provider type (openai, anthropic, etc.) is a key in the same object as the name
         // Per-provider policies allow overriding group-level policies
         const namedProvider = {
-          name: providerName,  // Free-form identifier used as SectionName
-          ...llmConfig  // Spread the provider config (e.g., { openai: {...} })
+          name: providerName, // Free-form identifier used as SectionName
+          ...llmConfig, // Spread the provider config (e.g., { openai: {...} })
         };
 
         const explicitPolicies = config.policies || {};
-        const aiPolicy = ProvidersFeature.mergeAiPolicy(actualProviderName, config.model, explicitPolicies.ai);
+        const aiPolicy = ProvidersFeature.mergeAiPolicy(
+          actualProviderName,
+          config.model,
+          explicitPolicies.ai
+        );
         const merged = { ...explicitPolicies };
         if (aiPolicy) merged.ai = aiPolicy;
         if (merged.auth && !(merged.auth.secretRef || merged.auth.aws)) delete merged.auth;
@@ -1217,7 +1280,7 @@ export class ProvidersFeature extends Feature {
       }
 
       const group = {
-        providers: providers
+        providers: providers,
       };
 
       // Add group-level policies if specified (applies to all providers in group unless overridden)
@@ -1243,9 +1306,9 @@ export class ProvidersFeature extends Feature {
       spec: {
         ai: {
           groups: groups,
-          provider: undefined  // Explicitly remove provider field when using groups
+          provider: undefined, // Explicitly remove provider field when using groups
         },
-        policies: undefined  // Remove top-level policies - policies are per-group or per-provider in groups mode
+        policies: undefined, // Remove top-level policies - policies are per-group or per-provider in groups mode
       },
     };
 
@@ -1305,4 +1368,3 @@ export class ProvidersFeature extends Feature {
 export function createProvidersFeature(config) {
   return new ProvidersFeature('providers', config);
 }
-

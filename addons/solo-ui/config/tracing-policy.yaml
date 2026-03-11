@@ -18,8 +18,8 @@ spec:
         namespace: agentgateway-system
         port: 4317
       protocol: GRPC
-      clientSampling: "true"
-      randomSampling: "true"
+      clientSampling: 'true'
+      randomSampling: 'true'
       resources:
         - name: deployment.environment.name
           expression: '"demo"'
@@ -28,19 +28,19 @@ spec:
       attributes:
         add:
           - name: host
-            expression: "request.host"
+            expression: 'request.host'
           - name: path
-            expression: "request.path"
+            expression: 'request.path'
           - name: http.method
-            expression: "request.method"
+            expression: 'request.method'
           - name: http.scheme
-            expression: "request.scheme"
+            expression: 'request.scheme'
           - name: http.status_code
             expression: 'default(string(response.code), "0")'
           - name: request
             expression: 'default(request.headers["x-header-tag"], "")'
           - name: source.address
-            expression: "source.address"
+            expression: 'source.address'
           - name: backend.name
             expression: 'default(backend.name, "")'
           - name: backend.type

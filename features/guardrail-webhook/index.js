@@ -49,7 +49,9 @@ export class GuardrailWebhookFeature extends Feature {
       port: 8000,
       serviceName: 'ai-guardrail-webhook',
     };
-    return { ...defaults, ...(this.config.webhook || {}) };
+    const merged = { ...defaults, ...(this.config.webhook || {}) };
+    merged.image = Feature.resolveImage(merged.image);
+    return merged;
   }
 
   get opikConfig() {
@@ -71,10 +73,10 @@ export class GuardrailWebhookFeature extends Feature {
       spec: {
         backend: {
           ai: {
-            promptGuard: {}
-          }
-        }
-      }
+            promptGuard: {},
+          },
+        },
+      },
     };
 
     if (targetRefs) {
@@ -88,8 +90,8 @@ export class GuardrailWebhookFeature extends Feature {
           namespace: this.namespace,
           kind: 'Service',
           port,
-        }
-      }
+        },
+      },
     };
 
     if (enableRequest) {
@@ -238,7 +240,10 @@ export class GuardrailWebhookFeature extends Feature {
     const apiKey = process.env.OPIK_API_KEY;
 
     if (!apiKey) {
-      this.log('OPIK_API_KEY not set — Opik tracing will be disabled in the webhook server', 'warn');
+      this.log(
+        'OPIK_API_KEY not set — Opik tracing will be disabled in the webhook server',
+        'warn'
+      );
       return;
     }
 

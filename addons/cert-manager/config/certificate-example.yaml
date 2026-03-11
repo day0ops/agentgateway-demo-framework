@@ -5,23 +5,23 @@ apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
   name: example-tls-cert
-  namespace: kgateway-system
+  namespace: agentgateway-system
   labels:
     app.kubernetes.io/managed-by: agentgateway-demo
 spec:
   # Secret name where the certificate will be stored
   secretName: example-tls-secret
-  
+
   # Issuer or ClusterIssuer reference
   issuerRef:
     name: letsencrypt-prod
     kind: ClusterIssuer
-  
+
   # DNS names for the certificate
   dnsNames:
     - example.com
     - www.example.com
-  
+
   # Common name (optional, defaults to first dnsName)
   # commonName: example.com
 
@@ -31,7 +31,7 @@ apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
   name: wildcard-tls-cert
-  namespace: kgateway-system
+  namespace: agentgateway-system
 spec:
   secretName: wildcard-tls-secret
   issuerRef:
@@ -42,18 +42,17 @@ spec:
     - example.com
 
 ---
-# Example Certificate for kgateway Gateway
+# Example Certificate for agentgateway Gateway
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: kgateway-tls-cert
-  namespace: kgateway-system
+  name: agentgateway-tls-cert
+  namespace: agentgateway-system
 spec:
-  secretName: kgateway-tls-secret
+  secretName: agentgateway-tls-secret
   issuerRef:
     name: letsencrypt-prod
     kind: ClusterIssuer
   dnsNames:
-    - kgateway.example.com
+    - agentgateway.example.com
     - api.example.com
-

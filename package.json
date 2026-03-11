@@ -1,0 +1,48 @@
+{
+  "name": "agentgateway-demo",
+  "version": "0.1.0",
+  "description": "Demo framework for agentgateway features and use cases",
+  "type": "module",
+  "main": "src/index.js",
+  "bin": {
+    "agw": "./src/cli.js"
+  },
+  "scripts": {
+    "start": "node src/cli.js",
+    "dev": "node --watch src/cli.js",
+    "test": "node --test test/**/*.test.js",
+    "lint": "eslint src/**/*.js",
+    "format": "prettier --write .",
+    "setup": "npm install && node src/cli.js base install",
+    "clean": "node src/cli.js base cleanup"
+  },
+  "keywords": [
+    "agentgateway",
+    "kubernetes",
+    "llm",
+    "ai-gateway",
+    "demo"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "beautiful-mermaid": "^0.1.3",
+    "chalk": "^5.3.0",
+    "commander": "^11.1.0",
+    "execa": "^8.0.1",
+    "figlet": "^1.7.0",
+    "inquirer": "^9.2.12",
+    "js-yaml": "^4.1.0",
+    "log-symbols": "^7.0.1",
+    "ora": "^7.0.1",
+    "string-width": "^7.2.0"
+  },
+  "devDependencies": {
+    "eslint": "^8.55.0",
+    "playwright": "^1.58.2",
+    "prettier": "^3.1.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

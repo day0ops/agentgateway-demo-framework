@@ -1,0 +1,27 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: ListenerSet
+metadata:
+  name: budget-management-https
+  namespace: agentgateway-system
+  labels:
+    app.kubernetes.io/managed-by: agentgateway-demo
+    agentgateway.dev/feature: budget-management
+spec:
+  parentRef:
+    name: agentgateway
+    namespace: agentgateway-system
+    kind: Gateway
+    group: gateway.networking.k8s.io
+  listeners:
+    - name: https
+      port: 8443
+      protocol: HTTPS
+      hostname: localhost
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: budget-management-tls-secret
+            kind: Secret
+      allowedRoutes:
+        namespaces:
+          from: All

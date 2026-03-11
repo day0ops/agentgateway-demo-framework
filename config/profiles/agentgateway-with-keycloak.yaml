@@ -1,0 +1,117 @@
+## AgentGateway profile with Keycloak
+## Installs Keycloak as IdP — covers OBO token exchange, workload identity, and other Keycloak-based security demos
+## Reference: https://docs.solo.io/agentgateway/latest/security/
+
+agentgateway:
+  version: 'v2.2.0-rc.3'
+  # ociRegistry: 'oci://us-central1-docker.pkg.dev/developers-369321/enterprise-agentgateway-public-nonprod/charts'
+  ociRegistry: 'oci://us-docker.pkg.dev/solo-public/enterprise-agentgateway/charts'
+
+agentgateway-crds:
+  version: 'v2.2.0-rc.3'
+  # ociRegistry: 'oci://us-central1-docker.pkg.dev/developers-369321/enterprise-agentgateway-public-nonprod/charts'
+  ociRegistry: 'oci://us-docker.pkg.dev/solo-public/enterprise-agentgateway/charts'
+
+# enable Gateway API experimental features
+gatewayApi:
+  version: 'v1.5.0'
+  channel: experimental
+
+helmValues:
+  controller:
+    extraEnv:
+      # enable Gateway API experimental features in the controller
+      KGW_ENABLE_GATEWAY_API_EXPERIMENTAL_FEATURES: 'true'
+
+  # STS token exchange configuration
+  tokenExchange:
+    enabled: true
+    issuer: 'enterprise-agentgateway.agentgateway-system.svc.cluster.local:7777'
+    tokenExpiration: 24h
+    subjectValidator:
+      validatorType: remote
+      remoteConfig:
+        url: 'https://keycloak.keycloak.svc.cluster.local/realms/agw-dev/protocol/openid-connect/certs'
+    actorValidator:
+      validatorType: k8s
+    apiValidator:
+      validatorType: remote
+      remoteConfig:
+        url: 'https://keycloak.keycloak.svc.cluster.local/realms/agw-dev/protocol/openid-connect/certs'
+
+resources:
+  - agentgateway-with-keycloak/enterprise-agentgateway-params.yaml
+  - agentgateway-with-keycloak/enterprise-agentgateway-sharedext-params.yaml
+  - agentgateway-with-keycloak/enterprise-agentgateway-custom.yaml
+
+# feature gates
+featureGates:
+  ## because we use self-service this injects keycloak CA cert into the ext-auth service's trusted CA bundle
+  injectExtAuthCustomCaCert:
+    enabled: true
+    sourceSecret: keycloak-tls
+    sourceNamespace: keycloak
+
+addons:
+  ## cert-manager
+  - name: cert-manager
+    description: Certificate management for TLS (required by Keycloak)
+    namespace: cert-manager
+
+  ## keycloak
+  - name: keycloak
+    description: Keycloak OIDC Identity Provider
+    namespace: keycloak
+    config:
+      keycloakNamespace: keycloak
+      hostname: keycloak.keycloak.svc.cluster.local
+      protocol: https
+      realm: agw-dev
+      clientId: agw-client
+      clientSecret: agw-client-secret
+      publicClientId: agw-client-public
+      tls:
+        enabled: true
+        secretName: keycloak-tls
+        createCertificate: true
+      workloadClients:
+        - clientId: caller-agent
+          clientSecret: caller-agent-secret
+          audience: agentgateway
+          k8sSecretName: caller-agent-credentials
+          k8sSecretNamespace: agentgateway-system
+        - clientId: chain-caller-agent
+          clientSecret: chain-caller-agent-secret
+          audience: agentgateway
+          k8sSecretName: chain-caller-agent-credentials
+          k8sSecretNamespace: agentgateway-system
+        - clientId: chain-stock-agent
+          clientSecret: chain-stock-agent-secret
+          audience: agentgateway
+          k8sSecretName: chain-stock-agent-credentials
+          k8sSecretNamespace: agentgateway-system
+
+  ## observability stack
+  - name: solo-ui
+    description: Solo Enterprise UI for agentgateway
+    namespace: agentgateway-system
+    config:
+      managementChartVersion: '0.3.8'
+      serviceType: 'LoadBalancer'
+      nodeSelector:
+        nodeclass: worker
+      # Route traces through fan-out collector to send to both ClickHouse (Solo UI) and Tempo (Grafana)
+      tracingBackend:
+        name: fan-out-collector
+        namespace: telemetry
+        port: 4317
+  - name: telemetry
+    description: OpenTelemetry observability stack (Prometheus, Grafana, Loki, Tempo)
+    namespace: telemetry
+    config:
+      gatewayNamespace: agentgateway-system
+      nodeSelector:
+        nodeclass: worker
+      config:
+        retention: '120h' # 5 days
+        grafanaServiceType: 'LoadBalancer'

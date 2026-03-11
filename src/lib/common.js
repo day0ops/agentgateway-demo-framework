@@ -2,6 +2,7 @@ import chalk from 'chalk';
 import { execa } from 'execa';
 import ora from 'ora';
 import logSymbols from 'log-symbols';
+import stringWidth from 'string-width';
 
 /**
  * Common utilities for the agentgateway demo framework
@@ -95,12 +96,12 @@ export class SpinnerLogger {
     if (level === 'info') {
       return this;
     }
-    
+
     if (this.isSpinning) {
       this.spinner.clear();
       this.spinner.frame();
     }
-    
+
     switch (level) {
       case 'success':
         Logger.success(message);
@@ -119,7 +120,7 @@ export class SpinnerLogger {
     if (this.isSpinning) {
       this.spinner.render();
     }
-    
+
     return this;
   }
 
@@ -201,23 +202,28 @@ export class KubernetesHelper {
     // Use external spinner if provided, otherwise create new one
     const spinner = externalSpinner || new SpinnerLogger();
     const ownSpinner = !externalSpinner;
-    
+
     if (ownSpinner) {
       spinner.start('Waiting for pod to be ready...');
     } else {
       spinner.setText('Waiting for pod to be ready...');
     }
-    
+
     try {
-      await this.kubectl([
-        'wait',
-        '--for=condition=ready',
-        'pod',
-        '-l', labelSelector,
-        '-n', namespace,
-        `--timeout=${timeout}s`
-      ], { spinner });
-      
+      await this.kubectl(
+        [
+          'wait',
+          '--for=condition=ready',
+          'pod',
+          '-l',
+          labelSelector,
+          '-n',
+          namespace,
+          `--timeout=${timeout}s`,
+        ],
+        { spinner }
+      );
+
       if (ownSpinner) {
         spinner.succeed('Pod is ready');
       }
@@ -234,34 +240,34 @@ export class KubernetesHelper {
     // Use external spinner if provided, otherwise create new one
     const spinner = externalSpinner || new SpinnerLogger();
     const ownSpinner = !externalSpinner;
-    
+
     const startTime = Date.now();
     const timeoutMs = timeout * 1000;
-    
+
     // First, wait for the deployment to exist
     if (ownSpinner) {
       spinner.start('Waiting for deployment to be created...');
     } else {
       spinner.setText('Waiting for deployment to be created...');
     }
-    
+
     while (Date.now() - startTime < timeoutMs) {
       try {
-        const result = await this.kubectl([
-          'get', 'deployment', deploymentName,
-          '-n', namespace
-        ], { ignoreError: true, spinner });
-        
+        const result = await this.kubectl(['get', 'deployment', deploymentName, '-n', namespace], {
+          ignoreError: true,
+          spinner,
+        });
+
         if (result.exitCode === 0) {
           break;
         }
       } catch {
         // Deployment doesn't exist yet, continue waiting
       }
-      
+
       // Wait 2 seconds before checking again
       await new Promise(resolve => setTimeout(resolve, 2000));
-      
+
       // Check if we've timed out
       if (Date.now() - startTime >= timeoutMs) {
         if (ownSpinner) {
@@ -270,21 +276,28 @@ export class KubernetesHelper {
         throw new Error(`Deployment ${deploymentName} was not created within ${timeout}s`);
       }
     }
-    
+
     // Now wait for the deployment to become available
     spinner.setText('Waiting for deployment to be ready...');
-    
+
     try {
-      const remainingTimeout = Math.max(10, Math.floor((timeoutMs - (Date.now() - startTime)) / 1000));
-      
-      await this.kubectl([
-        'wait',
-        '--for=condition=available',
-        `deployment/${deploymentName}`,
-        '-n', namespace,
-        `--timeout=${remainingTimeout}s`
-      ], { spinner });
-      
+      const remainingTimeout = Math.max(
+        10,
+        Math.floor((timeoutMs - (Date.now() - startTime)) / 1000)
+      );
+
+      await this.kubectl(
+        [
+          'wait',
+          '--for=condition=available',
+          `deployment/${deploymentName}`,
+          '-n',
+          namespace,
+          `--timeout=${remainingTimeout}s`,
+        ],
+        { spinner }
+      );
+
       if (ownSpinner) {
         spinner.succeed('Deployment is ready');
       }
@@ -330,7 +343,7 @@ export class KubernetesHelper {
         args.push('-n', namespace);
       }
       args.push('--ignore-not-found=true', '-o', 'name');
-      
+
       const result = await this.kubectl(args, { ignoreError: true });
       return result.stdout.trim().length > 0;
     } catch (error) {
@@ -338,40 +351,34 @@ export class KubernetesHelper {
     }
   }
 
-  static async createSecretFromLiteral(namespace, secretName, key, value, spinner = null) {
-    try {
-      await this.kubectl([
-        'create', 'secret', 'generic', secretName,
-        `--from-literal=${key}=${value}`,
-        '-n', namespace,
-        '--dry-run=client',
-        '-o', 'yaml'
-      ]).then(result => 
-        this.kubectl(['apply', '-f', '-'], { 
-          input: result.stdout 
-        })
-      );
-    } catch (error) {
-      // Don't log here - let the feature handle error logging
-      throw error;
-    }
+  static async createSecretFromLiteral(namespace, secretName, key, value, _spinner = null) {
+    const result = await this.kubectl([
+      'create',
+      'secret',
+      'generic',
+      secretName,
+      `--from-literal=${key}=${value}`,
+      '-n',
+      namespace,
+      '--dry-run=client',
+      '-o',
+      'yaml',
+    ]);
+    await this.kubectl(['apply', '-f', '-'], {
+      input: result.stdout,
+    });
   }
 
-  static async applyYaml(yamlContent, spinner = null) {
-    try {
-      await this.kubectl(['apply', '-f', '-'], { 
-        input: yamlContent 
-      });
-    } catch (error) {
-      // Don't log here - let the feature handle error logging
-      throw error;
-    }
+  static async applyYaml(yamlContent, _spinner = null) {
+    await this.kubectl(['apply', '--server-side', '--force-conflicts', '-f', '-'], {
+      input: yamlContent,
+    });
   }
 
   static async deleteIfExists(resourceType, resourceName, namespace, spinner = null) {
     try {
-      await this.kubectl(['get', resourceType, resourceName, '-n', namespace], { 
-        ignoreError: true 
+      await this.kubectl(['get', resourceType, resourceName, '-n', namespace], {
+        ignoreError: true,
       });
       await this.kubectl(['delete', resourceType, resourceName, '-n', namespace, '--wait=false']);
     } catch {
@@ -381,15 +388,22 @@ export class KubernetesHelper {
 
   static async getLoadBalancerAddress(namespace, serviceName, timeout = 300) {
     const startTime = Date.now();
-    
+
     while (Date.now() - startTime < timeout * 1000) {
       try {
-        const result = await this.kubectl([
-          'get', 'svc', serviceName,
-          '-n', namespace,
-          '-o', 'jsonpath={.status.loadBalancer.ingress[0].ip}{.status.loadBalancer.ingress[0].hostname}'
-        ], { ignoreError: true });
-        
+        const result = await this.kubectl(
+          [
+            'get',
+            'svc',
+            serviceName,
+            '-n',
+            namespace,
+            '-o',
+            'jsonpath={.status.loadBalancer.ingress[0].ip}{.status.loadBalancer.ingress[0].hostname}',
+          ],
+          { ignoreError: true }
+        );
+
         const address = result.stdout.trim();
         if (address) {
           return address;
@@ -397,16 +411,16 @@ export class KubernetesHelper {
       } catch {
         // Continue waiting
       }
-      
+
       await new Promise(resolve => setTimeout(resolve, 5000));
     }
-    
+
     throw new Error('Timeout waiting for LoadBalancer address');
   }
 }
 
 export async function checkDependencies() {
-  const required = ['kubectl', 'helm', 'docker', 'lok8s', 'jq', 'yq'];
+  const required = ['kubectl', 'helm', 'docker', 'jq', 'yq'];
   const missing = [];
 
   Logger.info('Checking dependencies...');
@@ -435,3 +449,193 @@ export function waitFor(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+/**
+ * Wrap text to a given terminal width, preserving an optional leading indent
+ * on every line. Uses `string-width` so ANSI escape codes are excluded from
+ * the measured length.
+ *
+ * @param {string} text       - Text to wrap (whitespace is normalised)
+ * @param {number} [width]    - Max line width (defaults to terminal width, capped at 120)
+ * @param {string} [indent]   - String prepended to every output line (default: '')
+ * @returns {string}
+ */
+export function wrapText(text, width = Math.min(process.stdout.columns || 100, 120), indent = '') {
+  const maxContent = width - stringWidth(indent);
+  const words = String(text).trim().split(/\s+/);
+  const lines = [];
+  let line = '';
+
+  for (const word of words) {
+    const candidate = line ? `${line} ${word}` : word;
+    if (stringWidth(candidate) > maxContent && line) {
+      lines.push(indent + line);
+      line = word;
+    } else {
+      line = candidate;
+    }
+  }
+
+  if (line) lines.push(indent + line);
+  return lines.join('\n');
+}
+
+/**
+ * Format a multi-line description preserving structure (bullets, numbered lists, paragraphs).
+ * @param {string} text - The description text
+ * @param {string} [indent='  '] - Indentation for each line
+ * @returns {string} Formatted description
+ */
+export function formatDescription(text, indent = '  ') {
+  if (!text) return '';
+  const width = Math.min(process.stdout.columns || 100, 100);
+  const lines = text.split('\n');
+  const result = [];
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      result.push('');
+      continue;
+    }
+    // Check if line is a bullet or numbered item
+    const isBullet = /^[-*]/.test(trimmed);
+    const isNumbered = /^\d+[.)]/.test(trimmed);
+    const lineIndent = isBullet || isNumbered ? indent + '  ' : indent;
+    const prefix = isBullet ? indent + '• ' : isNumbered ? indent + trimmed.slice(0, 2) : '';
+
+    if (isBullet || isNumbered) {
+      // Wrap the content after the bullet/number
+      const content = trimmed.slice(2).trim();
+      const wrapped = wrapText(content, width - lineIndent.length, '');
+      const wrappedLines = wrapped.split('\n');
+      result.push(prefix + wrappedLines[0]);
+      for (let i = 1; i < wrappedLines.length; i++) {
+        result.push(lineIndent + wrappedLines[i]);
+      }
+    } else {
+      // Regular paragraph line
+      result.push(wrapText(trimmed, width, indent));
+    }
+  }
+  return result.join('\n');
+}
+
+/**
+ * Print a bordered box showing raw HTTP request and response details.
+ * @param {{ method: string, url: string, headers: Object, body: any }} request
+ * @param {{ status: number, headers: Object, body: any }} response
+ */
+export function printTrafficBox(request, response) {
+  const BOX_WIDTH = Math.min(process.stdout.columns || 100, 100);
+  const INNER = BOX_WIDTH - 2;
+  const CONTENT_MAX = INNER - 2;
+
+  const DIM = chalk.dim;
+
+  const padVisual = (str, width) => {
+    const w = stringWidth(str);
+    return w >= width ? str : str + ' '.repeat(width - w);
+  };
+
+  const top = DIM('┌' + '─'.repeat(INNER) + '┐');
+  const bottom = DIM('└' + '─'.repeat(INNER) + '┘');
+  const mid = DIM('├' + '─'.repeat(INNER) + '┤');
+
+  const row = (text = '') => {
+    const safe = String(text).replace(/\r?\n/g, ' ');
+    const visLen = stringWidth(safe);
+    let content = safe;
+    if (visLen > CONTENT_MAX) {
+      // eslint-disable-next-line no-control-regex
+      const stripped = safe.replace(/\x1B\[[0-9;]*m/g, '');
+      content = stripped.substring(0, CONTENT_MAX - 1) + '…';
+    }
+    return DIM('│') + ' ' + padVisual(content, CONTENT_MAX) + ' ' + DIM('│');
+  };
+
+  const sectionRow = (label, colorFn) => {
+    const colored = colorFn(' ' + label);
+    return DIM('│') + padVisual(colored, INNER) + DIM('│');
+  };
+
+  const maskSensitive = (key, value) => {
+    const k = key.toLowerCase();
+    if (['authorization', 'x-ai-api-key', 'x-api-key', 'cookie'].includes(k)) {
+      const s = String(value);
+      return s.length > 20 ? s.substring(0, 12) + '…[masked]' : s;
+    }
+    return value;
+  };
+
+  const formatBodyLines = (body, maxLines = 30) => {
+    if (body == null || body === '') return ['(empty)'];
+    let str;
+    if (typeof body === 'object') {
+      try {
+        str = JSON.stringify(body, null, 2);
+      } catch {
+        str = String(body);
+      }
+    } else {
+      str = String(body);
+    }
+    const lines = str.split('\n');
+    return lines.length > maxLines
+      ? [...lines.slice(0, maxLines), chalk.dim(`… (${lines.length - maxLines} more lines)`)]
+      : lines;
+  };
+
+  const out = ['', top];
+
+  out.push(sectionRow('REQUEST', chalk.bold.cyan));
+  out.push(row());
+  out.push(row(`  ${chalk.bold(request.method)}  ${request.url}`));
+
+  if (request.headers && Object.keys(request.headers).length > 0) {
+    out.push(row());
+    out.push(row(chalk.dim('  Headers')));
+    for (const [k, v] of Object.entries(request.headers)) {
+      out.push(row(`    ${chalk.dim(k + ':')} ${maskSensitive(k, v)}`));
+    }
+  }
+
+  if (request.body != null) {
+    out.push(row());
+    out.push(row(chalk.dim('  Body')));
+    for (const l of formatBodyLines(request.body)) {
+      out.push(row('    ' + l));
+    }
+  }
+
+  out.push(mid);
+
+  out.push(sectionRow('RESPONSE', chalk.bold.magenta));
+  out.push(row());
+
+  const statusFn =
+    response.status >= 200 && response.status < 300
+      ? chalk.green
+      : response.status >= 400
+        ? chalk.red
+        : chalk.yellow;
+  out.push(row('  ' + chalk.dim('Status:') + ' ' + statusFn(String(response.status))));
+
+  if (response.headers && Object.keys(response.headers).length > 0) {
+    out.push(row());
+    out.push(row(chalk.dim('  Headers')));
+    for (const [k, v] of Object.entries(response.headers)) {
+      out.push(row(`    ${chalk.dim(k + ':')} ${v}`));
+    }
+  }
+
+  if (response.body != null) {
+    out.push(row());
+    out.push(row(chalk.dim('  Body')));
+    for (const l of formatBodyLines(response.body)) {
+      out.push(row('    ' + l));
+    }
+  }
+
+  out.push(bottom, '');
+  console.log(out.join('\n'));
+}

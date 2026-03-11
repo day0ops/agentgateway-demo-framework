@@ -1,0 +1,11 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: GatewayClass
+metadata:
+  name: enterprise-agentgateway-custom
+spec:
+  controllerName: solo.io/enterprise-agentgateway
+  parametersRef:
+    group: enterpriseagentgateway.solo.io
+    kind: EnterpriseAgentgatewayParameters
+    name: enterprise-agentgateway-sharedext-params
+    namespace: agentgateway-system
