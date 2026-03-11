@@ -2,7 +2,12 @@ apiVersion: agentgateway.demo/v1
 kind: UseCase
 metadata:
   name: oauth-authorization-code
-  description: OAuth authorization code flow with Keycloak IdP for external auth
+  description: |
+    Full OAuth 2.0 authorization code flow with Keycloak for browser-facing routes.
+
+    - Unauthenticated requests are redirected (302) to Keycloak for login
+    - After consent the gateway exchanges the auth code for tokens and issues a session cookie
+    - Subsequent requests present the cookie to access the protected LLM route
   docs: https://docs.solo.io/agentgateway/2.1.x/security/extauth/oauth/authorization-code/
 
 spec:

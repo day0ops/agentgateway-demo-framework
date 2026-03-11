@@ -339,8 +339,32 @@ export class PolicyRegistry {
     for (const [key, value] of Object.entries(incoming)) {
       if (result[key] === undefined) {
         result[key] = value;
-      } else if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+      } else if (Array.isArray(value)) {
+        // Merge arrays by union: deduplicate identical entries, detect same-name conflicts
+        const existingArr = Array.isArray(result[key]) ? result[key] : [result[key]];
+        const existingMap = new Map(existingArr.map(item => [JSON.stringify(item), item]));
+        for (const item of value) {
+          const itemStr = JSON.stringify(item);
+          if (!existingMap.has(itemStr)) {
+            if (item && typeof item === 'object' && 'name' in item) {
+              const nameConflict = existingArr.find(
+                e => e && typeof e === 'object' && e.name === item.name
+              );
+              if (nameConflict) {
+                throw new Error(
+                  `Policy conflict at ${path}.${key}[name=${item.name}]: feature '${featureName}' cannot set this field - ` +
+                    'already set by previous feature(s). Only one feature can configure each policy field.'
+                );
+              }
+            }
+            existingMap.set(itemStr, item);
+          }
+        }
+        result[key] = [...existingMap.values()];
+      } else if (typeof value === 'object' && value !== null) {
         result[key] = this.mergeSection(result[key], value, `${path}.${key}`, featureName);
+      } else if (JSON.stringify(result[key]) === JSON.stringify(value)) {
+        // Allow identical scalar values from multiple features (e.g., phase: 'PreRouting')
       } else {
         throw new Error(
           `Policy conflict at ${path}.${key}: feature '${featureName}' cannot set this field - ` +
@@ -357,12 +381,22 @@ export class PolicyRegistry {
 
     for (const [_key, policy] of this.policies) {
       const contributors = policy._contributors || [];
+      const targetRefKey = policy._targetRefKey || '';
       const cleanPolicy = JSON.parse(JSON.stringify(policy));
       delete cleanPolicy._contributors;
       delete cleanPolicy._targetRefKey;
 
-      // Generate merged policy name from contributors
-      cleanPolicy.metadata.name = `merged-${contributors.join('-')}`;
+      // Single contributor: use <feature>-<targetRef name> for clarity
+      // Multiple contributors: use merged-<contributors>-<targetRef name>
+      const targetSuffix = targetRefKey.split('/').pop() || '';
+      let policyName;
+      if (contributors.length === 1) {
+        policyName = targetSuffix ? `${contributors[0]}-${targetSuffix}` : contributors[0];
+      } else {
+        const baseName = `merged-${contributors.join('-')}`;
+        policyName = targetSuffix ? `${baseName}-${targetSuffix}` : baseName;
+      }
+      cleanPolicy.metadata.name = policyName;
       cleanPolicy.metadata.labels = {
         ...(cleanPolicy.metadata.labels || {}),
         'agentgateway.dev/merged-policy': 'true',

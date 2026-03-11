@@ -9,7 +9,7 @@ metadata:
     app.kubernetes.io/managed-by: agentgateway-demo
 data:
   init.sql: |
-    -- Budget Limiter Schema
+    -- Budget Management Schema
     -- Version: 001_initial
 
     -- Enable UUID extension
@@ -67,6 +67,8 @@ data:
         pending_usage_usd       DECIMAL(20, 10) NOT NULL DEFAULT 0,
         version                 BIGINT NOT NULL DEFAULT 1,
         description             TEXT,
+        owner_org_id            VARCHAR(255),
+        owner_team_id           VARCHAR(255),
         created_at              TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
         updated_at              TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
         CONSTRAINT unique_entity UNIQUE (entity_type, name)
@@ -75,6 +77,8 @@ data:
     CREATE INDEX IF NOT EXISTS idx_budget_definitions_entity ON budget_definitions(entity_type, name);
     CREATE INDEX IF NOT EXISTS idx_budget_definitions_parent ON budget_definitions(parent_id);
     CREATE INDEX IF NOT EXISTS idx_budget_definitions_enabled ON budget_definitions(enabled);
+    CREATE INDEX IF NOT EXISTS idx_budget_definitions_owner_org ON budget_definitions(owner_org_id);
+    CREATE INDEX IF NOT EXISTS idx_budget_definitions_owner_team ON budget_definitions(owner_team_id);
 
     -- Usage records table
     CREATE TABLE IF NOT EXISTS usage_records (

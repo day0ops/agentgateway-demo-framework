@@ -25,6 +25,7 @@ import { budgetsApi } from '../../api/budgets';
 import { BudgetDefinition, CreateBudgetRequest, UpdateBudgetRequest } from '../../api/types';
 import { ApiClientError } from '../../api/client';
 import { BudgetForm } from './BudgetForm';
+import { useAuth } from '../../contexts/AuthContext';
 
 const Container = styled.div``;
 
@@ -156,7 +157,8 @@ function buildBudgetTree(budgets: BudgetDefinition[]): FlatTreeItem[] {
     }
   });
 
-  const rootBudgets = budgets.filter(b => !b.parent_id);
+  // Treat as root if no parent_id OR parent is not in the visible list (orphaned)
+  const rootBudgets = budgets.filter(b => !b.parent_id || !budgetMap.has(b.parent_id));
 
   const result: FlatTreeItem[] = [];
 
@@ -182,11 +184,15 @@ function buildBudgetTree(budgets: BudgetDefinition[]): FlatTreeItem[] {
 
 export function BudgetsPage() {
   const navigate = useNavigate();
+  const { permissions } = useAuth();
   const [formOpen, setFormOpen] = useState(false);
   const [editingBudget, setEditingBudget] = useState<BudgetDefinition | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<BudgetDefinition | null>(null);
 
   const { data: budgets, loading, refresh } = useApi(useCallback(() => budgetsApi.list(), []));
+
+  // Filter budgets based on permissions
+  const visibleBudgets = budgets?.filter(b => permissions.canViewBudget(b));
 
   const createMutation = useMutation(budgetsApi.create);
   const updateMutation = useMutation(
@@ -278,12 +284,12 @@ export function BudgetsPage() {
         <Button variant="secondary" onClick={refresh}>
           Refresh
         </Button>
-        <Button onClick={handleCreate}>Create Budget</Button>
+        {permissions.canCreateBudgets && <Button onClick={handleCreate}>Create Budget</Button>}
       </PageHeader>
 
       {loading ? (
         <Loading />
-      ) : budgets && budgets.length > 0 ? (
+      ) : visibleBudgets && visibleBudgets.length > 0 ? (
         <TableContainer>
           <Table>
             <TableHead>
@@ -313,11 +319,16 @@ export function BudgetsPage() {
                     Status <HelpIcon>?</HelpIcon>
                   </HeaderWithTooltip>
                 </TableHeader>
+                <TableHeader>
+                  <HeaderWithTooltip title="Organization or team that owns this budget">
+                    Owner <HelpIcon>?</HelpIcon>
+                  </HeaderWithTooltip>
+                </TableHeader>
                 <TableHeader align="right">Actions</TableHeader>
               </TableRow>
             </TableHead>
             <TableBody>
-              {buildBudgetTree(budgets).map(({ budget, depth, isLast }) => (
+              {buildBudgetTree(visibleBudgets).map(({ budget, depth, isLast }) => (
                 <DisabledRow
                   key={budget.id}
                   clickable
@@ -360,15 +371,30 @@ export function BudgetsPage() {
                       <Badge variant="default">Disabled</Badge>
                     )}
                   </TableCell>
+                  <TableCell>
+                    {budget.owner_org_id ? (
+                      <Badge variant="default">Org: {budget.owner_org_id}</Badge>
+                    ) : budget.owner_team_id ? (
+                      <Badge variant="default">Team: {budget.owner_team_id}</Badge>
+                    ) : (
+                      <span style={{ color: '#71717A', fontSize: '12px' }}>-</span>
+                    )}
+                  </TableCell>
                   <TableCell align="right">
                     <ActionButtons>
-                      <ActionButton onClick={e => handleToggleEnabled(budget, e)}>
-                        {budget.enabled ? 'Disable' : 'Enable'}
-                      </ActionButton>
-                      <ActionButton onClick={e => handleEdit(budget, e)}>Edit</ActionButton>
-                      <ActionButton onClick={e => handleDeleteClick(budget, e)}>
-                        Delete
-                      </ActionButton>
+                      {permissions.canEditBudget(budget) && (
+                        <ActionButton onClick={e => handleToggleEnabled(budget, e)}>
+                          {budget.enabled ? 'Disable' : 'Enable'}
+                        </ActionButton>
+                      )}
+                      {permissions.canEditBudget(budget) && (
+                        <ActionButton onClick={e => handleEdit(budget, e)}>Edit</ActionButton>
+                      )}
+                      {permissions.canDeleteBudgets && (
+                        <ActionButton onClick={e => handleDeleteClick(budget, e)}>
+                          Delete
+                        </ActionButton>
+                      )}
                     </ActionButtons>
                   </TableCell>
                 </DisabledRow>
@@ -379,7 +405,7 @@ export function BudgetsPage() {
       ) : (
         <EmptyState>
           <EmptyStateText>No budgets configured yet.</EmptyStateText>
-          <Button onClick={handleCreate}>Create Budget</Button>
+          {permissions.canCreateBudgets && <Button onClick={handleCreate}>Create Budget</Button>}
         </EmptyState>
       )}
 
@@ -388,7 +414,7 @@ export function BudgetsPage() {
         onClose={() => setFormOpen(false)}
         onSubmit={handleFormSubmit}
         editingBudget={editingBudget}
-        availableBudgets={budgets || []}
+        availableBudgets={visibleBudgets || []}
         loading={createMutation.loading || updateMutation.loading}
       />
 

@@ -2,7 +2,12 @@ apiVersion: agentgateway.demo/v1
 kind: UseCase
 metadata:
   name: multiplex-mcp-server
-  description: Federate multiple MCP servers behind a single agentgateway endpoint using label selectors
+  description: |
+    Federate multiple MCP servers behind a single agentgateway endpoint.
+
+    - A single AgentgatewayBackend with label selectors discovers both Services
+    - Tool namespaces from stock-price and currency-exchange servers are merged
+    - Clients access all tools through one /mcp connection and one MCP transport
   docs: https://docs.solo.io/agentgateway/2.1.x/mcp/multiplex/
 
 spec:

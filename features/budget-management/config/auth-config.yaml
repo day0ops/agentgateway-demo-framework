@@ -1,0 +1,32 @@
+apiVersion: extauth.solo.io/v1
+kind: AuthConfig
+metadata:
+  name: budget-management-auth
+  namespace: agentgateway-system
+  labels:
+    app.kubernetes.io/managed-by: agentgateway-demo
+    agentgateway.dev/feature: budget-management
+spec:
+  configs:
+    - oauth2:
+        oidcAuthorizationCode:
+          appUrl: https://10.0.1.203:8443
+          callbackPath: /ui/callback
+          logoutPath: /logout
+          clientId: budget-management
+          clientSecretRef:
+            name: budget-management-oauth
+            namespace: agentgateway-system
+          issuerUrl: https://keycloak.keycloak.svc.cluster.local/realms/agw-dev/
+          scopes:
+            - openid
+            - email
+            - profile
+          session:
+            failOnFetchFailure: true
+            redis:
+              cookieName: budget-session
+              options:
+                host: ext-cache-enterprise-agentgateway-custom:6379
+          headers:
+            idTokenHeader: jwt

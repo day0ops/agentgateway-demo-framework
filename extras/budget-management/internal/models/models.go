@@ -45,8 +45,8 @@ type ModelCost struct {
 // BudgetDefinition represents a budget configuration.
 type BudgetDefinition struct {
 	ID                  uuid.UUID      `json:"id" db:"id"`
-	EntityType EntityType `json:"entity_type" db:"entity_type"`
-	Name       string     `json:"name" db:"name"`
+	EntityType          EntityType     `json:"entity_type" db:"entity_type"`
+	Name                string         `json:"name" db:"name"`
 	MatchExpression     string         `json:"match_expression" db:"match_expression"`
 	BudgetAmountUSD     float64        `json:"budget_amount_usd" db:"budget_amount_usd"`
 	Period              BudgetPeriod   `json:"period" db:"period"`
@@ -60,6 +60,8 @@ type BudgetDefinition struct {
 	CurrentUsageUSD     float64        `json:"current_usage_usd" db:"current_usage_usd"`
 	PendingUsageUSD     float64        `json:"pending_usage_usd" db:"pending_usage_usd"`
 	Description         sql.NullString `json:"description,omitempty" db:"description"`
+	OwnerOrgID          sql.NullString `json:"owner_org_id,omitempty" db:"owner_org_id"`
+	OwnerTeamID         sql.NullString `json:"owner_team_id,omitempty" db:"owner_team_id"`
 	Version             int64          `json:"version" db:"version"`
 	CreatedAt           time.Time      `json:"created_at" db:"created_at"`
 	UpdatedAt           time.Time      `json:"updated_at" db:"updated_at"`

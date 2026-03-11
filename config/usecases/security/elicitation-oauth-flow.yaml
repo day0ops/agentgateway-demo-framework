@@ -2,7 +2,12 @@ apiVersion: agentgateway.demo/v1
 kind: UseCase
 metadata:
   name: elicitation-oauth-flow
-  description: Out-of-band OAuth consent for agents accessing external APIs on behalf of users
+  description: |
+    Out-of-band OAuth consent flow for agents accessing external APIs on behalf of users.
+
+    - When an agent needs access to an external resource (e.g. GitHub), the gateway pauses
+    - Returns an elicitation payload for the client to resolve via an OAuth consent flow
+    - Once the user grants access, the agent resumes with the acquired token
   docs: https://docs.solo.io/agentgateway/2.1.x/security/obo-elicitations/elicitations/
 
 spec:

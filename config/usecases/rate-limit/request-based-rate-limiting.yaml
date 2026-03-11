@@ -3,11 +3,11 @@ kind: UseCase
 metadata:
   name: request-based-rate-limiting
   description: |
-    Global request-based rate limiting using a simple counter. An OpenAI backend is
-    configured via the providers feature, then a RateLimitConfig and EnterpriseAgentgatewayPolicy
-    are applied to enforce a maximum number of requests per time unit across all users.
-    After the configured limit is exceeded, subsequent requests receive a 429 Too Many Requests
-    response from the gateway.
+    Global request-based rate limiting enforced across all users via a shared counter.
+
+    - OpenAI backend deployed via the providers feature
+    - RateLimitConfig and EnterpriseAgentgatewayPolicy enforce a per-time-unit request cap
+    - Requests beyond the configured limit receive 429 Too Many Requests
   docs: https://docs.solo.io/agentgateway/2.1.x/traffic-management/rate-limiting/
 
 spec:

@@ -2,7 +2,12 @@ apiVersion: agentgateway.demo/v1
 kind: UseCase
 metadata:
   name: anthropic-model-on-vertex-ai-provider
-  description: Anthropic Claude model served via Vertex AI
+  description: |
+    Route to an Anthropic Claude model (claude-haiku-4-5) served through Vertex AI.
+
+    - Messages and StreamRawPredict route mappings configured via `ai.llm.routes`
+    - Both standard Anthropic API paths and Vertex AI raw predict paths work transparently
+    - All other paths fall through as passthrough
   docs: https://kgateway.dev/docs/agentgateway/latest/llm/providers/vertex-ai/
 
 spec:

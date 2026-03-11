@@ -11,21 +11,20 @@ const PROJECT_ROOT = join(__dirname, '../..');
 
 /**
  * Profile management utilities
- * Handles kgateway installation profiles with extensible service support
+ * Handles agentgateway installation profiles with extensible service support
  */
 export class ProfileManager {
   static PROFILES_DIR = join(PROJECT_ROOT, 'config/profiles');
 
   static DESCRIPTIONS = {
-    'standard-agentgateway': 'Standard AgentGateway installation',
+    'agentgateway-standard': 'Standard installation',
     'agentgateway-with-observability':
-      'AgentGateway with full observability stack (Solo UI,Prometheus, Grafana, Loki, Tempo)',
-    'agentgateway-with-solo-ui': 'AgentGateway with Solo UI stack',
-    'agentgateway-custom-config': 'AgentGateway with custom configuration',
+      'Full observability stack (Solo UI, Prometheus, Grafana, Loki, Tempo)',
+    'agentgateway-with-solo-ui': 'Observability with Solo UI stack',
+    'agentgateway-custom-config': 'Custom configuration',
     'agentgateway-custom-version':
-      'AgentGateway with custom version, OCI registry, and controller extraEnv (e.g. Gateway API experimental)',
-    'agentgateway-with-keycloak':
-      'AgentGateway with Keycloak (OBO token exchange, workload identity, and other Keycloak-based security demos)',
+      'Custom version, OCI registry, and controller extraEnv (e.g. Gateway API experimental)',
+    'agentgateway-with-keycloak': 'Includes Keycloak integration with the full observability stack',
   };
 
   /**
@@ -123,7 +122,7 @@ export class ProfileManager {
         }));
 
       const selectedName = await Prompts.select(
-        'Select kgateway installation profile:',
+        'Select agentgateway installation profile:',
         choices,
         defaultProfile
       );

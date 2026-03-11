@@ -2,7 +2,13 @@ apiVersion: agentgateway.demo/v1
 kind: UseCase
 metadata:
   name: dynamic-mcp-server
-  description: Route to an MCP server dynamically using label selectors instead of static host/port
+  description: |
+    Route to an MCP server discovered dynamically via Kubernetes label selector.
+
+    - AgentgatewayBackend uses label selectors instead of a static host/port
+    - Controller watches matching Services and updates endpoints automatically
+    - Backend can be redeployed or scaled without changing the resource definition
+    - Only Streamable HTTP is supported for label-selector backends
   docs: https://docs.solo.io/agentgateway/2.1.x/mcp/dynamic-mcp/
 
 spec:

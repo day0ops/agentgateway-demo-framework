@@ -9,6 +9,9 @@ metadata:
     app: agentgateway
 spec:
   gatewayClassName: enterprise-agentgateway
+  allowedListeners:
+    namespaces:
+      from: All
   listeners:
     - name: http
       port: 8080

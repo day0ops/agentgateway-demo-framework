@@ -4,8 +4,10 @@ metadata:
   name: openai-multiple-endpoints
   description: |
     OpenAI provider with multiple endpoint routes via the `policies.ai.routes` field.
-    Maps `/v1/embeddings` and `/v1/models` as `passthrough` to forward requests as-is.
-    All endpoints are served behind a single AgentgatewayBackend and HTTPRoute at `/openai`.
+
+    - `/v1/embeddings` mapped as passthrough — forwarded as-is
+    - `/v1/models`     mapped as passthrough — forwarded as-is
+    - All endpoints served behind a single AgentgatewayBackend and HTTPRoute at `/openai`
   docs: https://agentgateway.dev/docs/kubernetes/main/llm/providers/multiple-endpoints/
 
 spec:

@@ -120,6 +120,12 @@ export class ProvidersFeature extends Feature {
       this.queryParamName = config.queryParamName || 'model';
       this.singleRoute = this.bodyRouting || this.queryParamRouting || !!config.singleRoute;
       this.pathPrefix = config.pathPrefix || '/chat';
+      // Derive unique resource names from pathPrefix so multiple instances don't collide
+      const pathKey =
+        this.pathPrefix.replace(/\//g, '-').replace(/^-/, '').replace(/-$/, '') || 'default';
+      this.routeName = `providers-${pathKey}-route`;
+      this.policyName = `body-routing-policy-${pathKey}`;
+      this.fallbackBackendName = `providers-fallback-${pathKey}`;
     }
   }
 
@@ -481,11 +487,11 @@ export class ProvidersFeature extends Feature {
     } else {
       // Cleanup single provider mode
       if (this.singleRoute) {
-        await this.deleteResource('HTTPRoute', 'providers-single-route');
+        await this.deleteResource('HTTPRoute', this.routeName);
         if (this.bodyRouting) {
-          await this.deleteResource('EnterpriseAgentgatewayPolicy', 'body-routing-policy');
+          await this.deleteResource('EnterpriseAgentgatewayPolicy', this.policyName);
           if (this.bodyRoutingFallback) {
-            await this.deleteResource('AgentgatewayBackend', 'providers-fallback');
+            await this.deleteResource('AgentgatewayBackend', this.fallbackBackendName);
           }
         }
       }
@@ -823,7 +829,7 @@ export class ProvidersFeature extends Feature {
     }));
     const overrides = {
       metadata: {
-        name: 'providers-single-route',
+        name: this.routeName,
         namespace: this.namespace,
         labels: {
           'agentgateway.dev/feature': this.name,
@@ -875,7 +881,7 @@ export class ProvidersFeature extends Feature {
       apiVersion: 'enterpriseagentgateway.solo.io/v1alpha1',
       kind: 'EnterpriseAgentgatewayPolicy',
       metadata: {
-        name: 'body-routing-policy',
+        name: this.policyName,
         namespace: this.namespace,
         labels: {
           'app.kubernetes.io/managed-by': 'agentgateway-demo',
@@ -964,7 +970,7 @@ export class ProvidersFeature extends Feature {
 
     const overrides = {
       metadata: {
-        name: 'providers-fallback',
+        name: this.fallbackBackendName,
         namespace: this.namespace,
         labels: {
           'agentgateway.dev/feature': this.name,
@@ -1063,7 +1069,7 @@ export class ProvidersFeature extends Feature {
         ],
         backendRefs: [
           {
-            name: 'providers-fallback',
+            name: this.fallbackBackendName,
             namespace: this.namespace,
             group: 'agentgateway.dev',
             kind: 'AgentgatewayBackend',
@@ -1074,7 +1080,7 @@ export class ProvidersFeature extends Feature {
 
     const overrides = {
       metadata: {
-        name: 'providers-single-route',
+        name: this.routeName,
         namespace: this.namespace,
         labels: {
           'agentgateway.dev/feature': this.name,
@@ -1149,7 +1155,7 @@ export class ProvidersFeature extends Feature {
 
     const overrides = {
       metadata: {
-        name: 'providers-single-route',
+        name: this.routeName,
         namespace: this.namespace,
         labels: {
           'agentgateway.dev/feature': this.name,

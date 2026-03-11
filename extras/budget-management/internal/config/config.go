@@ -41,6 +41,9 @@ type Config struct {
 	OrgIDHeader  string `envconfig:"ORG_ID_HEADER" default:"x-org-id"`
 	TeamIDHeader string `envconfig:"TEAM_ID_HEADER" default:"x-team-id"`
 	UserIDHeader string `envconfig:"USER_ID_HEADER" default:"x-user-id"`
+
+	// Auth configuration
+	AuthEnabled bool `envconfig:"AUTH_ENABLED" default:"false"`
 }
 
 // Load loads configuration from environment variables.

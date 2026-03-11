@@ -2,7 +2,12 @@ apiVersion: agentgateway.demo/v1
 kind: UseCase
 metadata:
   name: bedrock-provider-with-apikey
-  description: Simple AWS Bedrock LLM provider call using AWS api key
+  description: |
+    Route requests to AWS Bedrock (Nova Lite) using API key authentication.
+
+    - API key stored as a Kubernetes Secret and referenced by the provider config
+    - Gateway signs each outbound request with credentials derived from the key
+    - Exposed at /bedrock behind a single AgentgatewayBackend
   docs: https://kgateway.dev/docs/latest/agentgateway/llm/providers/amazon-bedrock/
 
 spec:

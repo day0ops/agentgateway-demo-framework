@@ -2,7 +2,12 @@ apiVersion: agentgateway.demo/v1
 kind: UseCase
 metadata:
   name: multi-provider-round-robin
-  description: Demonstrates multiple LLM providers with custom path prefixes
+  description: |
+    Two LLM providers deployed at separate path prefixes, each independently configured.
+
+    - /openai  → OpenAI (gpt-4) with its own auth and model config
+    - /bedrock → AWS Bedrock (amazon.titan-text-lite-v1) with its own auth
+    - Demonstrates registering multiple distinct provider backends side-by-side
   docs: https://kgateway.dev/docs/latest/agentgateway/llm/providers/
 
 spec:

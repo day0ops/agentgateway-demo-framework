@@ -2,7 +2,12 @@ apiVersion: agentgateway.demo/v1
 kind: UseCase
 metadata:
   name: ollama-provider
-  description: Local Ollama LLM provider with Llama 3 model
+  description: |
+    Route requests to a local Ollama (Llama 3) instance via the openai-compatible provider.
+
+    - Provider type: openai-compatible targeting host.minikube.internal:11434
+    - Translates OpenAI-format requests to the Ollama /v1/chat/completions endpoint
+    - Exposed at /ollama behind a single AgentgatewayBackend
   docs: https://kgateway.dev/docs/latest/agentgateway/llm/providers/
 
 spec:

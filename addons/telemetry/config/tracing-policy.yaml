@@ -1,7 +1,7 @@
 apiVersion: enterpriseagentgateway.solo.io/v1alpha1
 kind: EnterpriseAgentgatewayPolicy
 metadata:
-  name: tracing
+  name: tracing-policy
   namespace: agentgateway-system
   labels:
     app.kubernetes.io/managed-by: agentgateway-demo

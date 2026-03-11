@@ -24,7 +24,7 @@ spec:
           gatewayHTTPRoute:
             parentRefs:
               - name: http
-                namespace: kgateway-system
+                namespace: agentgateway-system
                 kind: Gateway
 
 ---
@@ -48,7 +48,7 @@ spec:
           gatewayHTTPRoute:
             parentRefs:
               - name: http
-                namespace: kgateway-system
+                namespace: agentgateway-system
                 kind: Gateway
 
 ---

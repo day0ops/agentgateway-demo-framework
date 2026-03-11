@@ -522,11 +522,7 @@ export class UseCaseManager {
 
         for (const feature of step.features) {
           const { name: featureName, config = {} } = feature;
-          try {
-            await FeatureManager.deploy(featureName, config);
-          } catch (error) {
-            throw error;
-          }
+          await FeatureManager.deploy(featureName, config);
         }
       }
 
@@ -834,7 +830,7 @@ export class UseCaseManager {
    * @param {string} name - Use case name or file path
    * @returns {Promise<void>}
    */
-  static async test(name) {
+  static async test(name, options = {}) {
     let filePath;
     if (name.endsWith('.yaml')) {
       filePath = name;
@@ -844,6 +840,24 @@ export class UseCaseManager {
     }
 
     const usecase = await this.parse(filePath);
-    await UseCaseTestRunner.runTests(usecase);
+    const { spec } = usecase;
+
+    // Determine if cleanup should run (CLI flag or spec-level setting)
+    const shouldCleanup = options.cleanup || spec.cleanup === true;
+
+    try {
+      await UseCaseTestRunner.runTests(usecase);
+    } finally {
+      // Run cleanup after tests if enabled via CLI flag or spec.cleanup
+      if (shouldCleanup) {
+        Logger.info('Running post-test cleanup...');
+        try {
+          await this.cleanup(filePath);
+          Logger.success('Post-test cleanup completed');
+        } catch (cleanupError) {
+          Logger.warn(`Post-test cleanup failed: ${cleanupError.message}`);
+        }
+      }
+    }
   }
 }

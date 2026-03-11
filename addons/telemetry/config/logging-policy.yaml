@@ -1,7 +1,7 @@
 apiVersion: enterpriseagentgateway.solo.io/v1alpha1
 kind: EnterpriseAgentgatewayPolicy
 metadata:
-  name: logging
+  name: logging-policy
   namespace: agentgateway-system
   labels:
     app.kubernetes.io/managed-by: agentgateway-demo
@@ -13,8 +13,6 @@ spec:
       name: agentgateway
   frontend:
     accessLog:
-      filter: |
-        has(response)
       attributes:
         add:
           - name: http.user_agent

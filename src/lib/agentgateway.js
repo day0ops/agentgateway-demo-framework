@@ -42,17 +42,22 @@ export class AgentGatewayManager {
       helmArgs.push('--set', `licensing.licenseKey=${ENTERPRISE_AGW_LICENSE_KEY}`);
     }
   }
-  static async installGatewayAPICRDs(gatewayApiVersion = GATEWAY_API_VERSION) {
+  static async installGatewayAPICRDs(
+    gatewayApiVersion = GATEWAY_API_VERSION,
+    channel = 'standard'
+  ) {
     const spinner = new SpinnerLogger();
-    spinner.start(`Installing Gateway API CRDs ${gatewayApiVersion}...`);
+    const resolvedChannel = channel === 'experimental' ? 'experimental' : 'standard';
+    spinner.start(`Installing Gateway API CRDs ${gatewayApiVersion} (${resolvedChannel})...`);
 
     try {
       await KubernetesHelper.kubectl([
         'apply',
+        '--server-side',
         '-f',
-        `https://github.com/kubernetes-sigs/gateway-api/releases/download/${gatewayApiVersion}/standard-install.yaml`,
+        `https://github.com/kubernetes-sigs/gateway-api/releases/download/${gatewayApiVersion}/${resolvedChannel}-install.yaml`,
       ]);
-      spinner.succeed(`Gateway API CRDs ${gatewayApiVersion} installed`);
+      spinner.succeed(`Gateway API CRDs ${gatewayApiVersion} (${resolvedChannel}) installed`);
     } catch (error) {
       spinner.fail('Failed to install Gateway API CRDs');
       throw error;
@@ -63,9 +68,17 @@ export class AgentGatewayManager {
     const version = profile?.agentgateway?.version ?? AGENTGATEWAY_VERSION;
     const ociRegistry = profile?.agentgateway?.ociRegistry ?? AGENTGATEWAY_OCI_REGISTRY;
     const gatewayApiVersion = profile?.gatewayApi?.version ?? GATEWAY_API_VERSION;
+    const gatewayApiChannel = profile?.gatewayApi?.channel ?? 'standard';
     const crdsVersion = profile?.['agentgateway-crds']?.version ?? version;
     const crdsOciRegistry = profile?.['agentgateway-crds']?.ociRegistry ?? ociRegistry;
-    return { version, ociRegistry, gatewayApiVersion, crdsVersion, crdsOciRegistry };
+    return {
+      version,
+      ociRegistry,
+      gatewayApiVersion,
+      gatewayApiChannel,
+      crdsVersion,
+      crdsOciRegistry,
+    };
   }
 
   static async installAgentGatewayCRDs(
@@ -120,16 +133,22 @@ export class AgentGatewayManager {
       const profileContent = await readFile(profileFile, 'utf8');
       profile = yaml.load(profileContent);
     }
-    const { version, ociRegistry, gatewayApiVersion, crdsVersion, crdsOciRegistry } =
-      this.resolveVersionAndRegistry(profile);
+    const {
+      version,
+      ociRegistry,
+      gatewayApiVersion,
+      gatewayApiChannel,
+      crdsVersion,
+      crdsOciRegistry,
+    } = this.resolveVersionAndRegistry(profile);
 
     try {
       this.checkLicenseKey();
 
-      await this.installGatewayAPICRDs(gatewayApiVersion);
+      await this.installGatewayAPICRDs(gatewayApiVersion, gatewayApiChannel);
       await this.installAgentGatewayCRDs(crdsVersion, crdsOciRegistry);
 
-      const profileMsg = profileFile ? ` with profile` : '';
+      const profileMsg = profileFile ? ' with profile' : '';
       spinner.start(`Installing agentgateway ${version}${profileMsg}...`);
 
       const helmArgs = [
@@ -278,26 +297,20 @@ export class AgentGatewayManager {
         let resourceName = 'unknown';
 
         if (typeof resource === 'string') {
-          // Resource is a file path - load it
           const resourcePath = profileDir ? join(profileDir, resource) : resource;
-
           resourceName = resource;
           resourceYaml = await readFile(resourcePath, 'utf8');
 
-          // Parse to get resource name for logging
-          const parsed = yaml.load(resourceYaml);
-          resourceName = `${parsed.kind || 'Resource'} ${parsed.metadata?.name || resource}`;
+          const docs = yaml.loadAll(resourceYaml).filter(Boolean);
+          resourceName = docs
+            .map(d => `${d.kind || 'Resource'} ${d.metadata?.name || resource}`)
+            .join(', ');
         } else {
-          // Resource is already a parsed object
           resourceYaml = yaml.dump(resource);
           resourceName = `${resource.kind || 'Resource'} ${resource.metadata?.name || 'unknown'}`;
         }
 
-        // Apply the resource using kubectl
-        await KubernetesHelper.kubectl(['apply', '-f', '-'], {
-          input: resourceYaml,
-        });
-
+        await KubernetesHelper.kubectl(['apply', '-f', '-'], { input: resourceYaml });
         Logger.debug(`Applied ${resourceName}`);
       } catch (error) {
         const resourceName =
@@ -505,7 +518,55 @@ export class AgentGatewayManager {
     }
   }
 
-  static async installProxy() {
+  static async findProfileGatewayClass(profile, profileDir) {
+    if (!profile?.resources?.length) return null;
+    for (const resource of profile.resources) {
+      try {
+        let docs;
+        if (typeof resource === 'string') {
+          const resourcePath = profileDir ? join(profileDir, resource) : resource;
+          docs = yaml.loadAll(await readFile(resourcePath, 'utf8'));
+        } else {
+          docs = [resource];
+        }
+        for (const parsed of docs) {
+          if (parsed?.kind === 'GatewayClass') return parsed;
+        }
+      } catch {
+        // skip unreadable resources
+      }
+    }
+    return null;
+  }
+
+  static async findEnterpriseParameters(profile, profileDir) {
+    if (!profile?.resources?.length) return null;
+    for (const resource of profile.resources) {
+      try {
+        let docs;
+        if (typeof resource === 'string') {
+          const resourcePath = profileDir ? join(profileDir, resource) : resource;
+          const content = await readFile(resourcePath, 'utf8');
+          docs = yaml.loadAll(content);
+        } else {
+          docs = [resource];
+        }
+        for (const parsed of docs) {
+          if (
+            parsed?.kind === 'EnterpriseAgentgatewayParameters' &&
+            !parsed?.spec?.sharedExtensions
+          ) {
+            return parsed;
+          }
+        }
+      } catch {
+        // skip unreadable resources
+      }
+    }
+    return null;
+  }
+
+  static async installProxy(profileFile = null) {
     const spinner = new SpinnerLogger();
 
     const isInstalled = await this.verify();
@@ -517,13 +578,43 @@ export class AgentGatewayManager {
     spinner.start('Creating agentgateway Gateway...');
 
     let gatewayYaml = await readFile(DEFAULT_GATEWAY_YAML, 'utf8');
-    // Ensure namespace matches AGENTGATEWAY_NAMESPACE (e.g. from env)
     const gateway = yaml.load(gatewayYaml);
+
+    // Ensure namespace matches AGENTGATEWAY_NAMESPACE
     if (gateway.metadata.namespace !== AGENTGATEWAY_NAMESPACE) {
       gateway.metadata.namespace = AGENTGATEWAY_NAMESPACE;
-      gatewayYaml = yaml.dump(gateway, { lineWidth: -1, indent: 2 });
     }
 
+    // Wire parametersRef if profile has an EnterpriseAgentgatewayParameters resource
+    let profile = null;
+    let profileDir = null;
+    if (profileFile) {
+      profile = yaml.load(await readFile(profileFile, 'utf8'));
+      profileDir = dirname(profileFile);
+    }
+    // Use custom GatewayClass from profile if defined
+    const profileGatewayClass = await this.findProfileGatewayClass(profile, profileDir);
+    if (profileGatewayClass) {
+      gateway.spec.gatewayClassName = profileGatewayClass.metadata.name;
+      spinner.info(`Using GatewayClass '${profileGatewayClass.metadata.name}' from profile`);
+    }
+
+    // Wire Gateway-level parameters (logging, etc.)
+    const enterpriseParams = await this.findEnterpriseParameters(profile, profileDir);
+    if (enterpriseParams) {
+      const paramsName = enterpriseParams.metadata?.name;
+      gateway.spec = gateway.spec || {};
+      gateway.spec.infrastructure = {
+        parametersRef: {
+          name: paramsName,
+          group: 'enterpriseagentgateway.solo.io',
+          kind: 'EnterpriseAgentgatewayParameters',
+        },
+      };
+      spinner.info(`Attaching EnterpriseAgentgatewayParameters '${paramsName}' to Gateway`);
+    }
+
+    gatewayYaml = yaml.dump(gateway, { lineWidth: -1, indent: 2 });
     await KubernetesHelper.applyYaml(gatewayYaml, spinner);
     spinner.succeed('agentgateway Gateway created');
 

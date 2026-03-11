@@ -2,7 +2,12 @@ apiVersion: agentgateway.demo/v1
 kind: UseCase
 metadata:
   name: apikey-auth
-  description: API key authentication with ext-auth for LLM provider routes
+  description: |
+    Protect an LLM provider route with API key authentication via ext-auth.
+
+    - API key stored as a Kubernetes Secret
+    - Gateway validates the x-ai-api-key header on every request
+    - Missing or invalid keys receive a 401 Unauthorized before reaching the LLM
   docs: https://docs.solo.io/agentgateway/2.1.x/security/extauth/apikey/
 
 spec:

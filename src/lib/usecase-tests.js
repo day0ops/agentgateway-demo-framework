@@ -916,11 +916,11 @@ export class UseCaseTestRunner {
     const authorizeUrl =
       `${keycloakBase}/realms/${realm}/protocol/openid-connect/auth?` +
       `client_id=${encodeURIComponent(clientId)}` +
-      `&response_type=code` +
-      `&scope=openid` +
+      '&response_type=code' +
+      '&scope=openid' +
       `&redirect_uri=${encodeURIComponent(redirectUri)}` +
       `&code_challenge=${codeChallenge}` +
-      `&code_challenge_method=S256`;
+      '&code_challenge_method=S256';
 
     const openCmd =
       process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'start' : 'xdg-open';
@@ -1173,14 +1173,16 @@ export class UseCaseTestRunner {
     const method = step.method || 'POST';
     const headers = step.headers || {};
     const prompt = step.prompt || 'Hello';
-    const model = step.model || 'gpt-4o-mini';
+    const model = step.model;
 
     let body;
     if (step.body) {
       body = typeof step.body === 'string' ? step.body : JSON.stringify(step.body);
+    } else if (step.input !== undefined) {
+      body = JSON.stringify({ ...(model !== undefined && { model }), input: step.input });
     } else {
       body = JSON.stringify({
-        model,
+        ...(model !== undefined && { model }),
         messages: [{ role: 'user', content: prompt }],
       });
     }
@@ -1393,7 +1395,7 @@ export class UseCaseTestRunner {
       for (const pattern of piiPatterns) {
         if (pattern.test(bodyStr)) {
           spinner.clear();
-          Logger.warn(`Warning: Potential unredacted PII found in response`);
+          Logger.warn('Warning: Potential unredacted PII found in response');
           spinner.render();
         }
       }

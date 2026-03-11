@@ -2,7 +2,12 @@ apiVersion: agentgateway.demo/v1
 kind: UseCase
 metadata:
   name: multi-provider-groups
-  description: Demonstrates multiple LLM providers organized in priority groups with load balancing and failover
+  description: |
+    Multiple LLM providers in priority groups with load balancing and automatic failover.
+
+    - Primary group (tried first, load balanced): gpt-4o, gpt-4o-mini
+    - Fallback group (used when primary fails):   Claude Sonnet
+    - Groups tried in priority order; no client-side retry logic required
   docs: https://kgateway.dev/docs/main/reference/api/#prioritygroup
 
 spec:

@@ -2,7 +2,12 @@ apiVersion: agentgateway.demo/v1
 kind: UseCase
 metadata:
   name: agent-to-mcp-authentication
-  description: Agent-to-MCP authentication — user JWT is propagated by the stock ADK agent into protected MCP tools via the AGW JWT policy
+  description: |
+    End-to-end JWT propagation from caller through ADK agent to protected MCP tools.
+
+    - ADKTokenPropagationPlugin forwards the caller's incoming JWT into every MCP tool call
+    - The agentgateway JWT policy on /mcp validates the token against Keycloak's JWKS
+    - No long-lived credentials stored in the agent
   docs: https://docs.solo.io/agentgateway/2.1.x/security/obo-elicitations/obo/
 
 spec:

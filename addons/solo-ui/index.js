@@ -7,10 +7,10 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const CONFIG_DIR = join(__dirname, 'config');
 
-// Solo Enterprise Management (Solo UI) Helm chart version
+// Solo Enterprise Management (Solo UI) Helm chart defaults
 // Ref: https://docs.solo.io/agentgateway/2.1.x/install/ui/setup/#install-the-ui
-const SOLO_UI_MANAGEMENT_CHART_VERSION = '0.3.3';
-const SOLO_UI_MANAGEMENT_CHART_OCI =
+const DEFAULT_SOLO_UI_MANAGEMENT_CHART_VERSION = '0.3.3';
+const DEFAULT_SOLO_UI_MANAGEMENT_CHART_OCI =
   'oci://us-docker.pkg.dev/solo-public/solo-enterprise-helm/charts/management';
 const RELEASE_NAME = 'solo-ui';
 
@@ -31,15 +31,25 @@ const RELEASE_NAME = 'solo-ui';
  * {
  *   namespace: string,               // Default: 'agentgateway-system'
  *   managementChartVersion: string,  // Default: '0.3.3'
- *   nodeSelector: object             // Default: {} (e.g., { nodeclass: 'worker' })
+ *   managementChartOci: string,      // Default: OCI chart URL
+ *   serviceType: string,             // Optional: e.g. 'LoadBalancer'; omit for port-forward
+ *   nodeSelector: object,            // Default: {} (e.g., { nodeclass: 'worker' })
+ *   tracingBackend: {                // Optional: custom tracing backend (for fan-out to Grafana)
+ *     name: string,                  // Service name (default: 'solo-enterprise-telemetry-collector')
+ *     namespace: string,             // Service namespace (default: same as solo-ui namespace)
+ *     port: number                   // Service port (default: 4317)
+ *   }
  * }
  */
 export class SoloUIFeature extends Feature {
   constructor(name, config) {
     super(name, config);
     this.namespace = config.namespace || this.namespace;
-    this.chartVersion = config.managementChartVersion || SOLO_UI_MANAGEMENT_CHART_VERSION;
+    this.chartVersion = config.managementChartVersion || DEFAULT_SOLO_UI_MANAGEMENT_CHART_VERSION;
+    this.chartOci = config.managementChartOci || DEFAULT_SOLO_UI_MANAGEMENT_CHART_OCI;
+    this.serviceType = config.serviceType || null;
     this.nodeSelector = config.nodeSelector || {};
+    this.tracingBackend = config.tracingBackend || null;
   }
 
   getFeaturePath() {
@@ -73,17 +83,40 @@ export class SoloUIFeature extends Feature {
     await this.installManagementChart();
     await this.waitForPods();
 
-    await this.applyYamlFile('logging-policy.yaml');
-    await this.applyYamlFile('reference-grant-logs.yaml');
-    await this.applyYamlFile('tracing-policy.yaml');
+    // Apply tracing policy with optional custom backend (e.g., fan-out-collector for Grafana)
+    if (this.tracingBackend) {
+      await this.applyYamlFile('tracing-policy.yaml', {
+        spec: {
+          frontend: {
+            tracing: {
+              backendRef: {
+                name: this.tracingBackend.name,
+                namespace: this.tracingBackend.namespace || this.namespace,
+                port: this.tracingBackend.port || 4317,
+              },
+            },
+          },
+        },
+      });
+      this.log(
+        `Tracing configured to use ${this.tracingBackend.name}.${this.tracingBackend.namespace || this.namespace}`,
+        'info'
+      );
+    } else {
+      await this.applyYamlFile('tracing-policy.yaml');
+    }
     await this.applyYamlFile('reference-grant-traces.yaml');
 
-    this.log(
-      'Solo UI installed successfully. Port-forward with: kubectl port-forward service/solo-enterprise-ui -n ' +
-        this.namespace +
-        ' 4000:80',
-      'success'
-    );
+    let accessHint;
+    if (this.serviceType) {
+      const address = await this.getServiceAddress('solo-enterprise-ui');
+      accessHint = address
+        ? `Access at http://${address}`
+        : `Access via the '${this.serviceType}' service in namespace '${this.namespace}' (address pending)`;
+    } else {
+      accessHint = `Port-forward with: kubectl port-forward service/solo-enterprise-ui -n ${this.namespace} 4000:80`;
+    }
+    this.log(`Solo UI installed successfully. ${accessHint}`, 'success');
   }
 
   /**
@@ -98,7 +131,7 @@ export class SoloUIFeature extends Feature {
       'upgrade',
       '-i',
       RELEASE_NAME,
-      SOLO_UI_MANAGEMENT_CHART_OCI,
+      this.chartOci,
       '-n',
       this.namespace,
       '--version',
@@ -109,6 +142,7 @@ export class SoloUIFeature extends Feature {
       '--wait',
       '--timeout',
       '10m',
+      ...(this.serviceType ? ['--set', `service.type=${this.serviceType}`] : []),
       ...this.buildNodeSelectorArgs('ui'),
       ...this.buildNodeSelectorArgs('clickhouse'),
     ];
@@ -158,17 +192,31 @@ export class SoloUIFeature extends Feature {
     this.log('Solo UI and management components are ready', 'info');
   }
 
+  async getServiceAddress(serviceName) {
+    const jsonpathArgs = field => [
+      'get',
+      'svc',
+      serviceName,
+      '-n',
+      this.namespace,
+      '-o',
+      `jsonpath={.status.loadBalancer.ingress[0].${field}}`,
+    ];
+    const ipResult = await KubernetesHelper.kubectl(jsonpathArgs('ip'), { ignoreError: true });
+    const address = (ipResult.stdout || '').trim();
+    if (address) return address;
+
+    const hostResult = await KubernetesHelper.kubectl(jsonpathArgs('hostname'), {
+      ignoreError: true,
+    });
+    return (hostResult.stdout || '').trim() || null;
+  }
+
   async cleanup() {
     this.log('Cleaning up Solo UI (management release)...', 'info');
 
     // Delete EnterpriseAgentgatewayPolicies and ReferenceGrants
-    await this.deleteResource('EnterpriseAgentgatewayPolicy', 'logging-solo-ui', this.namespace);
     await this.deleteResource('EnterpriseAgentgatewayPolicy', 'tracing-solo-ui', this.namespace);
-    await this.deleteResource(
-      'ReferenceGrant',
-      'allow-otel-collector-logs-access-solo-ui',
-      this.namespace
-    );
     await this.deleteResource(
       'ReferenceGrant',
       'allow-otel-collector-traces-access-solo-ui',

@@ -34,6 +34,7 @@ const ALLOY_VERSION = '0.12.0';
  * Configuration:
  * {
  *   telemetryNamespace: string,  // Default: 'telemetry'
+ *   gatewayNamespace: string,    // Namespace where gateway policies are applied (default: 'agentgateway-system')
  *   enableLogs: boolean,          // Default: true
  *   enableTraces: boolean,        // Default: true
  *   enableMetrics: boolean,       // Default: true
@@ -46,6 +47,7 @@ export class TelemetryFeature extends Feature {
   constructor(name, config) {
     super(name, config);
     this.telemetryNamespace = config.telemetryNamespace || 'telemetry';
+    this.gatewayNamespace = config.gatewayNamespace || this.namespace;
     this.enableLogs = config.enableLogs !== false;
     this.enableTraces = config.enableTraces !== false;
     this.enableMetrics = config.enableMetrics !== false;
@@ -128,19 +130,77 @@ export class TelemetryFeature extends Feature {
     }
 
     // Step 7: Create EnterpriseAgentgatewayPolicy resources
+    if (this.enableLogs) {
+      await this.applyYamlFile('logging-policy.yaml', {
+        metadata: { namespace: this.gatewayNamespace },
+      });
+      await this.applyYamlFile('reference-grant-logs.yaml');
+    }
     if (this.enableTraces) {
-      await this.applyYamlFile('tracing-policy.yaml');
+      // Deploy fan-out collector to route traces to both Solo UI (ClickHouse) and Tempo (Grafana)
+      // Note: Solo UI addon must be configured with tracingBackend pointing to fan-out-collector
+      await this.installFanOutCollector();
       await this.applyYamlFile('reference-grant-traces.yaml');
     }
 
     this.log('Observability stack installed successfully', 'success');
   }
 
+  /**
+   * Install fan-out OTEL collector for routing traces to multiple backends
+   * Routes to both solo-enterprise-telemetry-collector (ClickHouse) and tempo-distributor (Grafana)
+   *
+   * To enable fan-out, configure solo-ui addon with:
+   *   tracingBackend: { name: 'fan-out-collector', namespace: 'telemetry', port: 4317 }
+   */
+  async installFanOutCollector() {
+    this.log('Installing fan-out collector for trace routing...', 'info');
+
+    await this.applyMultiDocYamlFile('fan-out-collector.yaml');
+    await this.waitForDeployment('fan-out-collector', 120);
+
+    this.log('Fan-out collector installed', 'info');
+    this.log(
+      'Configure solo-ui with tracingBackend: { name: "fan-out-collector", namespace: "telemetry" }',
+      'info'
+    );
+  }
+
+  /**
+   * Apply a YAML file containing multiple documents (separated by ---)
+   */
+  async applyMultiDocYamlFile(filename) {
+    const yaml = (await import('js-yaml')).default;
+    const configPath = join(CONFIG_DIR, filename);
+
+    try {
+      const content = await readFile(configPath, 'utf8');
+      const documents = yaml.loadAll(content);
+
+      for (const doc of documents) {
+        if (doc) {
+          await this.applyResource(doc);
+        }
+      }
+    } catch (error) {
+      throw new Error(`Failed to apply multi-doc YAML file ${filename}: ${error.message}`);
+    }
+  }
+
   async cleanup() {
     this.log('Cleaning up observability stack...', 'info');
 
     // Delete EnterpriseAgentgatewayPolicies
-    await this.deleteResource('EnterpriseAgentgatewayPolicy', 'tracing', this.namespace);
+    await this.deleteResource(
+      'EnterpriseAgentgatewayPolicy',
+      'logging-policy',
+      this.gatewayNamespace
+    );
+    await this.deleteResource(
+      'EnterpriseAgentgatewayPolicy',
+      'tracing-policy',
+      this.gatewayNamespace
+    );
 
     // Delete PodMonitors and ServiceMonitors
     await this.deleteResource('PodMonitor', 'agentgateway-metrics', this.telemetryNamespace);
@@ -154,6 +214,16 @@ export class TelemetryFeature extends Feature {
     // Delete ReferenceGrants
     await this.deleteResource('ReferenceGrant', 'allow-tempo-access', this.telemetryNamespace);
     await this.deleteResource('ReferenceGrant', 'allow-loki-access', this.telemetryNamespace);
+    await this.deleteResource(
+      'ReferenceGrant',
+      'allow-fan-out-collector-access',
+      this.telemetryNamespace
+    );
+
+    // Delete fan-out collector resources
+    await this.deleteResource('Deployment', 'fan-out-collector', this.telemetryNamespace);
+    await this.deleteResource('Service', 'fan-out-collector', this.telemetryNamespace);
+    await this.deleteResource('ConfigMap', 'fan-out-collector-config', this.telemetryNamespace);
 
     // Delete dashboard ConfigMaps
     const dashboardNames = [

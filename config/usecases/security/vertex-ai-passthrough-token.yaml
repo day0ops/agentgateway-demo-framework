@@ -2,7 +2,12 @@ apiVersion: agentgateway.demo/v1
 kind: UseCase
 metadata:
   name: vertex-ai-passthrough-token
-  description: Passthrough token authentication for Vertex AI — client provides the access token in the Authorization header
+  description: |
+    Pass the client's GCP access token through to Vertex AI without gateway-managed rotation.
+
+    - Provider configured with authMode: passthrough
+    - Client supplies its own GCP Bearer token in the Authorization header
+    - Gateway forwards the header as-is; requests without a token return an error
   docs: https://docs.solo.io/agentgateway/2.1.x/llm/api-keys/#passthrough
 
 spec:

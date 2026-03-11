@@ -21,6 +21,7 @@ import { useApi, useMutation } from '../../hooks/useApi';
 import { modelCostsApi } from '../../api/model-costs';
 import { ModelCost, CreateModelCostRequest } from '../../api/types';
 import { ModelCostForm } from './ModelCostForm';
+import { useAuth } from '../../contexts/AuthContext';
 
 const Container = styled.div``;
 
@@ -53,6 +54,7 @@ function formatCost(cost: number): string {
 }
 
 export function ModelCostsPage() {
+  const { permissions } = useAuth();
   const [formOpen, setFormOpen] = useState(false);
   const [editingCost, setEditingCost] = useState<ModelCost | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ModelCost | null>(null);
@@ -114,7 +116,7 @@ export function ModelCostsPage() {
         <Button variant="secondary" onClick={refresh}>
           Refresh
         </Button>
-        <Button onClick={handleCreate}>Add Model Cost</Button>
+        {permissions.canManageModelCosts && <Button onClick={handleCreate}>Add Model Cost</Button>}
       </PageHeader>
 
       {loading ? (
@@ -129,7 +131,9 @@ export function ModelCostsPage() {
                 <TableHeader align="right">Input Cost</TableHeader>
                 <TableHeader align="right">Output Cost</TableHeader>
                 <TableHeader>Pattern</TableHeader>
-                <TableHeader align="right">Actions</TableHeader>
+                {permissions.canManageModelCosts && (
+                  <TableHeader align="right">Actions</TableHeader>
+                )}
               </TableRow>
             </TableHead>
             <TableBody>
@@ -141,10 +145,12 @@ export function ModelCostsPage() {
                   <TableCell align="right">{formatCost(cost.output_cost_per_million)}</TableCell>
                   <TableCell>{cost.model_pattern || '—'}</TableCell>
                   <TableCell align="right">
-                    <ActionButtons>
-                      <ActionButton onClick={() => handleEdit(cost)}>Edit</ActionButton>
-                      <ActionButton onClick={() => setDeleteTarget(cost)}>Delete</ActionButton>
-                    </ActionButtons>
+                    {permissions.canManageModelCosts && (
+                      <ActionButtons>
+                        <ActionButton onClick={() => handleEdit(cost)}>Edit</ActionButton>
+                        <ActionButton onClick={() => setDeleteTarget(cost)}>Delete</ActionButton>
+                      </ActionButtons>
+                    )}
                   </TableCell>
                 </TableRow>
               ))}
@@ -154,7 +160,9 @@ export function ModelCostsPage() {
       ) : (
         <EmptyState>
           <EmptyStateText>No model costs configured yet.</EmptyStateText>
-          <Button onClick={handleCreate}>Add Model Cost</Button>
+          {permissions.canManageModelCosts && (
+            <Button onClick={handleCreate}>Add Model Cost</Button>
+          )}
         </EmptyState>
       )}
 

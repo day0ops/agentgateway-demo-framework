@@ -2,9 +2,13 @@ apiVersion: agentgateway.demo/v1
 kind: UseCase
 metadata:
   name: guardrail-webhook
-  description: >
-    Advanced guardrails with an Opik-powered webhook server for pre/post-hook
-    content filtering, PII masking, toxicity detection, and observability.
+  description: |
+    Advanced content filtering via an Opik-powered webhook server.
+
+    - Pre/post-hook webhooks intercept every request and response
+    - Toxic language and banned words are blocked before reaching the LLM
+    - PII (credit cards, email addresses) is masked in prompts
+    - Full trace observability via Opik integration
   docs: https://docs.solo.io/agentgateway/2.1.x/llm/prompt-guards/
 
 spec:

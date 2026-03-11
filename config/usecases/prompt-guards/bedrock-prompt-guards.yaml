@@ -2,7 +2,12 @@ apiVersion: agentgateway.demo/v1
 kind: UseCase
 metadata:
   name: bedrock-prompt-guards
-  description: Demonstrate prompt guardrails for AWS Bedrock with security and compliance
+  description: |
+    Prompt guardrails for AWS Bedrock using PII detection and custom regex patterns.
+
+    - Blocks SSN, credit card numbers, and phone numbers (builtin patterns)
+    - Blocks password-related terms and "credit card" mentions (custom regex)
+    - Input and output both guarded — sensitive content rejected before reaching the LLM
   docs: https://docs.solo.io/agentgateway/2.1.x/llm/prompt-guards/
 
 spec:

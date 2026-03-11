@@ -64,6 +64,11 @@ CREATE TABLE budget_definitions (
 
     -- Metadata
     description             TEXT,
+
+    -- Ownership for RBAC
+    owner_org_id            VARCHAR(255),
+    owner_team_id           VARCHAR(255),
+
     created_at              TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     updated_at              TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
 
@@ -74,6 +79,8 @@ CREATE TABLE budget_definitions (
 CREATE INDEX idx_budget_definitions_entity ON budget_definitions(entity_type, name);
 CREATE INDEX idx_budget_definitions_parent ON budget_definitions(parent_id);
 CREATE INDEX idx_budget_definitions_enabled ON budget_definitions(enabled);
+CREATE INDEX idx_budget_definitions_owner_org ON budget_definitions(owner_org_id);
+CREATE INDEX idx_budget_definitions_owner_team ON budget_definitions(owner_team_id);
 
 -- Usage records table
 CREATE TABLE usage_records (

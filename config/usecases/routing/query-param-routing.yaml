@@ -3,11 +3,12 @@ kind: UseCase
 metadata:
   name: query-param-routing
   description: |
-    Multiple OpenAI model backends behind a single path (/openai). An HTTPRoute uses
-    fixed-path + query parameter matching to route requests to the correct model backend
-    based on the ?model= query parameter. Each model (gpt-3.5-turbo, gpt-4o-mini, gpt-4o)
-    has its own AgentgatewayBackend with a model override. Requests without a recognized
-    query parameter receive no match.
+    Route to different OpenAI model backends via a ?model= query parameter, all under /openai.
+
+    - gpt-3.5-turbo → dedicated AgentgatewayBackend with model override
+    - gpt-4o-mini   → dedicated AgentgatewayBackend with model override
+    - gpt-4o        → dedicated AgentgatewayBackend with model override
+    - Requests without a recognized ?model= value receive no match
   docs: https://kgateway.dev/docs/latest/agentgateway/llm/providers/
   references:
     - https://gateway-api.sigs.k8s.io/reference/spec/#gateway.networking.k8s.io/v1.HTTPQueryParamMatch

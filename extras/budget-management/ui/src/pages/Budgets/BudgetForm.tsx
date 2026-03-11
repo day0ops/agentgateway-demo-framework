@@ -7,6 +7,7 @@ import { Input, Textarea, FormField } from '../../components/common/Input';
 import { Select } from '../../components/common/Select';
 import { BudgetDefinition, CreateBudgetRequest, EntityType, BudgetPeriod } from '../../api/types';
 import { budgetsApi } from '../../api/budgets';
+import { useAuth } from '../../contexts/AuthContext';
 
 const Form = styled.form`
   display: flex;
@@ -56,6 +57,10 @@ export function BudgetForm({
   availableBudgets = [],
   loading = false,
 }: BudgetFormProps) {
+  const { identity, permissions } = useAuth();
+  const isOrgAdmin = permissions.isOrgAdmin;
+  const isTeamMember = permissions.isTeamMember;
+
   const [formData, setFormData] = useState<CreateBudgetRequest>({
     entity_type: 'provider',
     name: '',
@@ -66,6 +71,8 @@ export function BudgetForm({
     isolated: true,
     allow_fallback: false,
     enabled: true,
+    owner_org_id: identity?.org_id,
+    owner_team_id: identity?.team_id,
   });
 
   const [celError, setCelError] = useState<string | null>(null);
@@ -110,6 +117,8 @@ export function BudgetForm({
         allow_fallback: editingBudget.allow_fallback,
         enabled: editingBudget.enabled,
         description: editingBudget.description,
+        owner_org_id: editingBudget.owner_org_id,
+        owner_team_id: editingBudget.owner_team_id,
       });
       setBudgetAmountStr(editingBudget.budget_amount_usd.toString());
       setWarningThresholdStr(editingBudget.warning_threshold_pct.toString());
@@ -126,13 +135,15 @@ export function BudgetForm({
         isolated: true,
         allow_fallback: false,
         enabled: true,
+        owner_org_id: identity?.org_id,
+        owner_team_id: identity?.team_id,
       });
       setBudgetAmountStr('100');
       setWarningThresholdStr('80');
       setCustomPeriodStr('');
       setCelError(null);
     }
-  }, [editingBudget, open]);
+  }, [editingBudget, open, identity]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -194,7 +205,7 @@ export function BudgetForm({
               disabled={isEditing}
             >
               <option value="provider">Provider</option>
-              <option value="org">Organization</option>
+              {isOrgAdmin && <option value="org">Organization</option>}
               <option value="team">Team</option>
             </Select>
           </FormField>
@@ -403,6 +414,49 @@ export function BudgetForm({
             />
           </FormField>
         </Row>
+        {(isOrgAdmin || isTeamMember) && (
+          <Row>
+            <FormField
+              label="Owner Organization"
+              tooltip="The organization that owns this budget. Budgets are automatically assigned to your organization."
+              fullWidth
+            >
+              <Input value={formData.owner_org_id || ''} disabled placeholder="Your organization" />
+              <InfoText>Automatically set to your organization</InfoText>
+            </FormField>
+            {isOrgAdmin ? (
+              <FormField
+                label="Assign to Team (Optional)"
+                tooltip="Optionally assign this budget to a specific team within your organization. Leave empty for an org-level budget."
+                fullWidth
+              >
+                <Input
+                  value={formData.owner_team_id || ''}
+                  onChange={e => handleChange('owner_team_id', e.target.value || undefined)}
+                  placeholder="e.g., ml-platform, data-science"
+                />
+                <InfoText>Leave empty for organization-level budget</InfoText>
+              </FormField>
+            ) : (
+              <FormField
+                label="Team"
+                tooltip="The team this budget belongs to. Defaults to your team."
+                fullWidth
+              >
+                <Input
+                  value={formData.owner_team_id || ''}
+                  onChange={e => handleChange('owner_team_id', e.target.value || undefined)}
+                  placeholder={identity?.team_id || 'e.g., ml-platform'}
+                />
+                <InfoText>
+                  {formData.entity_type === 'team'
+                    ? 'Create a budget for your team or another team in your org'
+                    : 'Leave empty for provider-level budget'}
+                </InfoText>
+              </FormField>
+            )}
+          </Row>
+        )}
       </Form>
     </Modal>
   );

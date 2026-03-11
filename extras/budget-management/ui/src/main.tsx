@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom';
 import { Global } from '@emotion/react';
 import { Toaster } from 'react-hot-toast';
 import { globalStyles } from './styles';
+import { AuthProvider } from './contexts/AuthContext';
 import App from './App';
 
 createRoot(document.getElementById('root')!).render(
@@ -33,7 +34,9 @@ createRoot(document.getElementById('root')!).render(
       }}
     />
     <BrowserRouter>
-      <App />
+      <AuthProvider>
+        <App />
+      </AuthProvider>
     </BrowserRouter>
   </StrictMode>
 );

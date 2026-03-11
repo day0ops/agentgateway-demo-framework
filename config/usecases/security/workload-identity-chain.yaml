@@ -2,7 +2,13 @@ apiVersion: agentgateway.demo/v1
 kind: UseCase
 metadata:
   name: workload-identity-chain
-  description: Two-hop workload identity chain using Kubernetes SA token exchange — unlike agent-workload-identity (which uses stored client secrets and propagates a single token), this use case has each agent independently exchange its K8s ServiceAccount JWT for a Keycloak token via grant_type=token-exchange. No long-lived secrets; JWT policies enforced at BOTH /agent and /mcp routes; MCP sees stock-agent's identity, not caller-agent's.
+  description: |
+    Two-hop workload identity chain using Kubernetes ServiceAccount token exchange.
+
+    - Each agent independently exchanges its auto-mounted K8s SA JWT for a Keycloak token
+      via grant_type=token-exchange — no long-lived secrets stored
+    - JWT policies enforced at BOTH /agent and /mcp (unlike agent-workload-identity)
+    - The MCP server sees stock-agent's identity, not caller-agent's
   docs: https://docs.solo.io/agentgateway/latest/security/
 
 spec:

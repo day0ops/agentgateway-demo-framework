@@ -21,7 +21,8 @@ function boxLine(content) {
 }
 
 function sanitizeMermaidLabel(s) {
-  return String(s).replace(/"/g, "'").replace(/[<>]/g, '').replace(/\n/g, ' ');
+  // eslint-disable-next-line quotes
+  return String(s).replace(/["]/g, "'").replace(/[<>]/g, '').replace(/\n/g, ' ');
 }
 
 /**

@@ -4,7 +4,7 @@ import { Logger } from '../../src/lib/common.js';
 /**
  * Function Calling Feature
  *
- * Demonstrates and validates function calling (tools) for LLM providers using kgateway.
+ * Demonstrates and validates function calling (tools) for LLM providers using agentgateway.
  *
  * Reference: https://kgateway.dev/docs/latest/agentgateway/llm/functions/
  *

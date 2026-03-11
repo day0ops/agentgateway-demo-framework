@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/agentgateway/budget-management/internal/auth"
 	"github.com/agentgateway/budget-management/internal/cel"
 	"github.com/agentgateway/budget-management/internal/db"
 	"github.com/agentgateway/budget-management/internal/metrics"
@@ -30,6 +31,9 @@ func NewHandler(repo *db.Repository, celEvaluator *cel.Evaluator) *Handler {
 
 // RegisterRoutes registers all API routes.
 func (h *Handler) RegisterRoutes(r *mux.Router) {
+	// Identity endpoint (uses optional auth to return identity if JWT present)
+	r.Handle("/api/v1/identity", auth.OptionalAuthMiddleware(http.HandlerFunc(h.GetIdentity))).Methods("GET")
+
 	// Model costs
 	r.HandleFunc("/api/v1/model-costs", h.ListModelCosts).Methods("GET")
 	r.HandleFunc("/api/v1/model-costs", h.CreateModelCost).Methods("POST")
@@ -37,14 +41,14 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/model-costs/{model_id}", h.UpdateModelCost).Methods("PUT")
 	r.HandleFunc("/api/v1/model-costs/{model_id}", h.DeleteModelCost).Methods("DELETE")
 
-	// Budgets
-	r.HandleFunc("/api/v1/budgets", h.ListBudgets).Methods("GET")
-	r.HandleFunc("/api/v1/budgets", h.CreateBudget).Methods("POST")
-	r.HandleFunc("/api/v1/budgets/{id}", h.GetBudget).Methods("GET")
-	r.HandleFunc("/api/v1/budgets/{id}", h.UpdateBudget).Methods("PUT")
-	r.HandleFunc("/api/v1/budgets/{id}", h.DeleteBudget).Methods("DELETE")
-	r.HandleFunc("/api/v1/budgets/{id}/usage", h.GetBudgetUsage).Methods("GET")
-	r.HandleFunc("/api/v1/budgets/{id}/reset", h.ResetBudget).Methods("POST")
+	// Budgets (use optional auth to filter by identity when authenticated)
+	r.Handle("/api/v1/budgets", auth.OptionalAuthMiddleware(http.HandlerFunc(h.ListBudgets))).Methods("GET")
+	r.Handle("/api/v1/budgets", auth.OptionalAuthMiddleware(http.HandlerFunc(h.CreateBudget))).Methods("POST")
+	r.Handle("/api/v1/budgets/{id}", auth.OptionalAuthMiddleware(http.HandlerFunc(h.GetBudget))).Methods("GET")
+	r.Handle("/api/v1/budgets/{id}", auth.OptionalAuthMiddleware(http.HandlerFunc(h.UpdateBudget))).Methods("PUT")
+	r.Handle("/api/v1/budgets/{id}", auth.OptionalAuthMiddleware(http.HandlerFunc(h.DeleteBudget))).Methods("DELETE")
+	r.Handle("/api/v1/budgets/{id}/usage", auth.OptionalAuthMiddleware(http.HandlerFunc(h.GetBudgetUsage))).Methods("GET")
+	r.Handle("/api/v1/budgets/{id}/reset", auth.OptionalAuthMiddleware(http.HandlerFunc(h.ResetBudget))).Methods("POST")
 
 	// CEL validation
 	r.HandleFunc("/api/v1/validate-cel", h.ValidateCEL).Methods("POST")
@@ -270,7 +274,7 @@ func (h *Handler) DeleteModelCost(w http.ResponseWriter, r *http.Request) {
 
 // Budget handlers
 
-// ListBudgets lists all budgets.
+// ListBudgets lists all budgets, filtered by the user's identity if authenticated.
 func (h *Handler) ListBudgets(w http.ResponseWriter, r *http.Request) {
 	budgets, err := h.repo.ListBudgets(r.Context())
 	if err != nil {
@@ -279,10 +283,47 @@ func (h *Handler) ListBudgets(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Filter budgets by identity if authenticated
+	identity := auth.GetIdentity(r.Context())
+	if identity != nil {
+		var ownership []auth.BudgetOwnership
+		for i, b := range budgets {
+			ownership = append(ownership, auth.BudgetOwnership{
+				Index:       i,
+				OwnerOrgID:  b.OwnerOrgID.String,
+				OwnerTeamID: b.OwnerTeamID.String,
+			})
+			log.Debug().
+				Str("budget_name", b.Name).
+				Str("owner_org_id", b.OwnerOrgID.String).
+				Str("owner_team_id", b.OwnerTeamID.String).
+				Bool("org_valid", b.OwnerOrgID.Valid).
+				Bool("team_valid", b.OwnerTeamID.Valid).
+				Msg("budget ownership info")
+		}
+
+		allowedIndices := auth.FilterBudgetsByIdentity(identity, ownership)
+		filteredBudgets := make([]models.BudgetDefinition, 0, len(allowedIndices))
+		for _, idx := range allowedIndices {
+			filteredBudgets = append(filteredBudgets, budgets[idx])
+		}
+		budgets = filteredBudgets
+
+		log.Debug().
+			Str("identity_org_id", identity.OrgID).
+			Str("identity_team_id", identity.TeamID).
+			Bool("identity_is_org", identity.IsOrg).
+			Int("total_budgets", len(ownership)).
+			Int("filtered_budgets", len(budgets)).
+			Msg("filtered budgets by identity")
+	} else {
+		log.Debug().Msg("no identity in context, returning all budgets")
+	}
+
 	// Add remaining budget calculation
 	result := make([]map[string]interface{}, len(budgets))
 	for i, b := range budgets {
-		result[i] = map[string]interface{}{
+		item := map[string]interface{}{
 			"id":                    b.ID,
 			"entity_type":           b.EntityType,
 			"name":                  b.Name,
@@ -303,6 +344,13 @@ func (h *Handler) ListBudgets(w http.ResponseWriter, r *http.Request) {
 			"created_at":            b.CreatedAt,
 			"updated_at":            b.UpdatedAt,
 		}
+		if b.OwnerOrgID.Valid {
+			item["owner_org_id"] = b.OwnerOrgID.String
+		}
+		if b.OwnerTeamID.Valid {
+			item["owner_team_id"] = b.OwnerTeamID.String
+		}
+		result[i] = item
 	}
 
 	writeJSON(w, http.StatusOK, map[string]interface{}{
@@ -352,6 +400,12 @@ func (h *Handler) GetBudget(w http.ResponseWriter, r *http.Request) {
 		"created_at":            budget.CreatedAt,
 		"updated_at":            budget.UpdatedAt,
 	}
+	if budget.OwnerOrgID.Valid {
+		result["owner_org_id"] = budget.OwnerOrgID.String
+	}
+	if budget.OwnerTeamID.Valid {
+		result["owner_team_id"] = budget.OwnerTeamID.String
+	}
 
 	writeJSON(w, http.StatusOK, result)
 }
@@ -371,6 +425,8 @@ type CreateBudgetRequest struct {
 	Enabled             *bool   `json:"enabled,omitempty"`
 	Description         *string `json:"description,omitempty"`
 	Version             *int64  `json:"version,omitempty"`
+	OwnerOrgID          *string `json:"owner_org_id,omitempty"`
+	OwnerTeamID         *string `json:"owner_team_id,omitempty"`
 }
 
 // CreateBudget creates a new budget.
@@ -454,6 +510,30 @@ func (h *Handler) CreateBudget(w http.ResponseWriter, r *http.Request) {
 	if req.Description != nil {
 		budget.Description.Valid = true
 		budget.Description.String = *req.Description
+	}
+
+	// Set ownership from request or identity
+	if req.OwnerOrgID != nil && *req.OwnerOrgID != "" {
+		budget.OwnerOrgID.Valid = true
+		budget.OwnerOrgID.String = *req.OwnerOrgID
+	}
+	if req.OwnerTeamID != nil && *req.OwnerTeamID != "" {
+		budget.OwnerTeamID.Valid = true
+		budget.OwnerTeamID.String = *req.OwnerTeamID
+	}
+
+	// If no ownership specified in request, use identity
+	identity := auth.GetIdentity(r.Context())
+	if identity != nil && !budget.OwnerOrgID.Valid && !budget.OwnerTeamID.Valid {
+		orgID, teamID := auth.GetOwnershipFromIdentity(identity)
+		if orgID != "" {
+			budget.OwnerOrgID.Valid = true
+			budget.OwnerOrgID.String = orgID
+		}
+		if teamID != "" {
+			budget.OwnerTeamID.Valid = true
+			budget.OwnerTeamID.String = teamID
+		}
 	}
 
 	// Check if budget already exists (upsert behavior)
@@ -548,6 +628,24 @@ func (h *Handler) UpdateBudget(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.Version != nil {
 		existing.Version = *req.Version
+	}
+	if req.OwnerOrgID != nil {
+		if *req.OwnerOrgID == "" {
+			existing.OwnerOrgID.Valid = false
+			existing.OwnerOrgID.String = ""
+		} else {
+			existing.OwnerOrgID.Valid = true
+			existing.OwnerOrgID.String = *req.OwnerOrgID
+		}
+	}
+	if req.OwnerTeamID != nil {
+		if *req.OwnerTeamID == "" {
+			existing.OwnerTeamID.Valid = false
+			existing.OwnerTeamID.String = ""
+		} else {
+			existing.OwnerTeamID.Valid = true
+			existing.OwnerTeamID.String = *req.OwnerTeamID
+		}
 	}
 
 	// Warn if child budget exceeds parent budget
@@ -673,6 +771,26 @@ func (h *Handler) ResetBudget(w http.ResponseWriter, r *http.Request) {
 
 	writeJSON(w, http.StatusOK, map[string]string{
 		"message": "budget reset successfully",
+	})
+}
+
+// GetIdentity returns the authenticated user's identity.
+func (h *Handler) GetIdentity(w http.ResponseWriter, r *http.Request) {
+	identity := auth.GetIdentity(r.Context())
+	if identity == nil {
+		writeJSON(w, http.StatusOK, map[string]interface{}{
+			"authenticated": false,
+		})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"authenticated": true,
+		"subject":       identity.Subject,
+		"email":         identity.Email,
+		"org_id":        identity.OrgID,
+		"team_id":       identity.TeamID,
+		"is_org":        identity.IsOrg,
 	})
 }
 

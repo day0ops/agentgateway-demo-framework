@@ -2,7 +2,13 @@ apiVersion: agentgateway.demo/v1
 kind: UseCase
 metadata:
   name: openai-prompt-enrichment
-  description: Prompt enrichment with both SYSTEM and USER prompts
+  description: |
+    Automatically inject prompt fragments into every request via an EnterpriseAgentgatewayPolicy.
+
+    - SYSTEM prompts can be prepended or appended before forwarding to OpenAI
+    - USER prompts can also be injected to add context or output format constraints
+    - Operators enforce persona and safety context without modifying client code
+    - Clients can still override by providing their own system prompt
   docs: https://docs.solo.io/agentgateway/2.1.x/llm/prompt-enrichment/
 
 spec:

@@ -2,7 +2,12 @@ apiVersion: agentgateway.demo/v1
 kind: UseCase
 metadata:
   name: multi-model-failover
-  description: Automatic failover between multiple models
+  description: |
+    Automatic failover across multiple OpenAI models using priority groups.
+
+    - gpt-4o, gpt-4-turbo, gpt-3.5-turbo share the same priority tier and are load balanced
+    - When all models in a tier become unhealthy, the gateway fails over to the next tier
+    - No client-side retry logic required
   docs: https://docs.solo.io/gateway/2.0.x/ai/llm/failover/
 
 spec:

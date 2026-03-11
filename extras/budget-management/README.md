@@ -1,4 +1,4 @@
-# Budget Limiter
+# Budget Management
 
 For small tests with gpt-4o-mini, the cost is much lower:
 

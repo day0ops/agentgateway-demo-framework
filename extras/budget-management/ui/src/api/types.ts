@@ -58,6 +58,8 @@ export interface BudgetDefinition {
   remaining_usd: number;
   next_period_start?: string;
   description?: string;
+  owner_org_id?: string;
+  owner_team_id?: string;
   version?: number;
   created_at: string;
   updated_at: string;
@@ -76,6 +78,8 @@ export interface CreateBudgetRequest {
   allow_fallback?: boolean;
   enabled?: boolean;
   description?: string;
+  owner_org_id?: string;
+  owner_team_id?: string;
 }
 
 export interface UpdateBudgetRequest {
@@ -132,4 +136,14 @@ export interface ValidateCELRequest {
 export interface ValidateCELResponse {
   valid: boolean;
   error?: string;
+}
+
+// Identity / Auth
+export interface Identity {
+  authenticated: boolean;
+  subject?: string;
+  email?: string;
+  org_id?: string;
+  team_id?: string;
+  is_org?: boolean;
 }

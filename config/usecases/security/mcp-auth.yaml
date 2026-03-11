@@ -2,7 +2,12 @@ apiVersion: agentgateway.demo/v1
 kind: UseCase
 metadata:
   name: mcp-auth
-  description: MCP server protected with OAuth 2.0 authentication via Keycloak IdP
+  description: |
+    Protect an MCP server with OAuth 2.0 authentication via Keycloak.
+
+    - Unauthenticated requests receive a 401 with OAuth Protected Resource Metadata
+    - Clients discover the IdP and perform dynamic client registration
+    - Client obtains an access token and attaches it as a Bearer header for MCP calls
   docs: https://docs.solo.io/agentgateway/2.1.x/mcp/auth/setup/
 
 spec:

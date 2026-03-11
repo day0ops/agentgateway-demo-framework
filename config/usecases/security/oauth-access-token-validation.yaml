@@ -2,7 +2,12 @@ apiVersion: agentgateway.demo/v1
 kind: UseCase
 metadata:
   name: oauth-access-token-validation
-  description: OAuth access token (JWT) validation with Keycloak IdP and ext-auth
+  description: |
+    Validate OAuth access tokens (JWTs) at the gateway via ext-auth and Keycloak.
+
+    - Gateway fetches Keycloak's JWKS and verifies token signature and claims
+    - Invalid or missing tokens receive a 403 Forbidden
+    - Valid tokens are forwarded transparently to the upstream LLM
   docs: https://docs.solo.io/agentgateway/2.1.x/security/extauth/oauth/access-token/
 
 spec:

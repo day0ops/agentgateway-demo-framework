@@ -300,9 +300,11 @@ export class KeycloakFeature extends Feature {
     const token = await this.getAdminToken(baseUrl);
 
     await this.createRealm(baseUrl, token);
+    await this.configureUserProfile(baseUrl, token);
 
     await this.createConfidentialClient(baseUrl, token);
     await this.createPublicClient(baseUrl, token);
+    await this.createBudgetManagementClient(baseUrl, token);
     await this.createUsers(baseUrl, token);
 
     if (this.workloadClients.length > 0) {
@@ -310,6 +312,106 @@ export class KeycloakFeature extends Feature {
     }
 
     this.log('Keycloak configuration complete', 'info');
+  }
+
+  async configureUserProfile(baseUrl, token) {
+    this.log('Configuring User Profile attributes...', 'info');
+
+    // Get current user profile config
+    const getResult = await CommandRunner.run(
+      'curl',
+      [
+        '-sSfk',
+        '-H',
+        `Authorization: Bearer ${token}`,
+        `${baseUrl}/admin/realms/${this.realm}/users/profile`,
+      ],
+      { ignoreError: true }
+    );
+
+    let profile;
+    try {
+      profile = JSON.parse(getResult.stdout);
+    } catch {
+      this.log('Could not parse user profile, using defaults', 'warn');
+      profile = { attributes: [] };
+    }
+
+    // Custom attributes we need for budget management
+    const customAttributes = [
+      {
+        name: 'group',
+        displayName: 'Group',
+        permissions: { view: ['admin', 'user'], edit: ['admin'] },
+        validations: {},
+      },
+      {
+        name: 'org_id',
+        displayName: 'Organization ID',
+        permissions: { view: ['admin', 'user'], edit: ['admin'] },
+        validations: {},
+      },
+      {
+        name: 'team_id',
+        displayName: 'Team ID',
+        permissions: { view: ['admin', 'user'], edit: ['admin'] },
+        validations: {},
+      },
+      {
+        name: 'is_org',
+        displayName: 'Is Org Admin',
+        permissions: { view: ['admin', 'user'], edit: ['admin'] },
+        validations: {},
+      },
+    ];
+
+    // Add custom attributes if they don't exist
+    const existingNames = new Set(profile.attributes.map(a => a.name));
+    for (const attr of customAttributes) {
+      if (!existingNames.has(attr.name)) {
+        profile.attributes.push(attr);
+        this.log(`Adding user profile attribute: ${attr.name}`, 'info');
+      }
+    }
+
+    // Update the user profile
+    await this.kcApi('PUT', `${baseUrl}/admin/realms/${this.realm}/users/profile`, token, profile);
+    this.log('User Profile configured', 'info');
+  }
+
+  async createBudgetManagementClient(baseUrl, token) {
+    this.log('Creating budget-management client...', 'info');
+
+    const payload = {
+      clientId: 'budget-management',
+      secret: 'budget-management-secret',
+      enabled: true,
+      publicClient: false,
+      standardFlowEnabled: true,
+      serviceAccountsEnabled: false,
+      directAccessGrantsEnabled: true,
+      redirectUris: ['*'],
+      webOrigins: ['*'],
+      attributes: {
+        'post.logout.redirect.uris': '*',
+        'access.token.signed.response.alg': 'RS256',
+        'id.token.signed.response.alg': 'RS256',
+      },
+    };
+
+    const result = await this.registerClient(baseUrl, token, payload);
+    let id = this.extractIdFromLocation(result.stdout);
+    if (!id) id = await this.lookupClientId(baseUrl, token, 'budget-management');
+
+    if (id) {
+      await this.addGroupMapper(baseUrl, token, id);
+      await this.addOrgIdMapper(baseUrl, token, id);
+      await this.addTeamIdMapper(baseUrl, token, id);
+      await this.addIsOrgMapper(baseUrl, token, id);
+    }
+
+    this.log('budget-management client created with org_id/team_id/is_org claim mappers', 'info');
+    return id;
   }
 
   // ---------------------------------------------------------------------------
@@ -521,6 +623,9 @@ export class KeycloakFeature extends Feature {
       resetPasswordAllowed: true,
       editUsernameAllowed: false,
       bruteForceProtected: false,
+      accessCodeLifespan: 300,
+      accessCodeLifespanUserAction: 600,
+      accessCodeLifespanLogin: 1800,
     });
   }
 
@@ -551,11 +656,14 @@ export class KeycloakFeature extends Feature {
 
     if (id) {
       await this.addGroupMapper(baseUrl, token, id);
+      await this.addOrgIdMapper(baseUrl, token, id);
+      await this.addTeamIdMapper(baseUrl, token, id);
+      await this.addIsOrgMapper(baseUrl, token, id);
     }
 
     process.env.KEYCLOAK_CLIENT_ID = this.clientId;
     process.env.KEYCLOAK_SECRET = this.clientSecret;
-    this.log(`Client credentials exported to KEYCLOAK_CLIENT_ID / KEYCLOAK_SECRET`, 'info');
+    this.log('Client credentials exported to KEYCLOAK_CLIENT_ID / KEYCLOAK_SECRET', 'info');
 
     return id;
   }
@@ -585,6 +693,9 @@ export class KeycloakFeature extends Feature {
 
     if (id) {
       await this.addGroupMapper(baseUrl, token, id);
+      await this.addOrgIdMapper(baseUrl, token, id);
+      await this.addTeamIdMapper(baseUrl, token, id);
+      await this.addIsOrgMapper(baseUrl, token, id);
     }
 
     return id;
@@ -630,6 +741,69 @@ export class KeycloakFeature extends Feature {
     );
   }
 
+  async addOrgIdMapper(baseUrl, token, clientInternalId) {
+    this.log('Adding org_id attribute mapper...', 'info');
+    await this.kcApi(
+      'POST',
+      `${baseUrl}/admin/realms/${this.realm}/clients/${clientInternalId}/protocol-mappers/models`,
+      token,
+      {
+        name: 'org_id',
+        protocol: 'openid-connect',
+        protocolMapper: 'oidc-usermodel-attribute-mapper',
+        config: {
+          'claim.name': 'org_id',
+          'jsonType.label': 'String',
+          'user.attribute': 'org_id',
+          'id.token.claim': 'true',
+          'access.token.claim': 'true',
+        },
+      }
+    );
+  }
+
+  async addTeamIdMapper(baseUrl, token, clientInternalId) {
+    this.log('Adding team_id attribute mapper...', 'info');
+    await this.kcApi(
+      'POST',
+      `${baseUrl}/admin/realms/${this.realm}/clients/${clientInternalId}/protocol-mappers/models`,
+      token,
+      {
+        name: 'team_id',
+        protocol: 'openid-connect',
+        protocolMapper: 'oidc-usermodel-attribute-mapper',
+        config: {
+          'claim.name': 'team_id',
+          'jsonType.label': 'String',
+          'user.attribute': 'team_id',
+          'id.token.claim': 'true',
+          'access.token.claim': 'true',
+        },
+      }
+    );
+  }
+
+  async addIsOrgMapper(baseUrl, token, clientInternalId) {
+    this.log('Adding is_org attribute mapper...', 'info');
+    await this.kcApi(
+      'POST',
+      `${baseUrl}/admin/realms/${this.realm}/clients/${clientInternalId}/protocol-mappers/models`,
+      token,
+      {
+        name: 'is_org',
+        protocol: 'openid-connect',
+        protocolMapper: 'oidc-usermodel-attribute-mapper',
+        config: {
+          'claim.name': 'is_org',
+          'jsonType.label': 'boolean',
+          'user.attribute': 'is_org',
+          'id.token.claim': 'true',
+          'access.token.claim': 'true',
+        },
+      }
+    );
+  }
+
   extractIdFromLocation(stdout) {
     if (!stdout) return null;
     const match = stdout.match(/[Ll]ocation:\s*.*\/clients\/([^\s\r\n]+)/);
@@ -656,31 +830,109 @@ export class KeycloakFeature extends Feature {
   }
 
   async createUsers(baseUrl, token) {
-    this.log('Creating users...', 'info');
+    this.log('Creating/updating users...', 'info');
     const users = [
+      // Org admin for acme-corp - can manage all org/team budgets
+      {
+        username: 'org-admin',
+        email: 'orgadmin@solo.io',
+        firstName: 'Org',
+        lastName: 'Admin',
+        attributes: {
+          group: ['admins'],
+          is_org: ['true'],
+          org_id: ['acme-corp'],
+        },
+      },
+      // Team member of team-alpha under acme-corp
       {
         username: 'user1',
         email: 'user1@solo.io',
         firstName: 'Joe',
         lastName: 'Blogg',
-        attributes: { group: 'users' },
+        attributes: {
+          group: ['users'],
+          is_org: ['false'],
+          org_id: ['acme-corp'],
+          team_id: ['team-alpha'],
+        },
       },
+      // Team member of team-alpha under acme-corp
       {
         username: 'user2',
         email: 'user2@solo.io',
         firstName: 'Bob',
         lastName: 'Doe',
-        attributes: { group: 'users' },
+        attributes: {
+          group: ['users'],
+          is_org: ['false'],
+          org_id: ['acme-corp'],
+          team_id: ['team-alpha'],
+        },
+      },
+      // Team member of team-beta under acme-corp
+      {
+        username: 'team-user',
+        email: 'teamuser@solo.io',
+        firstName: 'Team',
+        lastName: 'User',
+        attributes: {
+          group: ['users'],
+          is_org: ['false'],
+          org_id: ['acme-corp'],
+          team_id: ['team-beta'],
+        },
       },
     ];
     for (const u of users) {
+      await this.createOrUpdateUser(baseUrl, token, u);
+    }
+  }
+
+  async createOrUpdateUser(baseUrl, token, user) {
+    // Check if user already exists
+    const existingId = await this.lookupUserId(baseUrl, token, user.username);
+
+    if (existingId) {
+      // Update existing user's attributes
+      this.log(`Updating user '${user.username}' attributes...`, 'info');
+      await this.kcApi('PUT', `${baseUrl}/admin/realms/${this.realm}/users/${existingId}`, token, {
+        ...user,
+        enabled: true,
+        emailVerified: true,
+      });
+    } else {
+      // Create new user
+      this.log(`Creating user '${user.username}'...`, 'info');
       await this.kcApi('POST', `${baseUrl}/admin/realms/${this.realm}/users`, token, {
-        ...u,
+        ...user,
         enabled: true,
         emailVerified: true,
         credentials: [{ type: 'password', value: 'Passwd00', temporary: false }],
       });
     }
+  }
+
+  async lookupUserId(baseUrl, token, username) {
+    try {
+      const result = await CommandRunner.run(
+        'curl',
+        [
+          '-sSfk',
+          '-H',
+          `Authorization: Bearer ${token}`,
+          `${baseUrl}/admin/realms/${this.realm}/users?username=${encodeURIComponent(username)}&exact=true`,
+        ],
+        { ignoreError: true }
+      );
+      if (result.stdout) {
+        const users = JSON.parse(result.stdout);
+        return users[0]?.id || null;
+      }
+    } catch {
+      /* user not found */
+    }
+    return null;
   }
 
   // ---------------------------------------------------------------------------

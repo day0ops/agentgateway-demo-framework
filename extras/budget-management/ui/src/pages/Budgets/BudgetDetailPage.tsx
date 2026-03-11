@@ -24,6 +24,7 @@ import { Loading } from '../../components/common/Spinner';
 import { useApi, useMutation } from '../../hooks/useApi';
 import { budgetsApi } from '../../api/budgets';
 import { ApiClientError } from '../../api/client';
+import { useAuth } from '../../contexts/AuthContext';
 
 const Container = styled.div``;
 
@@ -139,6 +140,7 @@ function formatNumber(num: number): string {
 export function BudgetDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { permissions } = useAuth();
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
 
   const {
@@ -243,16 +245,20 @@ export function BudgetDetailPage() {
         <Button variant="secondary" onClick={handleRefresh}>
           Refresh
         </Button>
-        <Button
-          variant={budget.enabled ? 'secondary' : 'primary'}
-          onClick={handleToggleEnabled}
-          disabled={updateMutation.loading}
-        >
-          {budget.enabled ? 'Disable' : 'Enable'}
-        </Button>
-        <Button variant="danger" onClick={() => setResetDialogOpen(true)}>
-          Reset Budget
-        </Button>
+        {permissions.canEditBudget(budget) && (
+          <Button
+            variant={budget.enabled ? 'secondary' : 'primary'}
+            onClick={handleToggleEnabled}
+            disabled={updateMutation.loading}
+          >
+            {budget.enabled ? 'Disable' : 'Enable'}
+          </Button>
+        )}
+        {permissions.canEditBudget(budget) && (
+          <Button variant="danger" onClick={() => setResetDialogOpen(true)}>
+            Reset Budget
+          </Button>
+        )}
       </PageHeader>
 
       <Grid>
@@ -328,6 +334,14 @@ export function BudgetDetailPage() {
           <SummaryItem>
             <SummaryLabel>Description</SummaryLabel>
             <SummaryValue>{budget.description || '—'}</SummaryValue>
+          </SummaryItem>
+          <SummaryItem>
+            <SummaryLabel>Owner Organization</SummaryLabel>
+            <SummaryValue>{budget.owner_org_id || '—'}</SummaryValue>
+          </SummaryItem>
+          <SummaryItem>
+            <SummaryLabel>Owner Team</SummaryLabel>
+            <SummaryValue>{budget.owner_team_id || '—'}</SummaryValue>
           </SummaryItem>
         </SummaryGrid>
         <ProgressSection>

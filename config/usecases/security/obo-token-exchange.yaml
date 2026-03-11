@@ -2,7 +2,12 @@ apiVersion: agentgateway.demo/v1
 kind: UseCase
 metadata:
   name: obo-token-exchange
-  description: OBO (On Behalf Of) token exchange with Keycloak IdP and STS
+  description: |
+    OBO (On-Behalf-Of) token exchange via the AGW Security Token Service (STS).
+
+    - User authenticates with Keycloak and obtains a JWT
+    - The JWT is exchanged with the STS for a short-lived delegated token
+    - The MCP route validates exclusively against the STS JWKS — Keycloak is invisible downstream
   docs: https://docs.solo.io/agentgateway/2.1.x/security/obo-elicitations/obo/
 
 spec:

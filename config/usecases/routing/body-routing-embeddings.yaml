@@ -3,14 +3,15 @@ kind: UseCase
 metadata:
   name: body-routing-embeddings
   description: |
-    Two separate providers (OpenAI and local Ollama), each with its own AgentgatewayBackend,
-    behind a single HTTPRoute (/embeddings). An EnterpriseAgentgatewayPolicy in the PreRouting
-    phase extracts the `model` field from the JSON request body and sets it as a header
-    (X-Gateway-Model-Name). Per-model HTTPRoute rules match on that header to route to
-    the correct backend. Each provider specifies a fallbackModel for failover support.
-    The `/v1/embeddings` path is mapped as `passthrough` via the `ai.llm.routes` field,
-    forwarding requests to the provider as-is without LLM-specific processing.
-    Requests that specify an unrecognized model receive a 404.
+    Body-based model routing for embeddings behind a single /embeddings route.
+
+    - An EnterpriseAgentgatewayPolicy (PreRouting) extracts the `model` field from the
+      request body and sets it as the X-Gateway-Model-Name header
+    - HTTPRoute rules match on that header to select the correct backend
+    - text-embedding-3-small → OpenAI  (with fallbackModel support)
+    - bge-m3                 → Ollama  (with fallbackModel support)
+    - `/v1/embeddings` is mapped as passthrough — forwarded as-is, no LLM processing
+    - Unrecognized model names receive a 404
   references:
     - https://docs.solo.io/agentgateway/2.1.x/reference/api/solo/#enterpriseagentgatewaypolicyspec
     - https://agentgateway.dev/docs/kubernetes/main/llm/providers/multiple-endpoints/
@@ -44,7 +45,8 @@ spec:
           - name: local-ollama
             providerName: openai-compatible
             model: bge-m3
-            host: host.minikube.internal
+            #host: host.minikube.internal
+            host: 192.168.162.8
             port: 11434
             fallbackModel: all-minilm
             pathRewrite: /

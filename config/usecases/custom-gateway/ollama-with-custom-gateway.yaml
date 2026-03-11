@@ -3,7 +3,12 @@ apiVersion: agentgateway.demo/v1
 kind: UseCase
 metadata:
   name: ollama-with-custom-gateway
-  description: Local Ollama (Llama 3) provider with custom Gateway (override)
+  description: |
+    Deploy a local Ollama (Llama 3) provider with a custom Gateway resource override.
+
+    - Defines a custom Gateway with its own listener configuration
+    - Overrides the default Gateway installed by the profile
+    - Demonstrates decoupling a provider route from the platform-managed default Gateway
 
 spec:
   diagram: |

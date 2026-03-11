@@ -1,4 +1,4 @@
-.PHONY: help install start stop status clean clean-usecases clean-addons clean-infra test lint format deploy-usecase dryrun-usecase \
+.PHONY: help install install-infra install-gateway install-interactive start stop status clean clean-usecases clean-addons clean-infra test lint format deploy-usecase dryrun-usecase test-usecase \
 	build-extras build-stock-server-mcp build-currency-server-mcp build-random-server-mcp build-guardrail-webhook build-stock-agent build-caller-agent build-budget-management \
 	push-extras push-stock-server-mcp push-currency-server-mcp push-random-server-mcp push-guardrail-webhook push-stock-agent push-caller-agent push-budget-management \
 	deploy-stock-server-mcp deploy-currency-server-mcp deploy-random-server-mcp deploy-guardrail-webhook deploy-stock-agent deploy-caller-agent deploy-budget-management \
@@ -29,12 +29,8 @@ version: ## Show version information (banner, version, description)
 install-infra: ## Install infrastructure (lok8s cluster)
 	@bun src/cli.js base install-infra
 
-install-gateway: ## Install kgateway and agentgateway
+install-gateway: ## Install agentgateway
 	@bun src/cli.js base install-gateway
-
-install-gateway-minimal: ## Install kgateway with minimal profile
-	@echo "$(BLUE)Installing gateway with minimal profile...$(NC)"
-	@bun src/cli.js base install-gateway --profile minimal --no-prompt
 
 install: ## Install everything (minimal profile)
 	@echo "$(BLUE)Installing complete stack with minimal profile...$(NC)"
@@ -100,18 +96,6 @@ list-features: ## List available features
 	@bun src/cli.js feature list
 
 ##@ Development
-
-port-forward: ## Port forward to agentgateway (localhost:8080)
-	@echo "$(BLUE)Port forwarding to agentgateway on :8080$(NC)"
-	@kubectl port-forward -n kgateway-system deployment/agentgateway 8080:8080
-
-metrics: ## Port forward to metrics (localhost:9091)
-	@echo "$(BLUE)Port forwarding to metrics on :9091$(NC)"
-	@kubectl port-forward -n kgateway-system svc/agentgateway-metrics 9091:9091
-
-traces: ## Port forward to Jaeger UI (localhost:16686)
-	@echo "$(BLUE)Port forwarding to Jaeger UI on :16686$(NC)"
-	@kubectl port-forward -n observability svc/jaeger 16686:16686
 
 ##@ Testing
 

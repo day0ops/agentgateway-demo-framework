@@ -4,8 +4,9 @@ metadata:
   name: openai-embeddings-provider
   description: |
     OpenAI provider configured for embeddings via the `policies.ai.routes` field.
-    Maps `/v1/embeddings` as `passthrough` to forward requests as-is.
-    Served behind a single AgentgatewayBackend and HTTPRoute at `/openai`.
+
+    - `/v1/embeddings` mapped as passthrough — forwarded as-is, no LLM processing
+    - Single AgentgatewayBackend and HTTPRoute at `/openai`
   docs: https://agentgateway.dev/docs/kubernetes/main/llm/providers/multiple-endpoints/
 
 spec:

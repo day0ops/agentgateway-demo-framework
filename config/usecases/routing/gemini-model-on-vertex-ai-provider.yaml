@@ -2,7 +2,12 @@ apiVersion: agentgateway.demo/v1
 kind: UseCase
 metadata:
   name: gemini-model-on-vertex-ai-provider
-  description: Simple Vertex AI LLM provider call with gemini models
+  description: |
+    Route requests to Google's Gemini 2.5 Flash model via the Vertex AI provider.
+
+    - Provider type: vertex-ai with a Google-hosted model identifier
+    - Exposed at /vertex-ai behind a single AgentgatewayBackend
+    - Minimal configuration — no extra route mappings or policies
   docs: https://kgateway.dev/docs/latest/agentgateway/llm/providers/vertex-ai/
 
 spec:

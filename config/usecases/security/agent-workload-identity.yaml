@@ -2,7 +2,12 @@ apiVersion: agentgateway.demo/v1
 kind: UseCase
 metadata:
   name: agent-workload-identity
-  description: Agent-to-agent authentication using Keycloak client_credentials grant — the caller-agent authenticates with a stored client_id/client_secret, and its token propagates through the stock-agent to MCP via ADKTokenPropagationPlugin. JWT policy enforced only at /mcp; /agent route passes the token through untouched.
+  description: |
+    Agent-to-agent authentication using Keycloak client_credentials grant.
+
+    - caller-agent authenticates with a stored client_id/client_secret
+    - Token propagates through the stock-agent to MCP via ADKTokenPropagationPlugin
+    - JWT policy enforced only at /mcp; the /agent route passes the token through untouched
   docs: https://docs.solo.io/agentgateway/latest/security/
 
 spec:

@@ -2,7 +2,12 @@ apiVersion: agentgateway.demo/v1
 kind: UseCase
 metadata:
   name: bedrock-moderation-guards
-  description: Demonstrate OpenAI moderation API with AWS Bedrock
+  description: |
+    Cross-provider content moderation: OpenAI Moderation API in front of AWS Bedrock.
+
+    - Every request is checked against the OpenAI Moderation API before forwarding
+    - Blocked categories: hate, harassment, self-harm, sexual content, violence
+    - Flagged requests receive a 403; safe content is forwarded to Bedrock normally
   docs: https://docs.solo.io/agentgateway/2.1.x/llm/prompt-guards/
 
 spec:

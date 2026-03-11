@@ -351,39 +351,28 @@ export class KubernetesHelper {
     }
   }
 
-  static async createSecretFromLiteral(namespace, secretName, key, value, spinner = null) {
-    try {
-      await this.kubectl([
-        'create',
-        'secret',
-        'generic',
-        secretName,
-        `--from-literal=${key}=${value}`,
-        '-n',
-        namespace,
-        '--dry-run=client',
-        '-o',
-        'yaml',
-      ]).then(result =>
-        this.kubectl(['apply', '-f', '-'], {
-          input: result.stdout,
-        })
-      );
-    } catch (error) {
-      // Don't log here - let the feature handle error logging
-      throw error;
-    }
+  static async createSecretFromLiteral(namespace, secretName, key, value, _spinner = null) {
+    const result = await this.kubectl([
+      'create',
+      'secret',
+      'generic',
+      secretName,
+      `--from-literal=${key}=${value}`,
+      '-n',
+      namespace,
+      '--dry-run=client',
+      '-o',
+      'yaml',
+    ]);
+    await this.kubectl(['apply', '-f', '-'], {
+      input: result.stdout,
+    });
   }
 
-  static async applyYaml(yamlContent, spinner = null) {
-    try {
-      await this.kubectl(['apply', '-f', '-'], {
-        input: yamlContent,
-      });
-    } catch (error) {
-      // Don't log here - let the feature handle error logging
-      throw error;
-    }
+  static async applyYaml(yamlContent, _spinner = null) {
+    await this.kubectl(['apply', '--server-side', '--force-conflicts', '-f', '-'], {
+      input: yamlContent,
+    });
   }
 
   static async deleteIfExists(resourceType, resourceName, namespace, spinner = null) {
@@ -431,7 +420,7 @@ export class KubernetesHelper {
 }
 
 export async function checkDependencies() {
-  const required = ['kubectl', 'helm', 'docker', 'lok8s', 'jq', 'yq'];
+  const required = ['kubectl', 'helm', 'docker', 'jq', 'yq'];
   const missing = [];
 
   Logger.info('Checking dependencies...');
@@ -512,7 +501,7 @@ export function formatDescription(text, indent = '  ') {
     const isBullet = /^[-*]/.test(trimmed);
     const isNumbered = /^\d+[.)]/.test(trimmed);
     const lineIndent = isBullet || isNumbered ? indent + '  ' : indent;
-    const prefix = isBullet || isNumbered ? indent + trimmed.slice(0, 2) : '';
+    const prefix = isBullet ? indent + '• ' : isNumbered ? indent + trimmed.slice(0, 2) : '';
 
     if (isBullet || isNumbered) {
       // Wrap the content after the bullet/number
@@ -555,10 +544,12 @@ export function printTrafficBox(request, response) {
   const row = (text = '') => {
     const safe = String(text).replace(/\r?\n/g, ' ');
     const visLen = stringWidth(safe);
-    const content =
-      visLen > CONTENT_MAX
-        ? safe.replace(/\x1B\[[0-9;]*m/g, '').substring(0, CONTENT_MAX - 1) + '…'
-        : safe;
+    let content = safe;
+    if (visLen > CONTENT_MAX) {
+      // eslint-disable-next-line no-control-regex
+      const stripped = safe.replace(/\x1B\[[0-9;]*m/g, '');
+      content = stripped.substring(0, CONTENT_MAX - 1) + '…';
+    }
     return DIM('│') + ' ' + padVisual(content, CONTENT_MAX) + ' ' + DIM('│');
   };
 

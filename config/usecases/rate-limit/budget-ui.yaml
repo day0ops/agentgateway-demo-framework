@@ -1,0 +1,73 @@
+apiVersion: agentgateway.demo/v1
+kind: UseCase
+metadata:
+  name: budget-ui
+  description: |
+    Deploy budget management with UI for manual testing.
+
+    This use case sets up:
+    - OpenAI provider (gpt-4o-mini)
+    - Budget management service with PostgreSQL
+    - OIDC authentication via Keycloak
+    - TLS enabled for secure access
+
+    After deployment, access the UI at:
+    - https://localhost:8443/budget/ (with TLS)
+    - Port-forward: kubectl port-forward -n agentgateway-system svc/agentgateway 8443:443
+
+    Test users (from Keycloak):
+    - org-admin@example.com / password (org admin - full access)
+    - team-user@example.com / password (team user - limited access)
+
+  docs: https://docs.solo.io/agentgateway/latest/traffic-management/ext-proc/
+
+spec:
+  diagram: |
+    flowchart LR
+      Browser([Browser]) --> AG[AgentGateway<br/>:8443 TLS]
+      AG --> ExtAuth[ext-auth<br/>OIDC]
+      ExtAuth <--> KC[Keycloak]
+      AG --> BL[Budget Limiter<br/>ext-proc]
+      BL <--> DB[(PostgreSQL)]
+      AG --> LLM[OpenAI]
+
+      subgraph "UI Access"
+        U1[/budget/]
+      end
+
+  steps:
+    - title: Configure OpenAI provider
+      description: |
+        Set up the OpenAI LLM provider with the gpt-4o-mini model.
+      features:
+        - name: providers
+          config:
+            providers:
+              - name: openai
+                providerName: openai
+                pathPrefix: /openai
+                model: gpt-4o-mini
+
+    - title: Deploy budget management with auth and TLS
+      description: |
+        Deploy the budget management service with:
+        - OIDC authentication via Keycloak
+        - TLS termination at the gateway
+        - Web UI accessible at /budget/
+        Note: CORS requires KGW_ENABLE_GATEWAY_API_EXPERIMENTAL_FEATURES=true and experimental API channels enabled in the profile
+      features:
+        - name: budget-management
+          config:
+            uiPath: /
+            enableAuth: true
+            enableTLS: true
+            enableCORS: true
+            tls:
+              hostname: budget-management.agentgateway-system.svc.cluster.local
+            auth:
+              appUrl: https://budget-management.agentgateway-system.svc.cluster.local
+              clientId: budget-management
+              callbackPath: /callback
+              logoutPath: /logout
+              sessionCacheHost: ext-cache-enterprise-agentgateway-custom:6379
+              extAuthBackend: ext-auth-service-enterprise-agentgateway-custom

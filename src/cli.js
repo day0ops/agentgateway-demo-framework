@@ -30,7 +30,7 @@ function formatDuration(ms) {
 function showBanner() {
   const banner = figlet.textSync('Agentgateway', { font: 'Standard', horizontalLayout: 'default' });
   console.log(chalk.blue(banner));
-  console.log(chalk.gray(`  Solo.io Agentgateway v${CLI_VERSION}\n`));
+  console.log(chalk.gray(`  Solo.io Agentgateway Demo Framework v${CLI_VERSION}\n`));
 }
 
 program
@@ -148,7 +148,7 @@ base
       }
 
       await AgentGatewayManager.install(profileFile);
-      await AgentGatewayManager.installProxy();
+      await AgentGatewayManager.installProxy(profileFile);
 
       Logger.success(
         `Gateway and all addons installed successfully in (${formatDuration(Date.now() - startTime)})`
@@ -213,7 +213,7 @@ base
       }
 
       await AgentGatewayManager.install(profileFile);
-      await AgentGatewayManager.installProxy();
+      await AgentGatewayManager.installProxy(profileFile);
 
       Logger.success('Complete stack installed successfully');
     } catch (error) {
@@ -440,6 +440,7 @@ usecase
   .command('test')
   .description('Test a deployed use case')
   .option('-n, --name <name>', 'Use case name')
+  .option('-c, --cleanup', 'Run cleanup after tests complete (undeploys features)')
   .option('--no-prompt', 'Skip interactive prompts')
   .action(async options => {
     try {
@@ -457,7 +458,7 @@ usecase
         process.exit(1);
       }
 
-      await UseCaseManager.test(usecaseName);
+      await UseCaseManager.test(usecaseName, { cleanup: options.cleanup });
     } catch (error) {
       // UseCaseManager already logged the error
       process.exit(1);

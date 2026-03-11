@@ -2,7 +2,12 @@ apiVersion: agentgateway.demo/v1
 kind: UseCase
 metadata:
   name: mcp-tool-access
-  description: Restrict MCP tool access by JWT claims using CEL-based RBAC on the backend
+  description: |
+    Fine-grained MCP tool access control using CEL-based RBAC on the AgentgatewayBackend.
+
+    - Policies evaluate JWT claims (jwt.azp, jwt.sub) and the requested tool name
+    - Access can be granted or denied per-tool without modifying the MCP server
+    - Composable with route-level JWT authentication for layered enforcement
   docs: https://agentgateway.dev/docs/kubernetes/latest/mcp/tool-access/
 
 spec:

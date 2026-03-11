@@ -166,7 +166,7 @@ func (r *Repository) ListBudgets(ctx context.Context) ([]models.BudgetDefinition
 		SELECT id, entity_type, name, match_expression, budget_amount_usd, period,
 		       custom_period_seconds, warning_threshold_pct, parent_id, isolated,
 		       allow_fallback, enabled, current_period_start, current_usage_usd, pending_usage_usd,
-		       version, description, created_at, updated_at
+		       version, description, created_at, updated_at, owner_org_id, owner_team_id
 		FROM budget_definitions
 		ORDER BY entity_type, name
 	`
@@ -184,7 +184,7 @@ func (r *Repository) ListBudgets(ctx context.Context) ([]models.BudgetDefinition
 			&b.ID, &b.EntityType, &b.Name, &b.MatchExpression, &b.BudgetAmountUSD, &b.Period,
 			&b.CustomPeriodSeconds, &b.WarningThresholdPct, &b.ParentID, &b.Isolated,
 			&b.AllowFallback, &b.Enabled, &b.CurrentPeriodStart, &b.CurrentUsageUSD, &b.PendingUsageUSD,
-			&b.Version, &b.Description, &b.CreatedAt, &b.UpdatedAt,
+			&b.Version, &b.Description, &b.CreatedAt, &b.UpdatedAt, &b.OwnerOrgID, &b.OwnerTeamID,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan budget: %w", err)
@@ -201,7 +201,7 @@ func (r *Repository) GetBudgetByID(ctx context.Context, id uuid.UUID) (*models.B
 		SELECT id, entity_type, name, match_expression, budget_amount_usd, period,
 		       custom_period_seconds, warning_threshold_pct, parent_id, isolated,
 		       allow_fallback, enabled, current_period_start, current_usage_usd, pending_usage_usd,
-		       version, description, created_at, updated_at
+		       version, description, created_at, updated_at, owner_org_id, owner_team_id
 		FROM budget_definitions
 		WHERE id = $1
 	`
@@ -211,7 +211,7 @@ func (r *Repository) GetBudgetByID(ctx context.Context, id uuid.UUID) (*models.B
 		&b.ID, &b.EntityType, &b.Name, &b.MatchExpression, &b.BudgetAmountUSD, &b.Period,
 		&b.CustomPeriodSeconds, &b.WarningThresholdPct, &b.ParentID, &b.Isolated,
 		&b.AllowFallback, &b.Enabled, &b.CurrentPeriodStart, &b.CurrentUsageUSD, &b.PendingUsageUSD,
-		&b.Version, &b.Description, &b.CreatedAt, &b.UpdatedAt,
+		&b.Version, &b.Description, &b.CreatedAt, &b.UpdatedAt, &b.OwnerOrgID, &b.OwnerTeamID,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -229,7 +229,7 @@ func (r *Repository) GetBudgetByEntity(ctx context.Context, entityType models.En
 		SELECT id, entity_type, name, match_expression, budget_amount_usd, period,
 		       custom_period_seconds, warning_threshold_pct, parent_id, isolated,
 		       allow_fallback, enabled, current_period_start, current_usage_usd, pending_usage_usd,
-		       version, description, created_at, updated_at
+		       version, description, created_at, updated_at, owner_org_id, owner_team_id
 		FROM budget_definitions
 		WHERE entity_type = $1 AND name = $2
 	`
@@ -239,7 +239,7 @@ func (r *Repository) GetBudgetByEntity(ctx context.Context, entityType models.En
 		&b.ID, &b.EntityType, &b.Name, &b.MatchExpression, &b.BudgetAmountUSD, &b.Period,
 		&b.CustomPeriodSeconds, &b.WarningThresholdPct, &b.ParentID, &b.Isolated,
 		&b.AllowFallback, &b.Enabled, &b.CurrentPeriodStart, &b.CurrentUsageUSD, &b.PendingUsageUSD,
-		&b.Version, &b.Description, &b.CreatedAt, &b.UpdatedAt,
+		&b.Version, &b.Description, &b.CreatedAt, &b.UpdatedAt, &b.OwnerOrgID, &b.OwnerTeamID,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -294,14 +294,16 @@ func (r *Repository) UpdateBudget(ctx context.Context, b *models.BudgetDefinitio
 		SET match_expression = $2, budget_amount_usd = $3, period = $4,
 		    custom_period_seconds = $5, warning_threshold_pct = $6,
 		    parent_id = $7, isolated = $8, allow_fallback = $9,
-		    enabled = $10, description = $11, version = version + 1
-		WHERE id = $1 AND version = $12
+		    enabled = $10, description = $11, owner_org_id = $12,
+		    owner_team_id = $13, version = version + 1
+		WHERE id = $1 AND version = $14
 	`
 
 	result, err := r.db.Pool.Exec(ctx, query,
 		b.ID, b.MatchExpression, b.BudgetAmountUSD, b.Period,
 		b.CustomPeriodSeconds, b.WarningThresholdPct,
-		b.ParentID, b.Isolated, b.AllowFallback, b.Enabled, b.Description, b.Version,
+		b.ParentID, b.Isolated, b.AllowFallback, b.Enabled, b.Description,
+		b.OwnerOrgID, b.OwnerTeamID, b.Version,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to update budget: %w", err)
@@ -433,7 +435,7 @@ func (r *Repository) GetBudgetsWithParent(ctx context.Context, id uuid.UUID) ([]
 			SELECT id, entity_type, name, match_expression, budget_amount_usd, period,
 			       custom_period_seconds, warning_threshold_pct, parent_id, isolated,
 			       allow_fallback, enabled, current_period_start, current_usage_usd, pending_usage_usd,
-			       version, description, created_at, updated_at, 0 as depth
+			       version, description, created_at, updated_at, owner_org_id, owner_team_id, 0 as depth
 			FROM budget_definitions
 			WHERE id = $1
 
@@ -442,14 +444,14 @@ func (r *Repository) GetBudgetsWithParent(ctx context.Context, id uuid.UUID) ([]
 			SELECT bd.id, bd.entity_type, bd.name, bd.match_expression, bd.budget_amount_usd, bd.period,
 			       bd.custom_period_seconds, bd.warning_threshold_pct, bd.parent_id, bd.isolated,
 			       bd.allow_fallback, bd.enabled, bd.current_period_start, bd.current_usage_usd, bd.pending_usage_usd,
-			       bd.version, bd.description, bd.created_at, bd.updated_at, bh.depth + 1
+			       bd.version, bd.description, bd.created_at, bd.updated_at, bd.owner_org_id, bd.owner_team_id, bh.depth + 1
 			FROM budget_definitions bd
 			INNER JOIN budget_hierarchy bh ON bd.id = bh.parent_id
 		)
 		SELECT id, entity_type, name, match_expression, budget_amount_usd, period,
 		       custom_period_seconds, warning_threshold_pct, parent_id, isolated,
 		       allow_fallback, enabled, current_period_start, current_usage_usd, pending_usage_usd,
-		       version, description, created_at, updated_at
+		       version, description, created_at, updated_at, owner_org_id, owner_team_id
 		FROM budget_hierarchy
 		ORDER BY depth
 	`
@@ -467,7 +469,7 @@ func (r *Repository) GetBudgetsWithParent(ctx context.Context, id uuid.UUID) ([]
 			&b.ID, &b.EntityType, &b.Name, &b.MatchExpression, &b.BudgetAmountUSD, &b.Period,
 			&b.CustomPeriodSeconds, &b.WarningThresholdPct, &b.ParentID, &b.Isolated,
 			&b.AllowFallback, &b.Enabled, &b.CurrentPeriodStart, &b.CurrentUsageUSD, &b.PendingUsageUSD,
-			&b.Version, &b.Description, &b.CreatedAt, &b.UpdatedAt,
+			&b.Version, &b.Description, &b.CreatedAt, &b.UpdatedAt, &b.OwnerOrgID, &b.OwnerTeamID,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan budget: %w", err)
@@ -674,7 +676,7 @@ func (r *Repository) GetBudgetForUpdate(ctx context.Context, tx pgx.Tx, id uuid.
 		SELECT id, entity_type, name, match_expression, budget_amount_usd, period,
 		       custom_period_seconds, warning_threshold_pct, parent_id, isolated,
 		       allow_fallback, enabled, current_period_start, current_usage_usd, pending_usage_usd,
-		       version, description, created_at, updated_at
+		       version, description, created_at, updated_at, owner_org_id, owner_team_id
 		FROM budget_definitions
 		WHERE id = $1
 		FOR UPDATE
@@ -685,7 +687,7 @@ func (r *Repository) GetBudgetForUpdate(ctx context.Context, tx pgx.Tx, id uuid.
 		&b.ID, &b.EntityType, &b.Name, &b.MatchExpression, &b.BudgetAmountUSD, &b.Period,
 		&b.CustomPeriodSeconds, &b.WarningThresholdPct, &b.ParentID, &b.Isolated,
 		&b.AllowFallback, &b.Enabled, &b.CurrentPeriodStart, &b.CurrentUsageUSD, &b.PendingUsageUSD,
-		&b.Version, &b.Description, &b.CreatedAt, &b.UpdatedAt,
+		&b.Version, &b.Description, &b.CreatedAt, &b.UpdatedAt, &b.OwnerOrgID, &b.OwnerTeamID,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -713,7 +715,7 @@ func (r *Repository) GetEnabledBudgets(ctx context.Context) ([]models.BudgetDefi
 		SELECT id, entity_type, name, match_expression, budget_amount_usd, period,
 		       custom_period_seconds, warning_threshold_pct, parent_id, isolated,
 		       allow_fallback, enabled, current_period_start, current_usage_usd, pending_usage_usd,
-		       version, description, created_at, updated_at
+		       version, description, created_at, updated_at, owner_org_id, owner_team_id
 		FROM budget_definitions
 		WHERE enabled = true
 		ORDER BY entity_type, name
@@ -732,7 +734,7 @@ func (r *Repository) GetEnabledBudgets(ctx context.Context) ([]models.BudgetDefi
 			&b.ID, &b.EntityType, &b.Name, &b.MatchExpression, &b.BudgetAmountUSD, &b.Period,
 			&b.CustomPeriodSeconds, &b.WarningThresholdPct, &b.ParentID, &b.Isolated,
 			&b.AllowFallback, &b.Enabled, &b.CurrentPeriodStart, &b.CurrentUsageUSD, &b.PendingUsageUSD,
-			&b.Version, &b.Description, &b.CreatedAt, &b.UpdatedAt,
+			&b.Version, &b.Description, &b.CreatedAt, &b.UpdatedAt, &b.OwnerOrgID, &b.OwnerTeamID,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan budget: %w", err)
