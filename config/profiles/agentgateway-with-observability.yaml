@@ -1,0 +1,20 @@
+## AgentGateway profile with full observability stack
+
+environment: local
+
+helmValues: {}
+
+addons:
+  - name: telemetry
+    description: OpenTelemetry observability stack (Prometheus, Grafana, Loki, Tempo)
+    namespace: telemetry
+    config:
+      nodeSelector:
+        nodeclass: worker
+  - name: solo-ui
+    description: Solo Enterprise UI for agentgateway
+    namespace: agentgateway-system
+    config:
+      nodeSelector:
+        nodeclass: worker
+      applyGatewayTracingPolicy: false

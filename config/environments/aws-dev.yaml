@@ -1,0 +1,36 @@
+apiVersion: agentgateway.demo/v1
+kind: Environment
+metadata:
+  name: aws-dev
+  description: AWS environment
+
+spec:
+  # AWS configuration
+  aws:
+    region: ap-southeast-2
+
+  acme:
+    email: kasun.talwatta@solo.io
+
+  # DNS configuration for Route53
+  dns:
+    provider: route53
+    parentZone:
+      domain: kasunt.apac.fe.solo.io
+      hostedZoneId: Z08818701HDZ6PBD6LPXU
+    childZone: demo
+
+  # Domain mappings - auto-generated pattern: <service>.<childZone>.<parentDomain>
+  tls:
+    issuer: letsencrypt-dns
+
+  keycloak:
+    scheme: https
+
+  domains:
+    keycloak: keycloak.demo.kasunt.apac.fe.solo.io
+    grafana: grafana.demo.kasunt.apac.fe.solo.io
+    quotaManagement: quota-management.demo.kasunt.apac.fe.solo.io
+    soloUI: soloui.demo.kasunt.apac.fe.solo.io
+    okta: integrator-1335842.okta.com
+    agentgateway: agentgateway.demo.kasunt.apac.fe.solo.io

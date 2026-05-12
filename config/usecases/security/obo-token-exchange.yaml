@@ -1,0 +1,114 @@
+apiVersion: agentgateway.demo/v1
+kind: UseCase
+metadata:
+  name: obo-token-exchange
+  description: |
+    OBO (On-Behalf-Of) token exchange via the AGW Security Token Service (STS).
+
+    - User authenticates with Keycloak and obtains a JWT
+    - The JWT is exchanged with the STS for a short-lived delegated token
+    - The MCP route validates exclusively against the STS JWKS — Keycloak is invisible downstream
+  docs: https://docs.solo.io/agentgateway/2.1.x/security/obo-elicitations/obo/
+
+spec:
+  diagram: |
+    sequenceDiagram
+      participant Client
+      participant KC as Keycloak
+      participant STS as AGW STS :7777
+      participant AGW as AgentGateway
+      participant MCP as MCP Server
+      Client->>KC: authenticate
+      KC-->>Client: user JWT
+      Client->>STS: token-exchange (OBO)
+      STS->>KC: validate subject JWT via JWKS
+      KC-->>STS: valid
+      STS-->>Client: OBO token
+      Client->>AGW: POST /mcp + Bearer OBO
+      AGW->>STS: validate OBO via JWKS
+      STS-->>AGW: valid
+      AGW->>MCP: forward request
+      MCP-->>Client: tool response
+  # Stepped demo flow: provider first, then JWT policy
+  steps:
+    - title: Deploy MCP server
+      description: >
+        Deploy the MCP stock server and create a static MCP backend and
+        route through agentgateway.
+      features:
+        - name: mcp-server
+          config:
+            deployServer: true
+            image: stock-server-mcp:latest
+            serverName: stock-server-mcp
+            serverPort: 8000
+            servicePort: 80
+            protocol: StreamableHTTP
+            mcpPath: /mcp
+            backendName: mcp-backend
+            routeName: mcp
+
+    - title: Set up token exchange
+      description: >
+        Enable the Security Token Service (STS) on the agentgateway control
+        plane (port 7777) via Helm upgrade. The STS validates user JWTs from
+        the Keycloak IdP (subject) and Kubernetes service account tokens
+        (actor), then issues delegated OBO tokens.
+      features:
+        - name: token-exchange
+          config:
+            keycloak:
+              realm: agw-dev
+              serviceName: keycloak
+              serviceNamespace: keycloak
+            tokenExpiration: 24h
+
+    - title: Apply OBO JWT policy
+      description: >
+        Apply an EnterpriseAgentgatewayPolicy with JWT authentication on the
+        MCP route. Tokens are issued by the STS (port 7777) and validated
+        against the Keycloak JWKS endpoint.
+      features:
+        - name: obo-token-exchange
+          config:
+            policyName: obo-jwt-policy
+            keycloak:
+              realm: agw-dev
+              serviceName: keycloak
+              serviceNamespace: keycloak
+              servicePort: 443
+              jwksPath: realms/agw-dev/protocol/openid-connect/certs
+            issuer: https://keycloak.keycloak.svc.cluster.local/realms/agw-dev
+            audiences:
+              - account
+            targetRefs:
+              - group: gateway.networking.k8s.io
+                kind: HTTPRoute
+                name: mcp
+
+  tests:
+    - name: test-unauthenticated-request-blocked
+      description: Verify unauthenticated requests to the MCP route are rejected
+      steps:
+        - action: send-mcp-request
+          endpoint: /mcp
+          method: tools/list
+        - action: verify
+          expect:
+            status: error
+
+    - name: test-authenticated-mcp-tools-list
+      description: Authenticated user can list available MCP tools
+      steps:
+        - action: get-token
+          keycloak:
+            realm: agw-dev
+            clientId: agw-client-public
+        - action: send-mcp-request
+          endpoint: /mcp
+          method: tools/list
+          auth: bearer
+        - action: verify
+          expect:
+            status: success
+            contains: get_stock_price
