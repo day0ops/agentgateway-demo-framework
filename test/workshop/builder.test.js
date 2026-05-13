@@ -1,5 +1,5 @@
 import { test, expect, describe } from 'bun:test';
-import { WorkshopBuilder } from '../../src/lib/workshop.js';
+import { WorkshopBuilder, WorkshopPicker } from '../../src/lib/workshop.js';
 
 describe('WorkshopBuilder', () => {
   test('build() returns string starting with h1 title', async () => {
@@ -46,5 +46,31 @@ describe('WorkshopBuilder', () => {
     const matches = table.match(/FOO/g);
     expect(matches.length).toBe(1);
     expect(table).toContain('BAR');
+  });
+});
+
+describe('WorkshopPicker', () => {
+  test('buildChoices() returns grouped choices including separators', async () => {
+    const choices = await WorkshopPicker.buildChoices();
+    expect(choices.some(c => c.type === 'separator')).toBe(true);
+    expect(choices.some(c => c.value)).toBe(true);
+  });
+
+  test('buildChoices() includes addon entries', async () => {
+    const choices = await WorkshopPicker.buildChoices();
+    const values = choices.filter(c => c.value).map(c => c.value);
+    expect(values.some(v => v.type === 'addon')).toBe(true);
+  });
+
+  test('buildChoices() includes usecase entries', async () => {
+    const choices = await WorkshopPicker.buildChoices();
+    const values = choices.filter(c => c.value).map(c => c.value);
+    expect(values.some(v => v.type === 'usecase')).toBe(true);
+  });
+
+  test('buildChoices() includes provider entries', async () => {
+    const choices = await WorkshopPicker.buildChoices();
+    const values = choices.filter(c => c.value).map(c => c.value);
+    expect(values.some(v => v.type === 'provider')).toBe(true);
   });
 });

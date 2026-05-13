@@ -1,4 +1,8 @@
 import { InstallAdapter } from './workshop-adapters/install.js';
+import { UseCaseManager } from './usecase.js';
+import { AddonAdapter } from './workshop-adapters/addon.js';
+import inquirer from 'inquirer';
+import { Prompts } from './prompts.js';
 
 /**
  * WorkshopBuilder
@@ -119,5 +123,85 @@ export class WorkshopBuilder {
       'kubectl delete -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.4.0/standard-install.yaml',
       '```',
     ].join('\n');
+  }
+}
+
+const KNOWN_PROVIDERS = [
+  { name: 'openai', label: 'OpenAI' },
+  { name: 'bedrock', label: 'AWS Bedrock' },
+  { name: 'vertex-ai', label: 'Google Vertex AI' },
+  { name: 'anthropic', label: 'Anthropic' },
+  { name: 'azure', label: 'Azure OpenAI' },
+];
+
+/**
+ * Interactive picker that builds a WorkshopSelection from user choices.
+ * Uses Prompts.multiSelect (inquirer checkbox) grouped by category.
+ */
+export class WorkshopPicker {
+  /**
+   * Build flat choice list for the multi-select picker.
+   * Choices are grouped by separators: Addons, Providers, Use Cases.
+   * @returns {Promise<Array>}
+   */
+  static async buildChoices() {
+    const choices = [];
+
+    // Addons
+    choices.push(new inquirer.Separator('── Addons ──'));
+    for (const addonName of AddonAdapter.knownAddons()) {
+      choices.push({
+        name: addonName,
+        value: { type: 'addon', name: addonName },
+      });
+    }
+
+    // Providers
+    choices.push(new inquirer.Separator('── Providers ──'));
+    for (const p of KNOWN_PROVIDERS) {
+      choices.push({
+        name: p.label,
+        value: { type: 'provider', name: p.name },
+      });
+    }
+
+    // Use cases grouped by category
+    const usecases = await UseCaseManager.list();
+    const byCategory = new Map();
+    for (const uc of usecases) {
+      const cat = uc.category || 'general';
+      if (!byCategory.has(cat)) byCategory.set(cat, []);
+      byCategory.get(cat).push(uc);
+    }
+
+    for (const [cat, items] of [...byCategory.entries()].sort()) {
+      choices.push(new inquirer.Separator(`── Use Cases: ${cat} ──`));
+      for (const uc of items) {
+        choices.push({
+          name: uc.displayName || uc.name,
+          value: { type: 'usecase', name: uc.name },
+        });
+      }
+    }
+
+    return choices;
+  }
+
+  /**
+   * Run interactive prompts and return a WorkshopSelection.
+   * @returns {Promise<import('./workshop.js').WorkshopSelection>}
+   */
+  static async prompt() {
+    const title = await Prompts.input('Workshop title:', 'Agentgateway Workshop');
+    const choices = await this.buildChoices();
+    const selected = await Prompts.multiSelect('Select labs to include:', choices);
+
+    const addons = selected.filter(s => s.type === 'addon').map(s => s.name);
+    const providers = selected.filter(s => s.type === 'provider').map(s => s.name);
+    const labs = selected
+      .filter(s => s.type === 'usecase' || s.type === 'feature')
+      .map(s => ({ type: s.type, name: s.name }));
+
+    return { title, addons, providers, labs };
   }
 }
