@@ -74,6 +74,7 @@ export class WorkshopBuilder {
     const allEnvVars = [...envVarMap.values()];
     const parts = [
       `# ${title}\n`,
+      this._renderVersions(),
       this._renderEnvVarsTable(allEnvVars),
       this._renderPrerequisites(),
       ...labSections,
@@ -81,6 +82,23 @@ export class WorkshopBuilder {
     ];
 
     return parts.join('\n\n---\n\n');
+  }
+
+  /**
+   * Render a component versions table from InstallAdapter version info.
+   * @returns {string}
+   */
+  _renderVersions() {
+    const { agwVersion, gatewayApiVersion, agwOci } = InstallAdapter.versions();
+    return [
+      '## Component Versions',
+      '',
+      '| Component | Version |',
+      '|-----------|---------|',
+      `| Enterprise Agentgateway | \`${agwVersion}\` |`,
+      `| Gateway API | \`${gatewayApiVersion}\` |`,
+      `| Helm chart registry | \`${agwOci}\` |`,
+    ].join('\n');
   }
 
   /**

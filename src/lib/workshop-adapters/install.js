@@ -73,27 +73,18 @@ export const InstallAdapter = {
     sections.push(`  --wait --timeout 5m`);
     sections.push('```');
 
-    // Addons (delegated to AddonAdapter — rendered inline here)
-    if (addons.length > 0) {
-      sections.push('');
-      sections.push('### Install Addons');
-      sections.push('');
-      sections.push(
-        'The following optional addons were selected. Install each one below.'
-      );
-      for (const addonName of addons) {
-        sections.push('');
-        sections.push(`See **Lab ${labNum} — ${_addonTitle(addonName)}** below.`);
-      }
-    }
-
     return sections.join('\n');
   },
-};
 
-function _addonTitle(name) {
-  return name
-    .split('-')
-    .map(w => w[0].toUpperCase() + w.slice(1))
-    .join(' ');
-}
+  /**
+   * Return component version info for the versions table.
+   * @returns {{ agwVersion: string, gatewayApiVersion: string, agwOci: string }}
+   */
+  versions() {
+    return {
+      agwVersion: AGW_VERSION,
+      gatewayApiVersion: GATEWAY_API_VERSION,
+      agwOci: AGW_OCI,
+    };
+  },
+};

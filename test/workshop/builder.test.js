@@ -36,6 +36,14 @@ describe('WorkshopBuilder', () => {
     expect(md).toContain('## Cleanup');
   });
 
+  test('build() includes Component Versions table', async () => {
+    const builder = new WorkshopBuilder({ title: 'Test', addons: [], providers: [], labs: [] });
+    const md = await builder.build();
+    expect(md).toContain('## Component Versions');
+    expect(md).toContain('Enterprise Agentgateway');
+    expect(md).toContain('Gateway API');
+  });
+
   test('renderEnvVarsTable deduplicates by name', async () => {
     const builder = new WorkshopBuilder({ title: 'T', addons: [], providers: [], labs: [] });
     const table = builder._renderEnvVarsTable([
