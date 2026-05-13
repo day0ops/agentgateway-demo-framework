@@ -24,6 +24,16 @@ describe('WorkshopBuilder', () => {
     expect(md).toContain('helm');
   });
 
+  test('build() has Prerequisites before Component Versions', async () => {
+    const builder = new WorkshopBuilder({ title: 'Test', addons: [], providers: [], labs: [] });
+    const md = await builder.build();
+    const prereqPos = md.indexOf('## Prerequisites');
+    const versionsPos = md.indexOf('## Component Versions');
+    expect(prereqPos).toBeGreaterThan(-1);
+    expect(versionsPos).toBeGreaterThan(-1);
+    expect(prereqPos).toBeLessThan(versionsPos);
+  });
+
   test('build() includes Lab 0 installation section', async () => {
     const builder = new WorkshopBuilder({ title: 'Test', addons: [], providers: [], labs: [] });
     const md = await builder.build();

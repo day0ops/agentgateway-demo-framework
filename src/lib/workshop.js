@@ -76,10 +76,12 @@ export class WorkshopBuilder {
       AddonAdapter.envVarsFor(addonName).forEach(v => envVarMap.set(v.name, v));
     }
 
-    const installLines = [InstallAdapter.generate({ addons, labNum, profileData })];
+    const installLines = [await InstallAdapter.generate({ addons, labNum, profileData })];
     for (const addonName of addons) {
+      const profileAddonEntry = profileData?.addons?.find(a => a.name === addonName);
+      const profileAddonConfig = profileAddonEntry?.config || null;
       installLines.push('');
-      installLines.push(AddonAdapter.generate(addonName, labNum));
+      installLines.push(await AddonAdapter.generate(addonName, labNum, profileAddonConfig));
     }
     labSections.push(installLines.join('\n'));
     labNum++;
@@ -107,9 +109,9 @@ export class WorkshopBuilder {
     const allEnvVars = [...envVarMap.values()];
     const parts = [
       `# ${title}\n`,
+      this._renderPrerequisites(),
       this._renderVersions(profileData),
       this._renderEnvVarsTable(allEnvVars),
-      this._renderPrerequisites(),
       ...labSections,
       this._renderCleanup(profileData),
     ];
