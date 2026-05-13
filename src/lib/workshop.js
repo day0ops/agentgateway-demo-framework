@@ -24,7 +24,7 @@ export class WorkshopBuilder {
    * @returns {Promise<string>}
    */
   async build() {
-    const { title = 'Agentgateway Workshop', addons = [], providers = [], labs = [] } = this.selection;
+    const { title = 'Agentgateway Workshop', addons = [], _providers = [], _labs = [] } = this.selection;
 
     const envVarMap = new Map(); // name → {name, required, description}
     const labSections = [];
@@ -33,7 +33,6 @@ export class WorkshopBuilder {
     // Lab 0: Installation (always included)
     InstallAdapter.envVars().forEach(v => envVarMap.set(v.name, v));
     labSections.push(InstallAdapter.generate({ addons, labNum }));
-    labNum++;
 
     // Remaining adapters added in later tasks — stubs for now
 
