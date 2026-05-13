@@ -22,8 +22,8 @@ const POSTGRES_SERVER_CERT_NAME = 'quota-management-postgres-server';
  *
  * Configuration:
  * {
- *   extprocImage: string,       // Extproc container image (default: 'quota-budget-extproc:latest', uses IMAGE_REPO env var)
- *   uiImage: string,            // UI container image (default: 'quota-management-ui:latest', uses IMAGE_REPO env var)
+ *   extprocImage: string,       // Extproc container image (default: GAR quota-budget-extproc:0.1.0)
+ *   uiImage: string,            // UI container image (default: GAR quota-management-ui:0.1.0)
  *   deployInfra: boolean,       // Deploy PostgreSQL and quota-management service (default: true)
  *   enableTls: boolean,         // Enable TLS for PostgreSQL connections (default: false)
  *   enableUIAuth: boolean,      // Enable Keycloak OAuth for UI (default: false)
@@ -401,9 +401,9 @@ export class QuotaBudgetFeature extends Feature {
 
   async _readPatchAndFormatDeploymentYaml() {
     const extprocImage = Feature.resolveImage(
-      this.config.extprocImage || 'quota-budget-extproc:latest'
+      this.config.extprocImage || 'australia-southeast1-docker.pkg.dev/field-engineering-apac/kasunt/quota-budget-extproc:0.1.0'
     );
-    const uiImage = Feature.resolveImage(this.config.uiImage || 'quota-management-ui:latest');
+    const uiImage = Feature.resolveImage(this.config.uiImage || 'australia-southeast1-docker.pkg.dev/field-engineering-apac/kasunt/quota-management-ui:0.1.0');
 
     let deploymentYaml = await fs.readFile(join(__dirname, 'config', 'deployment.yaml'), 'utf8');
 

@@ -646,6 +646,14 @@ export class AgentGatewayManager {
       const releases = (result?.stdout || '').split('\n').map(r => r.trim());
       const releaseExists = result?.exitCode === 0 && releases.includes(AGENTGATEWAY_RELEASE);
 
+      // Delete EnterpriseAgentGatewayParameters CRs before helm uninstall
+      // Helm removes the CRD first, leaving CRs stuck in terminating if not pre-deleted
+      Logger.info('Deleting EnterpriseAgentGatewayParameters resources...');
+      await KubernetesHelper.kubectl(
+        ['delete', 'enterpriseagentgatewayparameters', '--all', '-A', '--ignore-not-found'],
+        { ignoreError: true }
+      );
+
       if (releaseExists) {
         await KubernetesHelper.helm([
           'uninstall',
