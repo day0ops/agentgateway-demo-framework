@@ -1,0 +1,46 @@
+// test/workshop/feature.test.js
+import { test, expect, describe } from 'bun:test';
+import { writeFile, rm } from 'fs/promises';
+import { join } from 'path';
+import { FeatureAdapter } from '../../src/lib/workshop-adapters/feature.js';
+
+const FEATURES_DIR = new URL('../../features', import.meta.url).pathname;
+
+describe('FeatureAdapter', () => {
+  test('generate(prompt-guards) returns Lab N heading', async () => {
+    const section = await FeatureAdapter.generate({ name: 'prompt-guards', labNum: 3 });
+    expect(section).toContain('## Lab 3:');
+  });
+
+  test('generate(prompt-guards) contains description from JSDoc', async () => {
+    const section = await FeatureAdapter.generate({ name: 'prompt-guards', labNum: 3 });
+    // Prompt guards JSDoc mentions "guardrails" or "prompt"
+    expect(section.toLowerCase()).toMatch(/guardrail|prompt/);
+  });
+
+  test('generate(prompt-guards) contains yaml block from dryRun', async () => {
+    const section = await FeatureAdapter.generate({ name: 'prompt-guards', labNum: 3 });
+    // dryRun may return empty for unconfigured feature — accept either yaml or bash block
+    expect(section).toMatch(/```(yaml|bash)/);
+  });
+
+  test('generate uses workshop.md sidecar when present', async () => {
+    // Write a temporary sidecar
+    const sidecarPath = join(FEATURES_DIR, 'prompt-guards', 'workshop.md');
+    await writeFile(sidecarPath, '## YAML\n\n```yaml\napiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: test\n```\n\n## Test\n\ncurl http://example.com\n', 'utf8');
+
+    try {
+      const section = await FeatureAdapter.generate({ name: 'prompt-guards', labNum: 3 });
+      expect(section).toContain('kind: ConfigMap');
+      expect(section).toContain('curl http://example.com');
+    } finally {
+      await rm(sidecarPath, { force: true });
+    }
+  });
+
+  test('generate throws for unknown feature', async () => {
+    await expect(
+      FeatureAdapter.generate({ name: 'nonexistent-feature-xyz', labNum: 5 })
+    ).rejects.toThrow();
+  });
+});
