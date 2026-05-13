@@ -31,7 +31,7 @@ describe('InstallAdapter', () => {
   test('generate() contains agentgateway CRDs helm install', async () => {
     const section = await InstallAdapter.generate({ addons: [], labNum: 0 });
     expect(section).toContain('enterprise-agentgateway-crds');
-    expect(section).toContain('us-docker.pkg.dev/solo-public');
+    expect(section).toContain('${AGW_OCI_REGISTRY}');
   });
 
   test('generate() does not include addon sections when addons is empty', async () => {
@@ -47,15 +47,19 @@ describe('InstallAdapter', () => {
     expect(section).toContain('enterprise-agentgateway-crds');
   });
 
-  test('generate() with profile uses profile versions', async () => {
+  test('generate() with profile uses profile versions in prose and envExports', async () => {
     const profileData = {
       agentgateway: { version: '9.9.9', ociRegistry: 'oci://custom.registry/charts' },
       gatewayApi: { version: 'v9.0.0' },
     };
     const section = await InstallAdapter.generate({ labNum: 0, profileData });
-    expect(section).toContain('9.9.9');
-    expect(section).toContain('custom.registry');
+    // The prose text for Gateway API CRDs shows the resolved version
     expect(section).toContain('v9.0.0');
+    // Env exports carry the actual version values
+    const exports = InstallAdapter.envExports(profileData);
+    expect(exports.find(e => e.key === 'AGW_VERSION').value).toBe('9.9.9');
+    expect(exports.find(e => e.key === 'AGW_OCI_REGISTRY').value).toBe('oci://custom.registry/charts');
+    expect(exports.find(e => e.key === 'GATEWAY_API_VERSION').value).toBe('v9.0.0');
   });
 
   test('generate() with experimental channel uses experimental-install.yaml', async () => {
@@ -111,15 +115,45 @@ describe('InstallAdapter', () => {
     expect(section).toContain('# (resource not found: config/profiles/nonexistent-profile/does-not-exist.yaml)');
   });
 
-  test('generate() sets env vars block with AGW_VERSION', async () => {
+  test('envExports() returns AGW_VERSION, AGW_OCI_REGISTRY, GATEWAY_API_VERSION, namespace settings', () => {
+    const exports = InstallAdapter.envExports();
+    const keys = exports.map(e => e.key);
+    expect(keys).toContain('AGW_VERSION');
+    expect(keys).toContain('AGW_OCI_REGISTRY');
+    expect(keys).toContain('GATEWAY_API_VERSION');
+    expect(keys).toContain('AGW_NAMESPACE');
+    expect(keys).toContain('AGW_RELEASE');
+    expect(keys).toContain('AGW_CRDS_RELEASE');
+    expect(exports.find(e => e.key === 'AGW_NAMESPACE').value).toBe('agentgateway-system');
+    expect(exports.find(e => e.key === 'AGW_RELEASE').value).toBe('enterprise-agentgateway');
+    expect(exports.find(e => e.key === 'AGW_CRDS_RELEASE').value).toBe('enterprise-agentgateway-crds');
+  });
+
+  test('envExports() groups: AGW_VERSION=versions, AGW_OCI_REGISTRY=registry, AGW_NAMESPACE=settings', () => {
+    const exports = InstallAdapter.envExports();
+    expect(exports.find(e => e.key === 'AGW_VERSION').group).toBe('versions');
+    expect(exports.find(e => e.key === 'AGW_OCI_REGISTRY').group).toBe('registry');
+    expect(exports.find(e => e.key === 'AGW_NAMESPACE').group).toBe('settings');
+  });
+
+  test('envExports() omits AGW_CRDS_VERSION when crdsVersion equals version', () => {
+    const exports = InstallAdapter.envExports();
+    expect(exports.find(e => e.key === 'AGW_CRDS_VERSION')).toBeUndefined();
+  });
+
+  test('envExports() includes AGW_CRDS_VERSION when crdsVersion differs from version', () => {
+    const profileData = {
+      agentgateway: { version: '2.1.1' },
+      'agentgateway-crds': { version: '2.0.0' },
+    };
+    const exports = InstallAdapter.envExports(profileData);
+    expect(exports.find(e => e.key === 'AGW_CRDS_VERSION')).toBeDefined();
+    expect(exports.find(e => e.key === 'AGW_CRDS_VERSION').value).toBe('2.0.0');
+  });
+
+  test('generate() does not contain ### Set environment variables section', async () => {
     const section = await InstallAdapter.generate({ labNum: 0 });
-    expect(section).toContain('### Set environment variables');
-    expect(section).toContain('export AGW_VERSION=');
-    expect(section).toContain('export AGW_OCI_REGISTRY=');
-    expect(section).toContain('export GATEWAY_API_VERSION=');
-    expect(section).toContain('export AGW_NAMESPACE="agentgateway-system"');
-    expect(section).toContain('export AGW_RELEASE="enterprise-agentgateway"');
-    expect(section).toContain('export AGW_CRDS_RELEASE="enterprise-agentgateway-crds"');
+    expect(section).not.toContain('### Set environment variables');
   });
 
   test('generate() uses $VARNAME in helm commands', async () => {

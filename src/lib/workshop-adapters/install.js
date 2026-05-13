@@ -51,6 +51,27 @@ export const InstallAdapter = {
   },
 
   /**
+   * Return env export objects for the consolidated env vars section.
+   * @param {object|null} profileData
+   * @returns {Array<{key: string, value: string, group: string}>}
+   */
+  envExports(profileData = null) {
+    const { version, crdsVersion, ociRegistry, gatewayApiVersion } = _resolveVersions(profileData);
+    const exports = [
+      { key: 'AGW_VERSION', value: version, group: 'versions' },
+      { key: 'AGW_OCI_REGISTRY', value: ociRegistry, group: 'registry' },
+      { key: 'GATEWAY_API_VERSION', value: gatewayApiVersion, group: 'versions' },
+      { key: 'AGW_NAMESPACE', value: AGW_NAMESPACE, group: 'settings' },
+      { key: 'AGW_RELEASE', value: AGW_RELEASE, group: 'settings' },
+      { key: 'AGW_CRDS_RELEASE', value: AGW_CRDS_RELEASE, group: 'settings' },
+    ];
+    if (crdsVersion !== version) {
+      exports.splice(1, 0, { key: 'AGW_CRDS_VERSION', value: crdsVersion, group: 'versions' });
+    }
+    return exports;
+  },
+
+  /**
    * Generate the Installation lab section markdown.
    * @param {{ addons?: string[], labNum?: number, profileData?: object|null }} opts
    * @returns {Promise<string>}
@@ -69,34 +90,12 @@ export const InstallAdapter = {
     sections.push('');
     sections.push('Install the Agentgateway control plane and required CRDs into your cluster.');
 
-    // Env vars block
-    sections.push('');
-    sections.push('### Set environment variables');
-    sections.push('');
-    sections.push('```bash');
-    sections.push('# Component versions and registry');
-    sections.push(`export AGW_VERSION="${version}"`);
-
-    // Only emit AGW_CRDS_VERSION if it differs from AGW_VERSION
-    if (crdsVersion !== version) {
-      sections.push(`export AGW_CRDS_VERSION="${crdsVersion}"`);
-    }
-
-    sections.push(`export AGW_OCI_REGISTRY="${ociRegistry}"`);
-    sections.push(`export GATEWAY_API_VERSION="${gatewayApiVersion}"`);
-    sections.push('');
-    sections.push('# Kubernetes settings');
-    sections.push(`export AGW_NAMESPACE="agentgateway-system"`);
-    sections.push(`export AGW_RELEASE="enterprise-agentgateway"`);
-    sections.push(`export AGW_CRDS_RELEASE="enterprise-agentgateway-crds"`);
-    sections.push('```');
-
     // Gateway API CRDs
     sections.push('');
     sections.push('### Install Gateway API CRDs');
     sections.push('');
     sections.push(
-      `Install the Gateway API ${channelLabel} channel CRDs (\${GATEWAY_API_VERSION}):`
+      `Install the Gateway API ${channelLabel} channel CRDs (${gatewayApiVersion}):`
     );
     sections.push('');
     sections.push('```bash');

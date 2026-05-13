@@ -76,6 +76,27 @@ export class WorkshopBuilder {
       AddonAdapter.envVarsFor(addonName).forEach(v => envVarMap.set(v.name, v));
     }
 
+    // Collect all env exports for the consolidated section
+    const allEnvExports = [];
+
+    // from install
+    InstallAdapter.envExports(profileData).forEach(e => allEnvExports.push(e));
+
+    // from addons
+    for (const addonName of addons) {
+      const profileAddonEntry = profileData?.addons?.find(a => a.name === addonName);
+      const profileAddonConfig = profileAddonEntry?.config || null;
+      AddonAdapter.envExportsFor(addonName, profileAddonConfig).forEach(e => allEnvExports.push(e));
+    }
+
+    // Deduplicate by key (first occurrence wins)
+    const seenExportKeys = new Set();
+    const dedupedExports = allEnvExports.filter(e => {
+      if (seenExportKeys.has(e.key)) return false;
+      seenExportKeys.add(e.key);
+      return true;
+    });
+
     const installLines = [await InstallAdapter.generate({ addons, labNum, profileData })];
     for (const addonName of addons) {
       const profileAddonEntry = profileData?.addons?.find(a => a.name === addonName);
@@ -111,7 +132,7 @@ export class WorkshopBuilder {
       `# ${title}\n`,
       this._renderPrerequisites(),
       this._renderVersions(profileData),
-      this._renderEnvVarsTable(allEnvVars),
+      this._renderEnvVarsSection(allEnvVars, dedupedExports),
       ...labSections,
       this._renderCleanup(profileData),
     ];
@@ -138,12 +159,12 @@ export class WorkshopBuilder {
   }
 
   /**
-   * Render env vars as a markdown table, deduplicating by name.
-   * Required-first, then optional.
+   * Render env vars credentials table and bash exports block.
    * @param {Array<{name:string, required:boolean|string, description:string}>} vars
+   * @param {Array<{key:string, value:string, group:string}>} exports
    * @returns {string}
    */
-  _renderEnvVarsTable(vars) {
+  _renderEnvVarsSection(vars, exports = []) {
     const seen = new Set();
     const deduped = vars.filter(v => {
       if (seen.has(v.name)) return false;
@@ -159,20 +180,55 @@ export class WorkshopBuilder {
       return a.name.localeCompare(b.name);
     });
 
-    const rows = deduped.map(v => {
-      const req = v.required === true ? '✅ Required' : v.required || 'Optional';
-      return `| \`${v.name}\` | ${req} | ${v.description} |`;
-    });
-
-    return [
+    const lines = [
       '## Environment Variables',
       '',
-      'Set these before running any lab commands:',
+      'Set these before running any commands.',
       '',
-      '| Variable | Required | Description |',
-      '|----------|----------|-------------|',
-      ...rows,
-    ].join('\n');
+    ];
+
+    // Credentials table (only if vars.length > 0)
+    if (deduped.length > 0) {
+      lines.push('| Variable | Required | Description |');
+      lines.push('|----------|----------|-------------|');
+      for (const v of deduped) {
+        const req = v.required === true ? '✅ Required' : v.required || 'Optional';
+        lines.push(`| \`${v.name}\` | ${req} | ${v.description} |`);
+      }
+      lines.push('');
+    }
+
+    // Bash exports block (only if exports.length > 0)
+    if (exports.length > 0) {
+      const groupOrder = ['versions', 'registry', 'settings', 'endpoints'];
+      const groupComments = {
+        versions: '# Component versions',
+        registry: '# Helm registries',
+        settings: '# Kubernetes settings',
+        endpoints: '# Service endpoints',
+      };
+
+      const sortedExports = [...exports].sort((a, b) => {
+        const ai = groupOrder.indexOf(a.group || 'settings');
+        const bi = groupOrder.indexOf(b.group || 'settings');
+        return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+      });
+
+      lines.push('```bash');
+      let currentGroup = null;
+      for (const e of sortedExports) {
+        const group = e.group || 'settings';
+        if (group !== currentGroup) {
+          if (currentGroup !== null) lines.push('');
+          lines.push(groupComments[group] || `# ${group}`);
+          currentGroup = group;
+        }
+        lines.push(`export ${e.key}="${e.value}"`);
+      }
+      lines.push('```');
+    }
+
+    return lines.join('\n');
   }
 
   _renderPrerequisites() {

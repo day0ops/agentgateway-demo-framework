@@ -165,17 +165,6 @@ function _generateTelemetry(subIndex, profileAddonConfig) {
   );
 
   lines.push('');
-  lines.push('#### Set environment variables');
-  lines.push('');
-  lines.push('```bash');
-  lines.push('export PROMETHEUS_STACK_VERSION="80.4.2"');
-  lines.push('export TEMPO_VERSION="1.29.0"');
-  lines.push('export LOKI_VERSION="6.6.2"');
-  lines.push('export ALLOY_VERSION="0.12.0"');
-  lines.push('export TELEMETRY_NAMESPACE="telemetry"');
-  lines.push('```');
-
-  lines.push('');
   lines.push('#### Add Helm repositories');
   lines.push('');
   lines.push('```bash');
@@ -245,14 +234,6 @@ function _generateCertManager(subIndex, profileAddonConfig) {
   lines.push('Installs cert-manager for automated TLS certificate management.');
 
   lines.push('');
-  lines.push('#### Set environment variables');
-  lines.push('');
-  lines.push('```bash');
-  lines.push('export CERT_MANAGER_VERSION="v1.19.3"');
-  lines.push('export CERT_MANAGER_NAMESPACE="cert-manager"');
-  lines.push('```');
-
-  lines.push('');
   lines.push('#### Install cert-manager');
   lines.push('');
   lines.push('```bash');
@@ -303,14 +284,6 @@ function _generateSoloUI(subIndex, profileAddonConfig) {
   lines.push('### Install Solo UI');
   lines.push('');
   lines.push('Installs the Solo UI management console (includes ClickHouse).');
-
-  lines.push('');
-  lines.push('#### Set environment variables');
-  lines.push('');
-  lines.push('```bash');
-  lines.push('export SOLO_UI_VERSION="0.3.13"');
-  lines.push('export SOLO_UI_NAMESPACE="agentgateway-system"');
-  lines.push('```');
 
   lines.push('');
   lines.push('#### Install Solo UI CRDs');
@@ -365,20 +338,20 @@ async function _generateKeycloak(subIndex, profileAddonConfig) {
     'utf8',
   );
 
-  // Render postgres template
+  // Render postgres template — use shell var names so unquoted heredoc expands them at apply time
   let postgresRendered = _renderTemplate(postgresTemplate, {
-    NAMESPACE: namespace,
-    POSTGRES_VERSION,
+    NAMESPACE: '$KC_NAMESPACE',
+    POSTGRES_VERSION: '$POSTGRES_VERSION',
     STORAGE_CLASS_NAME: storageClassName,
   });
   // Remove storageClassName line when empty
   postgresRendered = postgresRendered.replace(/\n\s*storageClassName: ''\n/, '\n');
 
-  // Render keycloak template
+  // Render keycloak template — use shell var names so unquoted heredoc expands them at apply time
   const keycloakRendered = _renderTemplate(keycloakTemplate, {
-    NAMESPACE: namespace,
-    HOSTNAME: hostname,
-    KEYCLOAK_VERSION,
+    NAMESPACE: '$KC_NAMESPACE',
+    HOSTNAME: '$KEYCLOAK_HOST',
+    KEYCLOAK_VERSION: '$KEYCLOAK_VERSION',
     TLS_SECRET_NAME: tlsSecretName,
   });
 
@@ -387,15 +360,6 @@ async function _generateKeycloak(subIndex, profileAddonConfig) {
   lines.push('### Install Keycloak');
   lines.push('');
   lines.push('Deploys Keycloak identity provider with PostgreSQL backend.');
-
-  lines.push('');
-  lines.push('#### Set environment variables');
-  lines.push('');
-  lines.push('```bash');
-  lines.push(`export KEYCLOAK_VERSION="${KEYCLOAK_VERSION}"`);
-  lines.push(`export POSTGRES_VERSION="${POSTGRES_VERSION}"`);
-  lines.push(`export KC_NAMESPACE="${namespace}"`);
-  lines.push('```');
 
   lines.push('');
   lines.push('#### Create namespace');
@@ -408,7 +372,7 @@ async function _generateKeycloak(subIndex, profileAddonConfig) {
   lines.push('#### Deploy PostgreSQL');
   lines.push('');
   lines.push('```bash');
-  lines.push("kubectl apply -f - <<'EOF'");
+  lines.push('kubectl apply -f - <<EOF');
   lines.push(postgresRendered.trimEnd());
   lines.push('EOF');
   lines.push('```');
@@ -426,7 +390,7 @@ async function _generateKeycloak(subIndex, profileAddonConfig) {
   lines.push('#### Deploy Keycloak');
   lines.push('');
   lines.push('```bash');
-  lines.push("kubectl apply -f - <<'EOF'");
+  lines.push('kubectl apply -f - <<EOF');
   lines.push(keycloakRendered.trimEnd());
   lines.push('EOF');
   lines.push('```');
@@ -445,9 +409,6 @@ async function _generateKeycloak(subIndex, profileAddonConfig) {
   lines.push('#### Configure Keycloak via Admin API');
   lines.push('');
   lines.push('```bash');
-  lines.push(`export KEYCLOAK_HOST="${hostname}"`);
-  lines.push(`export KEYCLOAK_SCHEME="${protocol}"`);
-  lines.push('');
   lines.push('# Get admin token');
   lines.push('KEYCLOAK_TOKEN=$(curl -sk -X POST \\');
   lines.push(
@@ -549,6 +510,46 @@ export const AddonAdapter = {
     const known = new Set(['telemetry', 'cert-manager', 'solo-ui', 'keycloak']);
     if (!known.has(addonName)) return [];
     return [];
+  },
+
+  /**
+   * Return env export objects for the consolidated env vars section.
+   * @param {string} addonName
+   * @param {object|null} profileAddonConfig
+   * @returns {Array<{key: string, value: string, group: string}>}
+   */
+  envExportsFor(addonName, profileAddonConfig = null) {
+    const cfg = profileAddonConfig || {};
+    switch (addonName) {
+      case 'telemetry':
+        return [
+          { key: 'PROMETHEUS_STACK_VERSION', value: '80.4.2', group: 'versions' },
+          { key: 'TEMPO_VERSION', value: '1.29.0', group: 'versions' },
+          { key: 'LOKI_VERSION', value: '6.6.2', group: 'versions' },
+          { key: 'ALLOY_VERSION', value: '0.12.0', group: 'versions' },
+          { key: 'TELEMETRY_NAMESPACE', value: 'telemetry', group: 'settings' },
+        ];
+      case 'cert-manager':
+        return [
+          { key: 'CERT_MANAGER_VERSION', value: 'v1.19.3', group: 'versions' },
+          { key: 'CERT_MANAGER_NAMESPACE', value: 'cert-manager', group: 'settings' },
+        ];
+      case 'solo-ui':
+        return [
+          { key: 'SOLO_UI_VERSION', value: '0.3.13', group: 'versions' },
+          { key: 'SOLO_UI_NAMESPACE', value: 'agentgateway-system', group: 'settings' },
+        ];
+      case 'keycloak':
+        return [
+          { key: 'KEYCLOAK_VERSION', value: KEYCLOAK_VERSION, group: 'versions' },
+          { key: 'POSTGRES_VERSION', value: POSTGRES_VERSION, group: 'versions' },
+          { key: 'KC_NAMESPACE', value: cfg.keycloakNamespace || 'keycloak', group: 'settings' },
+          { key: 'KEYCLOAK_HOST', value: cfg.hostname || '<KEYCLOAK_HOST>', group: 'endpoints' },
+          { key: 'KEYCLOAK_SCHEME', value: cfg.protocol || 'https', group: 'endpoints' },
+        ];
+      default:
+        return [];
+    }
   },
 
   /**

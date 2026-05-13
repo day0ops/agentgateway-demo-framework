@@ -54,16 +54,40 @@ describe('WorkshopBuilder', () => {
     expect(md).toContain('Gateway API');
   });
 
-  test('renderEnvVarsTable deduplicates by name', async () => {
+  test('_renderEnvVarsSection deduplicates vars by name', async () => {
     const builder = new WorkshopBuilder({ title: 'T', addons: [], providers: [], labs: [] });
-    const table = builder._renderEnvVarsTable([
+    const section = builder._renderEnvVarsSection([
       { name: 'FOO', required: true, description: 'first' },
       { name: 'FOO', required: true, description: 'duplicate' },
       { name: 'BAR', required: false, description: 'bar' },
     ]);
-    const matches = table.match(/FOO/g);
+    const matches = section.match(/FOO/g);
     expect(matches.length).toBe(1);
-    expect(table).toContain('BAR');
+    expect(section).toContain('BAR');
+  });
+
+  test('_renderEnvVarsSection renders bash exports grouped by group', async () => {
+    const builder = new WorkshopBuilder({ title: 'T', addons: [], providers: [], labs: [] });
+    const section = builder._renderEnvVarsSection([], [
+      { key: 'MY_VERSION', value: '1.0.0', group: 'versions' },
+      { key: 'MY_NS', value: 'default', group: 'settings' },
+      { key: 'MY_REG', value: 'oci://example.com', group: 'registry' },
+    ]);
+    expect(section).toContain('```bash');
+    expect(section).toContain('export MY_VERSION="1.0.0"');
+    expect(section).toContain('export MY_NS="default"');
+    expect(section).toContain('# Component versions');
+    expect(section).toContain('# Kubernetes settings');
+    // versions comes before settings in the output
+    expect(section.indexOf('# Component versions')).toBeLessThan(section.indexOf('# Kubernetes settings'));
+  });
+
+  test('build() env vars section contains bash exports block', async () => {
+    const builder = new WorkshopBuilder({ title: 'Test', addons: [], providers: [], labs: [] });
+    const md = await builder.build();
+    expect(md).toContain('```bash');
+    expect(md).toContain('export AGW_VERSION=');
+    expect(md).toContain('# Component versions');
   });
 });
 
