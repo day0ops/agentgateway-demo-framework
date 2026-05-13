@@ -121,7 +121,7 @@ async function _dryRunProvider(providerName, providerConfig) {
       else process.env[k] = v;
     }
   }
-  return yamls || [];
+  return yamls;
 }
 
 function _titleCase(str) {
