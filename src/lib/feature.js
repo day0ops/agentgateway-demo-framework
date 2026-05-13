@@ -41,6 +41,10 @@ export class Feature {
    */
   log(message, level = 'info') {
     if (this.dryRun) return;
+    if (level === 'debug') {
+      Logger.debug(message);
+      return;
+    }
     if (this.spinner && this.spinner.isSpinning) {
       // Suppress info and success messages during spinner operation to avoid clutter
       // The caller (AddonInstaller/FeatureManager) will log the final success message

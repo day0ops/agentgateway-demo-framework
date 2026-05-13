@@ -287,34 +287,34 @@ export class KeycloakFeature extends Feature {
    */
   async resolveCurlArgs() {
     if (!this.lbAddress) {
-      this.log('[debug] resolveCurlArgs: no lbAddress, skipping --resolve', 'warn');
+      this.log('resolveCurlArgs: no lbAddress, skipping --resolve', 'debug');
       return [];
     }
 
-    this.log(`[debug] resolveCurlArgs: lbAddress=${this.lbAddress}`, 'warn');
+    this.log(`resolveCurlArgs: lbAddress=${this.lbAddress}`, 'debug');
 
     // If it's already an IP, use it directly
     if (/^\d+\.\d+\.\d+\.\d+$/.test(this.lbAddress)) {
       const port = this.protocol === 'https' ? 443 : 80;
       const args = ['--resolve', `${this.hostname}:${port}:${this.lbAddress}`];
-      this.log(`[debug] resolveCurlArgs: IP detected, resolve=${args.join(' ')}`, 'warn');
+      this.log(`resolveCurlArgs: IP detected, resolve=${args.join(' ')}`, 'debug');
       return args;
     }
 
     // Resolve ELB hostname to IP via DNS
     try {
       const { promises: dns } = await import('dns');
-      this.log(`[debug] resolveCurlArgs: resolving ELB hostname via DNS...`, 'warn');
+      this.log(`resolveCurlArgs: resolving ELB hostname via DNS...`, 'debug');
       const addresses = await dns.resolve4(this.lbAddress);
-      this.log(`[debug] resolveCurlArgs: resolved to ${addresses.join(', ')}`, 'warn');
+      this.log(`resolveCurlArgs: resolved to ${addresses.join(', ')}`, 'debug');
       if (addresses.length > 0) {
         const port = this.protocol === 'https' ? 443 : 80;
         const args = ['--resolve', `${this.hostname}:${port}:${addresses[0]}`];
-        this.log(`[debug] resolveCurlArgs: resolve=${args.join(' ')}`, 'warn');
+        this.log(`resolveCurlArgs: resolve=${args.join(' ')}`, 'debug');
         return args;
       }
     } catch (err) {
-      this.log(`[debug] resolveCurlArgs: DNS lookup failed: ${err.message}`, 'warn');
+      this.log(`resolveCurlArgs: DNS lookup failed: ${err.message}`, 'debug');
     }
 
     return [];
@@ -798,10 +798,10 @@ export class KeycloakFeature extends Feature {
 
   async getAdminToken(baseUrl) {
     this.log('Obtaining admin token...', 'info');
-    this.log(`[debug] getAdminToken: baseUrl=${baseUrl}`, 'warn');
+    this.log(`getAdminToken: baseUrl=${baseUrl}`, 'debug');
     this.log(
-      `[debug] getAdminToken: curlResolveArgs=${JSON.stringify(this.curlResolveArgs || [])}`,
-      'warn'
+      `getAdminToken: curlResolveArgs=${JSON.stringify(this.curlResolveArgs || [])}`,
+      'debug'
     );
 
     for (let i = 0; i < 30; i++) {
@@ -818,26 +818,26 @@ export class KeycloakFeature extends Feature {
           'username=admin&password=admin&grant_type=password&client_id=admin-cli',
         ];
         this.log(
-          `[debug] getAdminToken attempt ${i + 1}: curl ${curlArgs.filter(a => !a.includes('password')).join(' ')}`,
-          'warn'
+          `getAdminToken attempt ${i + 1}: curl ${curlArgs.filter(a => !a.includes('password')).join(' ')}`,
+          'debug'
         );
 
         const result = await CommandRunner.run('curl', curlArgs, { ignoreError: true });
 
-        this.log(`[debug] getAdminToken stdout=${result.stdout?.substring(0, 200)}`, 'warn');
+        this.log(`getAdminToken stdout=${result.stdout?.substring(0, 200)}`, 'debug');
         if (result.stderr)
-          this.log(`[debug] getAdminToken stderr=${result.stderr?.substring(0, 200)}`, 'warn');
+          this.log(`getAdminToken stderr=${result.stderr?.substring(0, 200)}`, 'debug');
 
         if (result.stdout) {
           const parsed = JSON.parse(result.stdout);
           if (parsed.access_token) return parsed.access_token;
           this.log(
-            `[debug] getAdminToken: no access_token in response: ${JSON.stringify(parsed).substring(0, 200)}`,
-            'warn'
+            `getAdminToken: no access_token in response: ${JSON.stringify(parsed).substring(0, 200)}`,
+            'debug'
           );
         }
       } catch (err) {
-        this.log(`[debug] getAdminToken error: ${err.message}`, 'warn');
+        this.log(`getAdminToken error: ${err.message}`, 'debug');
       }
       await new Promise(r => setTimeout(r, 5000));
     }

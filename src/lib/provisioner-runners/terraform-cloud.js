@@ -262,6 +262,7 @@ export class TerraformCloudRunner extends BaseProvisionerRunner {
     }
 
     const terraform = new TerraformRunner(this.terraformDir);
+    await terraform.init({ stream: true });
     await terraform.destroy(this.varFile, this.stateFile, { autoApprove: true, stream: true });
   }
 
@@ -370,7 +371,7 @@ export class TerraformCloudRunner extends BaseProvisionerRunner {
         provisioner.kubernetes_version || process.env.KUBERNETES_VERSION || undefined,
       enableDns64: provisioner.enable_dns64,
       enableBastion: provisioner.enable_bastion,
-      gkeProject: provisioner.project || process.env.GCP_PROJECT,
+      gkeProject: provisioner.project || (this.providerType === 'gke' ? process.env.GCP_PROJECT : undefined),
       aksServicePrincipal:
         provisioner.arm_client_id || process.env.ARM_CLIENT_ID
           ? {
@@ -394,7 +395,7 @@ export class TerraformCloudRunner extends BaseProvisionerRunner {
       awsProfile: provisioner.aws_profile || process.env.AWS_PROFILE,
       kubernetesVersion:
         provisioner.kubernetes_version || process.env.KUBERNETES_VERSION || undefined,
-      gkeProject: provisioner.project || process.env.GCP_PROJECT,
+      gkeProject: provisioner.project || (this.clusters.some(c => (c.provisioner?.cloud || c.provisioner?.type) === 'gke') ? process.env.GCP_PROJECT : undefined),
       aksServicePrincipal:
         provisioner.arm_client_id || process.env.ARM_CLIENT_ID
           ? {
@@ -583,8 +584,10 @@ export class TerraformCloudRunner extends BaseProvisionerRunner {
 
     if (kubeconfigFiles.length > 0) {
       const currentKubeconfig = process.env.KUBECONFIG || '';
-      const parts = currentKubeconfig ? [currentKubeconfig] : [];
-      parts.push(...kubeconfigFiles);
+      const existingParts = currentKubeconfig
+        ? currentKubeconfig.split(':').filter(p => p && !p.startsWith(this.kubeconfigDir))
+        : [];
+      const parts = [...new Set([...existingParts, ...kubeconfigFiles])];
       this.appendEnvVar('KUBECONFIG', parts.join(':'));
     }
 
@@ -635,8 +638,10 @@ export class TerraformCloudRunner extends BaseProvisionerRunner {
 
     if (kubeconfigFiles.length > 0) {
       const currentKubeconfig = process.env.KUBECONFIG || '';
-      const parts = currentKubeconfig ? [currentKubeconfig] : [];
-      parts.push(...kubeconfigFiles);
+      const existingParts = currentKubeconfig
+        ? currentKubeconfig.split(':').filter(p => p && !p.startsWith(this.kubeconfigDir))
+        : [];
+      const parts = [...new Set([...existingParts, ...kubeconfigFiles])];
       this.appendEnvVar('KUBECONFIG', parts.join(':'));
     }
 
@@ -691,10 +696,24 @@ export class TerraformCloudRunner extends BaseProvisionerRunner {
     if (additionalVars.length > 0) {
       this.appendEnvVars(additionalVars);
     }
+
+    const contexts = results.map(r => r.context).filter(Boolean);
+    if (contexts.length > 0) {
+      const defaultContext = contexts[Math.floor(Math.random() * contexts.length)];
+      this.appendShellCommand(`kubectl config use-context "${defaultContext.replace(/"/g, '\\"')}"`);
+    }
   }
 
   appendEnvVar(key, value) {
     this.appendEnvVars([{ key, value }]);
+  }
+
+  appendShellCommand(command) {
+    const envShPath = join(this.outputDir, 'env.sh');
+    if (existsSync(envShPath)) {
+      const existing = readFileSync(envShPath, 'utf8');
+      writeFileSync(envShPath, existing + command + '\n');
+    }
   }
 
   appendEnvVars(vars) {
