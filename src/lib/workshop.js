@@ -1,3 +1,5 @@
+import { readFile } from 'fs/promises';
+import yaml from 'js-yaml';
 import { InstallAdapter } from './workshop-adapters/install.js';
 import { AddonAdapter } from './workshop-adapters/addon.js';
 import { ProviderAdapter } from './workshop-adapters/provider.js';
@@ -6,6 +8,8 @@ import { FeatureAdapter } from './workshop-adapters/feature.js';
 import { UseCaseManager } from './usecase.js';
 import inquirer from 'inquirer';
 import { Prompts } from './prompts.js';
+import { ProfileManager } from './profiles.js';
+import { EnvironmentManager } from './environment.js';
 
 /**
  * WorkshopBuilder
@@ -20,6 +24,8 @@ import { Prompts } from './prompts.js';
  * @property {string[]} addons
  * @property {string[]} providers
  * @property {Array<{type:'usecase'|'feature', name:string}>} labs
+ * @property {{name: string, file: string}|null} profile
+ * @property {string|null} environment
  */
 export class WorkshopBuilder {
   constructor(selection) {
@@ -31,7 +37,34 @@ export class WorkshopBuilder {
    * @returns {Promise<string>}
    */
   async build() {
-    const { title = 'Agentgateway Workshop', addons = [], providers = [], labs = [] } = this.selection;
+    const {
+      title = 'Agentgateway Workshop',
+      addons = [],
+      providers = [],
+      labs = [],
+      profile = null,
+      environment = null,
+    } = this.selection;
+
+    // Load profile data if a profile was selected
+    let profileData = null;
+    if (profile) {
+      try {
+        const rawContent = await readFile(profile.file, 'utf8');
+        let raw = yaml.load(rawContent);
+        // Use selected environment, or fall back to profile's embedded environment
+        const envName = environment || raw.environment || 'local';
+        try {
+          const env = await EnvironmentManager.load(envName);
+          raw = EnvironmentManager.resolveAllTemplates(raw, env);
+        } catch {
+          // continue without template resolution
+        }
+        profileData = raw;
+      } catch {
+        // continue without profile data
+      }
+    }
 
     const envVarMap = new Map(); // name → {name, required, description}
     const labSections = [];
@@ -43,7 +76,7 @@ export class WorkshopBuilder {
       AddonAdapter.envVarsFor(addonName).forEach(v => envVarMap.set(v.name, v));
     }
 
-    const installLines = [InstallAdapter.generate({ addons, labNum })];
+    const installLines = [InstallAdapter.generate({ addons, labNum, profileData })];
     for (const addonName of addons) {
       installLines.push('');
       installLines.push(AddonAdapter.generate(addonName, labNum));
@@ -74,7 +107,7 @@ export class WorkshopBuilder {
     const allEnvVars = [...envVarMap.values()];
     const parts = [
       `# ${title}\n`,
-      this._renderVersions(),
+      this._renderVersions(profileData),
       this._renderEnvVarsTable(allEnvVars),
       this._renderPrerequisites(),
       ...labSections,
@@ -86,10 +119,11 @@ export class WorkshopBuilder {
 
   /**
    * Render a component versions table from InstallAdapter version info.
+   * @param {object|null} profileData
    * @returns {string}
    */
-  _renderVersions() {
-    const { agwVersion, gatewayApiVersion, agwOci } = InstallAdapter.versions();
+  _renderVersions(profileData = null) {
+    const { agwVersion, gatewayApiVersion, agwOci } = InstallAdapter.versions(profileData);
     return [
       '## Component Versions',
       '',
@@ -241,6 +275,34 @@ export class WorkshopPicker {
    */
   static async prompt() {
     const title = await Prompts.input('Workshop title:', 'Agentgateway Workshop');
+
+    // Profile selection
+    let profile = null;
+    let environment = null;
+    const profiles = await ProfileManager.list();
+    if (profiles.length > 0) {
+      const profileChoices = [
+        { name: 'None (use defaults)', value: null },
+        ...profiles.map(p => ({
+          name: `${p.name} — ${p.description}`,
+          value: { name: p.name, file: p.file },
+        })),
+      ];
+      profile = await Prompts.select('Select an installation profile:', profileChoices, null);
+    }
+
+    // Environment selection (only if multiple environments exist)
+    if (profile) {
+      const environments = await EnvironmentManager.list();
+      if (environments.length > 1) {
+        const envChoices = environments.map(e => ({
+          name: e.description ? `${e.name} — ${e.description}` : e.name,
+          value: e.name,
+        }));
+        environment = await Prompts.select('Select target environment:', envChoices, 'local');
+      }
+    }
+
     const choices = await this.buildChoices();
     const selected = await Prompts.multiSelect('Select labs to include:', choices);
 
@@ -250,6 +312,6 @@ export class WorkshopPicker {
       .filter(s => s.type === 'usecase' || s.type === 'feature')
       .map(s => ({ type: s.type, name: s.name }));
 
-    return { title, addons, providers, labs };
+    return { title, addons, providers, labs, profile, environment };
   }
 }
