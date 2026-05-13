@@ -5,6 +5,7 @@ import yaml from 'js-yaml';
 const AGW_VERSION = process.env.AGENTGATEWAY_VERSION || '2.1.1';
 const AGW_NAMESPACE = process.env.AGENTGATEWAY_NAMESPACE || 'agentgateway-system';
 const AGW_RELEASE = process.env.AGENTGATEWAY_RELEASE || 'enterprise-agentgateway';
+const AGW_CRDS_RELEASE = process.env.AGENTGATEWAY_CRDS_RELEASE || 'enterprise-agentgateway-crds';
 const AGW_OCI = 'oci://us-docker.pkg.dev/solo-public/enterprise-agentgateway/charts';
 const GATEWAY_API_VERSION = process.env.GATEWAY_API_VERSION || 'v1.4.0';
 
@@ -85,7 +86,7 @@ export const InstallAdapter = {
     sections.push(`helm upgrade -i --create-namespace \\`);
     sections.push(`  --namespace ${AGW_NAMESPACE} \\`);
     sections.push(`  --version ${crdsVersion} \\`);
-    sections.push(`  enterprise-agentgateway-crds \\`);
+    sections.push(`  ${AGW_CRDS_RELEASE} \\`);
     sections.push(`  ${crdsOciRegistry}/enterprise-agentgateway-crds`);
     sections.push('```');
 
@@ -144,11 +145,15 @@ export const InstallAdapter = {
    * @returns {{ agwVersion: string, gatewayApiVersion: string, agwOci: string }}
    */
   versions(profileData = null) {
-    const { version, ociRegistry, gatewayApiVersion } = _resolveVersions(profileData);
+    const { version, ociRegistry, gatewayApiVersion, gatewayApiChannel } = _resolveVersions(profileData);
     return {
       agwVersion: version,
       gatewayApiVersion,
+      gatewayApiChannel,
       agwOci: ociRegistry,
+      agwRelease: AGW_RELEASE,
+      agwCrdsRelease: AGW_CRDS_RELEASE,
+      agwNamespace: AGW_NAMESPACE,
     };
   },
 };

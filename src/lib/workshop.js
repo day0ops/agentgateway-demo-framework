@@ -111,7 +111,7 @@ export class WorkshopBuilder {
       this._renderEnvVarsTable(allEnvVars),
       this._renderPrerequisites(),
       ...labSections,
-      this._renderCleanup(),
+      this._renderCleanup(profileData),
     ];
 
     return parts.join('\n\n---\n\n');
@@ -190,7 +190,11 @@ export class WorkshopBuilder {
     ].join('\n');
   }
 
-  _renderCleanup() {
+  _renderCleanup(profileData = null) {
+    const { agwRelease, agwCrdsRelease, agwNamespace, gatewayApiVersion, gatewayApiChannel } =
+      InstallAdapter.versions(profileData);
+    const installFile =
+      gatewayApiChannel === 'experimental' ? 'experimental-install.yaml' : 'standard-install.yaml';
     return [
       '## Cleanup',
       '',
@@ -198,11 +202,11 @@ export class WorkshopBuilder {
       '',
       '```bash',
       '# Remove agentgateway',
-      'helm uninstall enterprise-agentgateway -n agentgateway-system',
-      'helm uninstall enterprise-agentgateway-crds -n agentgateway-system',
+      `helm uninstall ${agwRelease} -n ${agwNamespace}`,
+      `helm uninstall ${agwCrdsRelease} -n ${agwNamespace}`,
       '',
       '# Remove Gateway API CRDs',
-      'kubectl delete -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.4.0/standard-install.yaml',
+      `kubectl delete -f https://github.com/kubernetes-sigs/gateway-api/releases/download/${gatewayApiVersion}/${installFile}`,
       '```',
     ].join('\n');
   }
@@ -291,10 +295,13 @@ export class WorkshopPicker {
       profile = await Prompts.select('Select an installation profile:', profileChoices, null);
     }
 
-    // Environment selection (only if multiple environments exist)
+    // Environment selection
     if (profile) {
       const environments = await EnvironmentManager.list();
-      if (environments.length > 1) {
+      if (environments.length === 1) {
+        // Only one environment — auto-select without prompting
+        environment = environments[0].name;
+      } else if (environments.length > 1) {
         const envChoices = environments.map(e => ({
           name: e.description ? `${e.name} — ${e.description}` : e.name,
           value: e.name,
