@@ -1,6 +1,9 @@
 import { InstallAdapter } from './workshop-adapters/install.js';
-import { UseCaseManager } from './usecase.js';
 import { AddonAdapter } from './workshop-adapters/addon.js';
+import { ProviderAdapter } from './workshop-adapters/provider.js';
+import { UseCaseAdapter } from './workshop-adapters/usecase.js';
+import { FeatureAdapter } from './workshop-adapters/feature.js';
+import { UseCaseManager } from './usecase.js';
 import inquirer from 'inquirer';
 import { Prompts } from './prompts.js';
 
@@ -28,20 +31,47 @@ export class WorkshopBuilder {
    * @returns {Promise<string>}
    */
   async build() {
-    const { title = 'Agentgateway Workshop', addons = [], _providers = [], _labs = [] } = this.selection;
+    const { title = 'Agentgateway Workshop', addons = [], providers = [], labs = [] } = this.selection;
 
     const envVarMap = new Map(); // name → {name, required, description}
     const labSections = [];
     let labNum = 0;
 
-    // Lab 0: Installation (always included)
+    // ── Lab 0: Installation ─────────────────────────────────────────────────
     InstallAdapter.envVars().forEach(v => envVarMap.set(v.name, v));
-    labSections.push(InstallAdapter.generate({ addons, labNum }));
+    for (const addonName of addons) {
+      AddonAdapter.envVarsFor(addonName).forEach(v => envVarMap.set(v.name, v));
+    }
 
-    // Remaining adapters added in later tasks — stubs for now
+    const installLines = [InstallAdapter.generate({ addons, labNum })];
+    for (const addonName of addons) {
+      installLines.push('');
+      installLines.push(AddonAdapter.generate(addonName, labNum));
+    }
+    labSections.push(installLines.join('\n'));
+    labNum++;
 
+    // ── Lab 1: Providers ────────────────────────────────────────────────────
+    if (providers.length > 0) {
+      ProviderAdapter.envVarsFor(providers).forEach(v => envVarMap.set(v.name, v));
+      labSections.push(await ProviderAdapter.generate(providers, labNum));
+      labNum++;
+    }
+
+    // ── Labs N: use cases + standalone features ─────────────────────────────
+    for (const lab of labs) {
+      if (lab.type === 'usecase') {
+        labSections.push(
+          await UseCaseAdapter.generate({ name: lab.name, labNum, deployedProviders: providers })
+        );
+      } else if (lab.type === 'feature') {
+        labSections.push(await FeatureAdapter.generate({ name: lab.name, labNum }));
+      }
+      labNum++;
+    }
+
+    // ── Assemble ────────────────────────────────────────────────────────────
     const allEnvVars = [...envVarMap.values()];
-
     const parts = [
       `# ${title}\n`,
       this._renderEnvVarsTable(allEnvVars),

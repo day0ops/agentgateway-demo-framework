@@ -74,3 +74,72 @@ describe('WorkshopPicker', () => {
     expect(values.some(v => v.type === 'provider')).toBe(true);
   });
 });
+
+describe('WorkshopBuilder — integration', () => {
+  test('build() with providers generates Lab 1: Providers', async () => {
+    const savedKey = process.env.OPENAI_API_KEY;
+    process.env.OPENAI_API_KEY = process.env.OPENAI_API_KEY || '<OPENAI_API_KEY>';
+    try {
+      const builder = new WorkshopBuilder({
+        title: 'Integration Test',
+        addons: [],
+        providers: ['openai'],
+        labs: [],
+      });
+      const md = await builder.build();
+      expect(md).toContain('## Lab 1: Providers');
+    } finally {
+      if (savedKey === undefined) delete process.env.OPENAI_API_KEY;
+      else process.env.OPENAI_API_KEY = savedKey;
+    }
+  });
+
+  test('build() with addon includes addon section in Lab 0', async () => {
+    const builder = new WorkshopBuilder({
+      title: 'Integration Test',
+      addons: ['telemetry'],
+      providers: [],
+      labs: [],
+    });
+    const md = await builder.build();
+    expect(md).toContain('Telemetry');
+    expect(md).toContain('grafana');
+  });
+
+  test('build() with usecase lab includes lab heading after providers', async () => {
+    const savedKey = process.env.OPENAI_API_KEY;
+    process.env.OPENAI_API_KEY = process.env.OPENAI_API_KEY || '<OPENAI_API_KEY>';
+    try {
+      const builder = new WorkshopBuilder({
+        title: 'Integration Test',
+        addons: [],
+        providers: ['openai'],
+        labs: [{ type: 'usecase', name: 'apikey-auth' }],
+      });
+      const md = await builder.build();
+      expect(md).toContain('## Lab 2:');
+      expect(md).toContain('Apikey Auth');
+    } finally {
+      if (savedKey === undefined) delete process.env.OPENAI_API_KEY;
+      else process.env.OPENAI_API_KEY = savedKey;
+    }
+  });
+
+  test('build() env vars table includes provider-specific keys', async () => {
+    const savedKey = process.env.OPENAI_API_KEY;
+    process.env.OPENAI_API_KEY = process.env.OPENAI_API_KEY || '<OPENAI_API_KEY>';
+    try {
+      const builder = new WorkshopBuilder({
+        title: 'Integration Test',
+        addons: [],
+        providers: ['openai'],
+        labs: [],
+      });
+      const md = await builder.build();
+      expect(md).toContain('OPENAI_API_KEY');
+    } finally {
+      if (savedKey === undefined) delete process.env.OPENAI_API_KEY;
+      else process.env.OPENAI_API_KEY = savedKey;
+    }
+  });
+});
