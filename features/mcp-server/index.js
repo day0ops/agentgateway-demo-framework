@@ -23,7 +23,7 @@ import { KubernetesHelper } from '../../src/lib/common.js';
  * Configuration:
  * {
  *   deployServer: boolean,         // Deploy the MCP server workload (default: true)
- *   image: string,                 // Container image (default: 'mcp-stock-server:latest')
+ *   image: string,                 // Container image (default: GAR stock-server-mcp:0.1.1)
  *   imagePullPolicy: string,       // Image pull policy (default: 'IfNotPresent')
  *   serverName: string,            // Server/app name (default: 'mcp-stock-server')
  *   serverPort: number,            // Container port the MCP server listens on (default: 8000)
@@ -66,7 +66,7 @@ export class McpServerFeature extends Feature {
     super(name, config);
 
     this.shouldDeployServer = config.deployServer !== false;
-    this.image = Feature.resolveImage(config.image || 'mcp-stock-server:latest');
+    this.image = Feature.resolveImage(config.image || 'australia-southeast1-docker.pkg.dev/field-engineering-apac/kasunt/stock-server-mcp:0.1.1');
     this.imagePullPolicy = config.imagePullPolicy || 'IfNotPresent';
     this.serverName = config.serverName || 'mcp-stock-server';
     this.serverPort = config.serverPort || 8000;

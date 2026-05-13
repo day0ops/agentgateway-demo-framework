@@ -15,7 +15,7 @@ import { KubernetesHelper } from '../../src/lib/common.js';
  * Configuration:
  * {
  *   agentName: string,           // Default: 'caller-agent'
- *   image: string,               // Default: 'caller-agent:latest'
+ *   image: string,               // Default: GAR caller-agent:0.1.1
  *   imagePullPolicy: string,     // Default: 'IfNotPresent'
  *   pathPrefix: string,          // Default: '/caller-agent'
  *   routeName: string,           // Default: agentName
@@ -42,7 +42,7 @@ export class WorkloadAgentFeature extends Feature {
 
     const ns = this.namespace;
     this.agentName = config.agentName || 'caller-agent';
-    this.image = Feature.resolveImage(config.image || 'caller-agent:latest');
+    this.image = Feature.resolveImage(config.image || 'australia-southeast1-docker.pkg.dev/field-engineering-apac/kasunt/caller-agent:0.1.1');
     this.imagePullPolicy = config.imagePullPolicy || 'IfNotPresent';
     this.pathPrefix = config.pathPrefix || '/caller-agent';
     this.routeName = config.routeName || this.agentName;

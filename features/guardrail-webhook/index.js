@@ -24,7 +24,7 @@ import { KubernetesHelper } from '../../src/lib/common.js';
  * Configuration:
  * {
  *   webhook: {
- *     image: string,            // Container image (default: opik-guardrail-webhook:latest)
+ *     image: string,            // Container image (default: GAR guardrail-webhook:0.1.1)
  *     port: number,             // Container/service port (default: 8000)
  *     serviceName: string,      // Kubernetes service name (default: opik-guardrail-webhook)
  *   },
@@ -45,7 +45,7 @@ export class GuardrailWebhookFeature extends Feature {
 
   get webhookConfig() {
     const defaults = {
-      image: 'opik-guardrail-webhook:latest',
+      image: 'australia-southeast1-docker.pkg.dev/field-engineering-apac/kasunt/guardrail-webhook:0.1.1',
       port: 8000,
       serviceName: 'opik-guardrail-webhook',
     };

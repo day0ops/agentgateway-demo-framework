@@ -15,7 +15,7 @@ const DEFAULT_RATELIMIT_BACKEND = 'rate-limiter-enterprise-agentgateway';
  *
  * Configuration:
  * {
- *   image: string,              // Extproc image (default: 'quota-ratelimit-extproc:latest')
+ *   image: string,              // Extproc image (default: GAR quota-ratelimit-extproc:0.1.0)
  *   rateLimitBackend: string,   // Rate limit backend (default: 'rate-limiter-enterprise-agentgateway')
  *   modelHeader: string,        // Header for model name (default: 'x-gw-llm-model')
  *   databaseUrl: string,        // Override DB URL (default: uses quota-budget postgres)
@@ -77,7 +77,7 @@ export class QuotaRateLimitFeature extends Feature {
   }
 
   async deployRateLimitExtproc() {
-    const image = Feature.resolveImage(this.config.image || 'quota-ratelimit-extproc:latest');
+    const image = Feature.resolveImage(this.config.image || 'australia-southeast1-docker.pkg.dev/field-engineering-apac/kasunt/quota-ratelimit-extproc:0.1.0');
 
     const { promises: fs } = await import('fs');
     let deploymentYaml = await fs.readFile(join(__dirname, 'config', 'deployment.yaml'), 'utf8');

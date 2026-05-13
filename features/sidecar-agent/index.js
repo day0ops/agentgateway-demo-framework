@@ -22,7 +22,7 @@ const GATEWAY_CLASS_NAME = 'sidecar-agentgateway';
  * Configuration:
  * {
  *   agentName: string,        // K8s resource name prefix (required)
- *   agentImage: string,       // Container image (default: sidecar-agent:latest)
+ *   agentImage: string,       // Container image (default: GAR sidecar-agent:0.1.1)
  *   agentPort: number,        // Port the agent listens on (default: 8081)
  *   model: string,            // LLM model name (default: gpt-4o-mini)
  *   llmPath: string,          // Path on agentgateway for LLM traffic (default: /openai)
@@ -32,7 +32,7 @@ export class SidecarAgentFeature extends Feature {
   constructor(name, config) {
     super(name, config);
     this.agentName = config.agentName;
-    this.agentImage = Feature.resolveImage(config.agentImage || 'sidecar-agent:latest');
+    this.agentImage = Feature.resolveImage(config.agentImage || 'australia-southeast1-docker.pkg.dev/field-engineering-apac/kasunt/sidecar-agent:0.1.1');
     this.agentPort = config.agentPort || 8081;
     this.model = config.model || 'gpt-4o-mini';
     this.llmPath = config.llmPath || '/openai';
