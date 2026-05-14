@@ -1,5 +1,4 @@
-import '../../../features/index.js';
-import { FeatureManager } from '../feature.js';
+import { join } from 'path';
 
 const PROVIDER_ENV_VARS = {
   openai: [{ name: 'OPENAI_API_KEY', required: true, description: 'OpenAI API key' }],
@@ -53,9 +52,10 @@ export const ProviderAdapter = {
    * real credentials appear in the output.
    * @param {string[]} providerNames
    * @param {number} labNum
+   * @param {string} [projectRoot]
    * @returns {Promise<string>}
    */
-  async generate(providerNames, labNum) {
+  async generate(providerNames, labNum, projectRoot = process.cwd()) {
     const lines = [];
     lines.push(`## Lab ${labNum}: Providers`);
     lines.push('');
@@ -72,7 +72,7 @@ export const ProviderAdapter = {
       lines.push('');
 
       // Run dryRun with placeholder env vars to generate YAML without real credentials
-      const yamlDocs = await _dryRunProvider(providerName, config);
+      const yamlDocs = await _dryRunProvider(providerName, config, projectRoot);
 
       if (yamlDocs.length > 0) {
         lines.push('Apply the following manifests:');
@@ -95,7 +95,7 @@ export const ProviderAdapter = {
   },
 };
 
-async function _dryRunProvider(providerName, providerConfig) {
+async function _dryRunProvider(providerName, providerConfig, projectRoot) {
   // Save and override env vars with placeholders so dryRun YAML is clean
   const envOverrides = {};
   for (const v of (PROVIDER_ENV_VARS[providerName] || [])) {
@@ -107,6 +107,7 @@ async function _dryRunProvider(providerName, providerConfig) {
 
   let yamls = [];
   try {
+    const { FeatureManager } = await import(join(projectRoot, 'features/index.js'));
     yamls = await FeatureManager.deploy(
       'providers',
       { providers: [{ name: providerName, ...providerConfig }] },
