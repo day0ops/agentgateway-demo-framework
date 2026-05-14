@@ -7,6 +7,7 @@ import { UseCaseAdapter } from './workshop-adapters/usecase.js';
 import { FeatureAdapter } from './workshop-adapters/feature.js';
 import { UseCaseManager } from './usecase.js';
 import inquirer from 'inquirer';
+import chalk from 'chalk';
 import { Prompts } from './prompts.js';
 import { ProfileManager } from './profiles.js';
 import { EnvironmentManager } from './environment.js';
@@ -344,12 +345,31 @@ export class WorkshopBuilder {
 }
 
 const KNOWN_PROVIDERS = [
-  { name: 'openai', label: 'OpenAI' },
-  { name: 'bedrock', label: 'AWS Bedrock' },
-  { name: 'vertex-ai', label: 'Google Vertex AI' },
-  { name: 'anthropic', label: 'Anthropic' },
-  { name: 'azure', label: 'Azure OpenAI' },
+  { name: 'openai', label: 'OpenAI', description: 'GPT-4o, o1, embeddings' },
+  { name: 'bedrock', label: 'AWS Bedrock', description: 'Claude, Titan, Llama via AWS' },
+  { name: 'vertex-ai', label: 'Google Vertex AI', description: 'Gemini via Google Cloud' },
+  { name: 'anthropic', label: 'Anthropic', description: 'Claude models direct API' },
+  { name: 'azure', label: 'Azure OpenAI', description: 'OpenAI models via Azure' },
 ];
+
+const ADDON_DESCRIPTIONS = {
+  telemetry: 'Prometheus · Grafana · Tempo · Loki',
+  'cert-manager': 'automated TLS certificate management',
+  'solo-ui': 'Solo UI management console',
+  keycloak: 'Keycloak identity provider + PostgreSQL',
+};
+
+function _choiceName(label, description, width = 20) {
+  return description
+    ? label.padEnd(width) + chalk.dim(description)
+    : label;
+}
+
+function _separator(title, description) {
+  return new inquirer.Separator(
+    chalk.bold(`  ◆  ${title}`) + (description ? chalk.dim(`  —  ${description}`) : '')
+  );
+}
 
 /**
  * Interactive picker that builds a WorkshopSelection from user choices.
@@ -365,19 +385,19 @@ export class WorkshopPicker {
     const choices = [];
 
     // Addons
-    choices.push(new inquirer.Separator('── Addons ──'));
+    choices.push(_separator('Addons', 'optional infrastructure components to install'));
     for (const addonName of await AddonAdapter.knownAddons(projectRoot)) {
       choices.push({
-        name: addonName,
+        name: _choiceName(addonName, ADDON_DESCRIPTIONS[addonName]),
         value: { type: 'addon', name: addonName },
       });
     }
 
     // Providers
-    choices.push(new inquirer.Separator('── Providers ──'));
+    choices.push(_separator('Providers', 'LLM backends to demo'));
     for (const p of KNOWN_PROVIDERS) {
       choices.push({
-        name: p.label,
+        name: _choiceName(p.label, p.description),
         value: { type: 'provider', name: p.name },
       });
     }
@@ -392,7 +412,7 @@ export class WorkshopPicker {
     }
 
     for (const [cat, items] of [...byCategory.entries()].sort()) {
-      choices.push(new inquirer.Separator(`── Use Cases: ${cat} ──`));
+      choices.push(_separator(`Use Cases: ${cat}`, 'feature demonstration labs'));
       for (const uc of items) {
         choices.push({
           name: uc.displayName || uc.name,
