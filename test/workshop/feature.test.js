@@ -1,7 +1,9 @@
 // test/workshop/feature.test.js
 import { test, expect, describe } from 'bun:test';
-import { writeFile, rm } from 'fs/promises';
+import { mkdtempSync } from 'fs';
+import { mkdir, writeFile, rm } from 'fs/promises';
 import { join } from 'path';
+import { tmpdir } from 'os';
 import { FeatureAdapter } from '../../src/lib/workshop-adapters/feature.js';
 
 const FEATURES_DIR = new URL('../../features', import.meta.url).pathname;
@@ -35,6 +37,25 @@ describe('FeatureAdapter', () => {
       expect(section).toContain('curl http://example.com');
     } finally {
       await rm(sidecarPath, { force: true });
+    }
+  });
+
+  test('generate() with projectRoot finds feature sidecar in that root', async () => {
+    const tmpRoot = mkdtempSync(join(tmpdir(), 'feature-root-'));
+    await mkdir(join(tmpRoot, 'features', 'my-portable-feature'), { recursive: true });
+    await writeFile(
+      join(tmpRoot, 'features', 'my-portable-feature', 'workshop.md'),
+      '## YAML\n\n```yaml\napiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: portable-cm\n```\n',
+    );
+    try {
+      const section = await FeatureAdapter.generate({
+        name: 'my-portable-feature',
+        labNum: 1,
+        projectRoot: tmpRoot,
+      });
+      expect(section).toContain('portable-cm');
+    } finally {
+      await rm(tmpRoot, { recursive: true, force: true });
     }
   });
 

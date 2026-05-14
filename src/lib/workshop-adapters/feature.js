@@ -1,24 +1,17 @@
 // src/lib/workshop-adapters/feature.js
 import { readFile } from 'fs/promises';
 import { existsSync } from 'fs';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
-import '../../../features/index.js';
-import { FeatureManager } from '../feature.js';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-const PROJECT_ROOT = join(__dirname, '../../..');
+import { join } from 'path';
 
 export const FeatureAdapter = {
   /**
    * Generate a lab section for a standalone feature.
    * Priority: workshop.md sidecar > dryRun + JSDoc description.
-   * @param {{ name: string, labNum: number }} opts
+   * @param {{ name: string, labNum: number, projectRoot?: string }} opts
    * @returns {Promise<string>}
    */
-  async generate({ name, labNum }) {
-    const featureDir = join(PROJECT_ROOT, 'features', name);
+  async generate({ name, labNum, projectRoot = process.cwd() }) {
+    const featureDir = join(projectRoot, 'features', name);
     if (!existsSync(featureDir)) {
       throw new Error(`Feature '${name}' not found at ${featureDir}`);
     }
@@ -33,7 +26,7 @@ export const FeatureAdapter = {
       return _renderFromSidecar(lines, await readFile(sidecarPath, 'utf8'));
     }
 
-    return _renderFromDryRun(lines, name, featureDir);
+    return _renderFromDryRun(lines, name, featureDir, projectRoot);
   },
 };
 
@@ -66,7 +59,7 @@ function _renderFromSidecar(lines, sidecarContent) {
   return lines.join('\n');
 }
 
-async function _renderFromDryRun(lines, name, featureDir) {
+async function _renderFromDryRun(lines, name, featureDir, projectRoot) {
   // Extract description from JSDoc in index.js
   const description = await _extractJsDocDescription(join(featureDir, 'index.js'));
   if (description) {
@@ -80,9 +73,10 @@ async function _renderFromDryRun(lines, name, featureDir) {
   // dryRun with default config
   let yamls = [];
   try {
+    const { FeatureManager } = await import(join(projectRoot, 'features/index.js'));
     yamls = await FeatureManager.deploy(name, {}, { dryRun: true });
   } catch (_err) {
-    // dryRun failed with default config — show placeholder
+    // dryRun failed or no feature registry — show placeholder
   }
 
   if (yamls && yamls.length > 0) {
