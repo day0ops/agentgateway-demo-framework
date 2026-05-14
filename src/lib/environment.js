@@ -17,20 +17,20 @@ export class EnvironmentManager {
 
   /**
    * List available environments
+   * @param {string} [root] - Optional project root directory. Defaults to this project's root.
    * @returns {Promise<Array<{name: string, file: string, description: string}>>}
    */
-  static async list() {
-    if (!existsSync(this.ENVIRONMENTS_DIR)) {
+  static async list(root) {
+    const dir = root ? join(root, 'config', 'environments') : this.ENVIRONMENTS_DIR;
+    if (!existsSync(dir)) {
       return [];
     }
-
-    const files = await readdir(this.ENVIRONMENTS_DIR);
+    const files = await readdir(dir);
     const yamlFiles = files.filter(f => f.endsWith('.yaml'));
-
     const environments = [];
     for (const file of yamlFiles) {
       const name = basename(file, '.yaml');
-      const filePath = join(this.ENVIRONMENTS_DIR, file);
+      const filePath = join(dir, file);
       try {
         const content = await readFile(filePath, 'utf8');
         const env = yaml.load(content);
@@ -43,7 +43,6 @@ export class EnvironmentManager {
         environments.push({ name, file: filePath, description: '' });
       }
     }
-
     return environments.sort((a, b) => a.name.localeCompare(b.name));
   }
 

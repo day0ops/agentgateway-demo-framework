@@ -1,0 +1,199 @@
+// src/lib/workshop-adapters/install.js
+import { readFile } from 'fs/promises';
+import { join } from 'path';
+import yaml from 'js-yaml';
+
+// Defaults mirror src/lib/agentgateway.js constants
+const AGW_VERSION = process.env.AGENTGATEWAY_VERSION || '2.1.1';
+const AGW_NAMESPACE = process.env.AGENTGATEWAY_NAMESPACE || 'agentgateway-system';
+const AGW_RELEASE = process.env.AGENTGATEWAY_RELEASE || 'enterprise-agentgateway';
+const AGW_CRDS_RELEASE = process.env.AGENTGATEWAY_CRDS_RELEASE || 'enterprise-agentgateway-crds';
+const AGW_OCI = 'oci://us-docker.pkg.dev/solo-public/enterprise-agentgateway/charts';
+const GATEWAY_API_VERSION = process.env.GATEWAY_API_VERSION || 'v1.4.0';
+
+/**
+ * Resolve version/registry fields from optional profile data.
+ * @param {object|null} profileData
+ * @returns {{ version, ociRegistry, gatewayApiVersion, gatewayApiChannel, crdsVersion, crdsOciRegistry }}
+ */
+function _resolveVersions(profileData) {
+  return {
+    version: profileData?.agentgateway?.version ?? AGW_VERSION,
+    ociRegistry: profileData?.agentgateway?.ociRegistry ?? AGW_OCI,
+    gatewayApiVersion: profileData?.gatewayApi?.version ?? GATEWAY_API_VERSION,
+    gatewayApiChannel: profileData?.gatewayApi?.channel ?? 'standard',
+    crdsVersion:
+      profileData?.['agentgateway-crds']?.version ??
+      (profileData?.agentgateway?.version ?? AGW_VERSION),
+    crdsOciRegistry:
+      profileData?.['agentgateway-crds']?.ociRegistry ??
+      (profileData?.agentgateway?.ociRegistry ?? AGW_OCI),
+  };
+}
+
+export const InstallAdapter = {
+  /**
+   * Env vars required for the installation section.
+   */
+  envVars() {
+    return [
+      {
+        name: 'ENTERPRISE_AGW_LICENSE_KEY',
+        required: true,
+        description: 'Enterprise Agentgateway license key from Solo.io',
+      },
+    ];
+  },
+
+  /**
+   * Return env export objects for the consolidated env vars section.
+   * @param {object|null} profileData
+   * @returns {Array<{key: string, value: string, group: string}>}
+   */
+  envExports(profileData = null) {
+    const { version, crdsVersion, ociRegistry, gatewayApiVersion } = _resolveVersions(profileData);
+    const exports = [
+      { key: 'AGW_VERSION', value: version, group: 'versions' },
+      { key: 'AGW_OCI_REGISTRY', value: ociRegistry, group: 'registry' },
+      { key: 'GATEWAY_API_VERSION', value: gatewayApiVersion, group: 'versions' },
+      { key: 'AGW_NAMESPACE', value: AGW_NAMESPACE, group: 'settings' },
+      { key: 'AGW_RELEASE', value: AGW_RELEASE, group: 'settings' },
+      { key: 'AGW_CRDS_RELEASE', value: AGW_CRDS_RELEASE, group: 'settings' },
+    ];
+    if (crdsVersion !== version) {
+      exports.splice(1, 0, { key: 'AGW_CRDS_VERSION', value: crdsVersion, group: 'versions' });
+    }
+    return exports;
+  },
+
+  /**
+   * Generate the Installation lab section markdown.
+   * @param {{ addons?: string[], labNum?: number, profileData?: object|null }} opts
+   * @returns {Promise<string>}
+   */
+  async generate({ addons = [], labNum = 0, profileData = null, projectRoot = process.cwd(), envExports = [] } = {}) {
+    const { version, ociRegistry, gatewayApiVersion, gatewayApiChannel, crdsVersion } =
+      _resolveVersions(profileData);
+
+    const installFile =
+      gatewayApiChannel === 'experimental' ? 'experimental-install.yaml' : 'standard-install.yaml';
+    const channelLabel = gatewayApiChannel === 'experimental' ? 'experimental' : 'standard';
+
+    const sections = [];
+
+    sections.push(`## Lab ${labNum}: Installation`);
+    sections.push('');
+    sections.push('Install the Agentgateway control plane and required CRDs into your cluster.');
+
+    // Gateway API CRDs
+    sections.push('');
+    sections.push('### Install Gateway API CRDs');
+    sections.push('');
+    sections.push(
+      `Install the Gateway API ${channelLabel} channel CRDs (${gatewayApiVersion}):`
+    );
+    sections.push('');
+    sections.push('```bash');
+    sections.push(
+      `kubectl apply --server-side -f https://github.com/kubernetes-sigs/gateway-api/releases/download/\${GATEWAY_API_VERSION}/${installFile}`
+    );
+    sections.push('```');
+
+    // AGW CRDs
+    const crdsVersionVar = crdsVersion !== version ? '${AGW_CRDS_VERSION}' : '${AGW_VERSION}';
+    sections.push('');
+    sections.push('### Install Agentgateway CRDs');
+    sections.push('');
+    sections.push('```bash');
+    sections.push(`kubectl create namespace \${AGW_NAMESPACE} --dry-run=client -o yaml | kubectl apply -f -`);
+    sections.push('');
+    sections.push(`helm upgrade -i --create-namespace \\`);
+    sections.push(`  --namespace \${AGW_NAMESPACE} \\`);
+    sections.push(`  --version ${crdsVersionVar} \\`);
+    sections.push(`  \${AGW_CRDS_RELEASE} \\`);
+    sections.push(`  \${AGW_OCI_REGISTRY}/enterprise-agentgateway-crds`);
+    sections.push('```');
+
+    // AGW chart
+    sections.push('');
+    sections.push('### Install Agentgateway');
+    sections.push('');
+
+    const hasHelmValues =
+      profileData?.helmValues != null && Object.keys(profileData.helmValues).length > 0;
+
+    sections.push('```bash');
+    sections.push(`helm upgrade -i \\`);
+    sections.push(`  -n \${AGW_NAMESPACE} \\`);
+    sections.push(`  \${AGW_RELEASE} \\`);
+    sections.push(`  \${AGW_OCI_REGISTRY}/enterprise-agentgateway \\`);
+    sections.push(`  --version \${AGW_VERSION} \\`);
+
+    if (hasHelmValues) {
+      // Strip licensing key before dumping so the license key never appears in docs
+      const { licensing: _licensing, ...safeHelmValues } = profileData.helmValues;
+      let helmValuesYaml = yaml.dump(safeHelmValues, { indent: 2 }).trimEnd();
+      // Replace hardcoded namespace with shell variable
+      helmValuesYaml = helmValuesYaml.replaceAll('agentgateway-system', '${AGW_NAMESPACE}');
+      // Reverse-substitute resolved endpoint values with their env var references
+      for (const e of envExports) {
+        if (e.group === 'endpoints' && e.value && !e.value.startsWith('<')) {
+          helmValuesYaml = helmValuesYaml.replaceAll(e.value, `\${${e.key}}`);
+        }
+      }
+      sections.push(`  --set licensing.licenseKey=$ENTERPRISE_AGW_LICENSE_KEY \\`);
+      sections.push(`  --values - <<EOF`);
+      sections.push(helmValuesYaml);
+      sections.push('EOF');
+    } else {
+      sections.push(`  --set licensing.licenseKey=$ENTERPRISE_AGW_LICENSE_KEY \\`);
+      sections.push(`  --wait --timeout 5m`);
+    }
+    sections.push('```');
+
+    // Additional resources (profile-specific)
+    if (profileData?.resources?.length > 0) {
+      sections.push('');
+      sections.push('### Apply Additional Resources');
+      sections.push('');
+      sections.push('Apply the following profile-specific resources:');
+      sections.push('');
+      for (const resource of profileData.resources) {
+        const resourcePath = join(projectRoot, 'config', 'profiles', resource);
+        let content;
+        try {
+          content = await readFile(resourcePath, 'utf8');
+        } catch {
+          sections.push(`# (resource not found: config/profiles/${resource})`);
+          continue;
+        }
+        const processedContent = content.trimEnd().replaceAll('agentgateway-system', '${AGW_NAMESPACE}');
+        sections.push('```bash');
+        sections.push(`kubectl apply -f - <<EOF`);
+        sections.push(processedContent);
+        sections.push('EOF');
+        sections.push('```');
+      }
+    }
+
+    return sections.join('\n');
+  },
+
+  /**
+   * Return component version info for the versions table.
+   * @param {object|null} profileData
+   * @returns {{ agwVersion: string, gatewayApiVersion: string, agwOci: string }}
+   */
+  versions(profileData = null) {
+    const { version, ociRegistry, gatewayApiVersion, gatewayApiChannel } = _resolveVersions(profileData);
+    return {
+      agwVersion: version,
+      gatewayApiVersion,
+      gatewayApiChannel,
+      agwOci: ociRegistry,
+      agwRelease: AGW_RELEASE,
+      agwCrdsRelease: AGW_CRDS_RELEASE,
+      agwNamespace: AGW_NAMESPACE,
+    };
+  },
+};

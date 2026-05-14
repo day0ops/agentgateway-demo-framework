@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { Command } from 'commander';
-import { join } from 'path';
+import { join, resolve } from 'path';
 import chalk from 'chalk';
 import figlet from 'figlet';
 import { Lok8sManager } from './lib/lok8s.js';
@@ -14,6 +14,8 @@ import { CLI_VERSION, CLI_DESCRIPTION } from './lib/version.js';
 import { InfraManager } from './lib/infra-manager.js';
 import { InfraStateManager } from './lib/infra-state.js';
 import { Prompts } from './lib/prompts.js';
+import { writeFile } from 'fs/promises';
+import { WorkshopBuilder, WorkshopPicker } from './lib/workshop.js';
 
 const program = new Command();
 
@@ -827,6 +829,36 @@ usecase
       }
     } catch (error) {
       Logger.error(error.message);
+      process.exit(1);
+    }
+  });
+
+// ============================================
+// Workshop commands
+// ============================================
+const workshop = program.command('workshop').description('Generate workshop documentation');
+
+workshop
+  .command('generate')
+  .description('Interactively generate a workshop runbook markdown file')
+  .option('-o, --output <file>', 'Output file path', './workshop.md')
+  .option('-t, --title <title>', 'Workshop title (skips title prompt)')
+  .action(async options => {
+    try {
+      const selection = await WorkshopPicker.prompt();
+      if (options.title) selection.title = options.title;
+
+      Logger.info('Generating workshop document...');
+      const builder = new WorkshopBuilder(selection);
+      const markdown = await builder.build();
+
+      const outputPath = resolve(options.output);
+      await writeFile(outputPath, markdown, 'utf8');
+
+      Logger.success(`Workshop document written to: ${outputPath}`);
+      Logger.info(`Labs included: ${1 + (selection.providers.length > 0 ? 1 : 0) + selection.labs.length}`);
+    } catch (error) {
+      Logger.error(`Failed to generate workshop: ${error.message}`);
       process.exit(1);
     }
   });
