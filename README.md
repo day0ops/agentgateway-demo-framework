@@ -1,6 +1,6 @@
-# Agentgateway Demo Framework
+# Agent Gateway Demo Framework
 
-A modular framework for demonstrating and testing [agentgateway](https://agentgateway.dev) features.
+A modular framework for demonstrating and testing [agent gateway](https://agentgateway.dev) features.
 
 ![](./images/install.png)
 
@@ -64,9 +64,9 @@ Otherwise, run the following command after installing [lok8s](https://github.com
 make install-infra
 ```
 
-### 4. Install agentgateway
+### 4. Install agent gateway
 
-Run the following command to install agentgateway:
+Run the following command to install agent gateway:
 
 ```bash
 make install-gateway
@@ -125,7 +125,7 @@ agw workshop generate -o docs/my-workshop.md
 Pass `-t` to set the title without a prompt:
 
 ```bash
-agw workshop generate -t "Agentgateway Hands-on Lab"
+agw workshop generate -t "Agent gateway Hands-on Lab"
 ```
 
 ### Workshop Structure
@@ -167,7 +167,7 @@ features/index.js   — optional feature registry
 | `make install`             | Install everything (minimal profile)                                             |
 | `make install-interactive` | Install everything (interactive profile selection)                               |
 | `make install-infra`       | Install local Kubernetes cluster using [lok8s](https://github.com/day0ops/lok8s) |
-| `make install-gateway`     | Install agentgateway                                                             |
+| `make install-gateway`     | Install agent gateway                                                             |
 | `make start`               | Start lok8s cluster                                                              |
 | `make stop`                | Stop lok8s cluster                                                               |
 | `make status`              | Show infrastructure status                                                       |

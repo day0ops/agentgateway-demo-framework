@@ -115,7 +115,3 @@ record-install.sh
 
 #### Helm charts (if downloaded) ####
 charts/
-
-
-docs/superpowers/**
-**/superpowers/**
