@@ -361,14 +361,12 @@ const ADDON_DESCRIPTIONS = {
 
 function _choiceName(label, description, width = 24) {
   const indented = '  ' + label;
-  return description
-    ? indented.padEnd(width) + chalk.dim(description)
-    : indented;
+  return description ? indented.padEnd(width) + description : indented;
 }
 
 function _separator(title, description) {
   return new inquirer.Separator(
-    chalk.bold.cyan(` ${title}`) + (description ? chalk.dim(`  —  ${description}`) : '')
+    chalk.bold.green(` ${title}`) + (description ? chalk.dim(`  —  ${description}`) : '')
   );
 }
 
