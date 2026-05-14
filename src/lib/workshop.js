@@ -359,16 +359,21 @@ const ADDON_DESCRIPTIONS = {
   keycloak: 'Keycloak identity provider + PostgreSQL',
 };
 
-function _choiceName(label, description, width = 20) {
+function _choiceName(label, description, width = 24) {
+  const indented = '  ' + label;
   return description
-    ? label.padEnd(width) + chalk.dim(description)
-    : label;
+    ? indented.padEnd(width) + chalk.dim(description)
+    : indented;
 }
 
 function _separator(title, description) {
   return new inquirer.Separator(
-    chalk.bold(`  ◆  ${title}`) + (description ? chalk.dim(`  —  ${description}`) : '')
+    chalk.bold.cyan(`  ◆  ${title}`) + (description ? chalk.dim(`  —  ${description}`) : '')
   );
+}
+
+function _gap() {
+  return new inquirer.Separator('');
 }
 
 /**
@@ -394,6 +399,7 @@ export class WorkshopPicker {
     }
 
     // Providers
+    choices.push(_gap());
     choices.push(_separator('Providers', 'LLM backends to demo'));
     for (const p of KNOWN_PROVIDERS) {
       choices.push({
@@ -412,10 +418,11 @@ export class WorkshopPicker {
     }
 
     for (const [cat, items] of [...byCategory.entries()].sort()) {
+      choices.push(_gap());
       choices.push(_separator(`Use Cases: ${cat}`, 'feature demonstration labs'));
       for (const uc of items) {
         choices.push({
-          name: uc.displayName || uc.name,
+          name: _choiceName(uc.displayName || uc.name, null),
           value: { type: 'usecase', name: uc.name },
         });
       }
