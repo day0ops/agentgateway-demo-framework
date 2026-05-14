@@ -1,4 +1,5 @@
 import { readdir, readFile } from 'fs/promises';
+import { existsSync } from 'node:fs';
 import { join, basename } from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
@@ -32,10 +33,14 @@ export class ProfileManager {
 
   /**
    * Get all available profiles
+   * @param {string} [root] - Optional project root directory. Defaults to this project's root.
    * @returns {Promise<Array<{name: string, file: string, description: string}>>}
    */
   static async list(root) {
     const dir = root ? join(root, 'config', 'profiles') : this.PROFILES_DIR;
+    if (!existsSync(dir)) {
+      return [];
+    }
     try {
       const files = await readdir(dir);
       const yamlFiles = files.filter(f => f.endsWith('.yaml'));

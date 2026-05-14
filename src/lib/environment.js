@@ -17,6 +17,7 @@ export class EnvironmentManager {
 
   /**
    * List available environments
+   * @param {string} [root] - Optional project root directory. Defaults to this project's root.
    * @returns {Promise<Array<{name: string, file: string, description: string}>>}
    */
   static async list(root) {

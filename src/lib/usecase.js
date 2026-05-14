@@ -1,4 +1,5 @@
 import { readdir, readFile, writeFile } from 'fs/promises';
+import { existsSync } from 'node:fs';
 import { join, basename, relative } from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
@@ -93,11 +94,15 @@ export class UseCaseManager {
 
   /**
    * Get all available use cases (recursively searches subdirectories)
+   * @param {string} [root] - Optional project root directory. Defaults to this project's root.
    * @returns {Promise<Array<{name: string, file: string, displayName: string, category?: string}>>}
    */
   static async list(root) {
     try {
       const dir = root ? join(root, 'config', 'usecases') : this.USECASES_DIR;
+      if (!existsSync(dir)) {
+        return [];
+      }
       const yamlFiles = await this.findYamlFiles(dir, dir);
       return yamlFiles.map(({ file, relativePath }) => {
         const pathParts = relativePath.split('/');
@@ -116,6 +121,7 @@ export class UseCaseManager {
   /**
    * Get a specific use case by name (supports category/name format like "ai/function-calling")
    * @param {string} name - Use case name or "category/name" format
+   * @param {string} [root] - Optional project root directory. Defaults to this project's root.
    * @returns {Promise<{name: string, file: string, displayName: string, category?: string}>}
    */
   static async get(name, root) {
