@@ -1,23 +1,17 @@
 // src/lib/workshop-adapters/usecase.js
 import { readFile } from 'fs/promises';
 import { existsSync } from 'fs';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
+import { join } from 'path';
 import { UseCaseManager } from '../usecase.js';
-import { FeatureManager } from '../feature.js';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-const PROJECT_ROOT = join(__dirname, '../../..');
 
 export const UseCaseAdapter = {
   /**
    * Generate a lab section from a use case YAML.
-   * @param {{ name: string, labNum: number, deployedProviders: string[] }} opts
+   * @param {{ name: string, labNum: number, deployedProviders: string[], projectRoot?: string }} opts
    * @returns {Promise<string>}
    */
-  async generate({ name, labNum, deployedProviders = [] }) {
-    const ucMeta = await UseCaseManager.get(name);
+  async generate({ name, labNum, deployedProviders = [], projectRoot = process.cwd() }) {
+    const ucMeta = await UseCaseManager.get(name, projectRoot);
     const ucData = await UseCaseManager.parse(ucMeta.file);
     const { metadata, spec } = ucData;
 
@@ -69,7 +63,7 @@ export const UseCaseAdapter = {
           continue;
         }
 
-        const yamlDocs = await _getFeatureYaml(featureRef.name, featureRef.config || {});
+        const yamlDocs = await _getFeatureYaml(featureRef.name, featureRef.config || {}, projectRoot);
         for (const doc of yamlDocs) {
           lines.push('```yaml');
           lines.push(doc.trim());
@@ -92,14 +86,15 @@ export const UseCaseAdapter = {
   },
 };
 
-async function _getFeatureYaml(featureName, config) {
+async function _getFeatureYaml(featureName, config, projectRoot) {
   // Check for workshop.md sidecar
-  const sidecarPath = join(PROJECT_ROOT, 'features', featureName, 'workshop.md');
+  const sidecarPath = join(projectRoot, 'features', featureName, 'workshop.md');
   if (existsSync(sidecarPath)) {
     return _extractYamlFromSidecar(await readFile(sidecarPath, 'utf8'));
   }
   // Fall back to dryRun
   try {
+    const { FeatureManager } = await import(join(projectRoot, 'features/index.js'));
     const yamls = await FeatureManager.deploy(featureName, config, { dryRun: true });
     return yamls || [];
   } catch (_err) {

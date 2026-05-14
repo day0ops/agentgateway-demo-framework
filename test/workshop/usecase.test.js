@@ -1,5 +1,9 @@
 // test/workshop/usecase.test.js
 import { test, expect, describe } from 'bun:test';
+import { mkdtempSync } from 'fs';
+import { mkdir, rm } from 'fs/promises';
+import { join } from 'path';
+import { tmpdir } from 'os';
 import { UseCaseAdapter } from '../../src/lib/workshop-adapters/usecase.js';
 
 describe('UseCaseAdapter', () => {
@@ -30,6 +34,18 @@ describe('UseCaseAdapter', () => {
   test('generate(apikey-auth) contains yaml blocks from dryRun or sidecar', async () => {
     const section = await UseCaseAdapter.generate({ name: 'apikey-auth', labNum: 2, deployedProviders: ['openai'] });
     expect(section).toContain('```yaml');
+  });
+
+  test('generate() with empty-root projectRoot throws for valid use case (not found in empty dir)', async () => {
+    const tmpRoot = mkdtempSync(join(tmpdir(), 'uc-root-'));
+    await mkdir(join(tmpRoot, 'config', 'usecases'), { recursive: true });
+    try {
+      await expect(
+        UseCaseAdapter.generate({ name: 'apikey-auth', labNum: 2, deployedProviders: [], projectRoot: tmpRoot })
+      ).rejects.toThrow();
+    } finally {
+      await rm(tmpRoot, { recursive: true, force: true });
+    }
   });
 
   test('generate throws for unknown use case', async () => {
