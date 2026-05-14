@@ -1,5 +1,9 @@
 // test/workshop/install.test.js
 import { test, expect, describe } from 'bun:test';
+import { mkdtempSync } from 'fs';
+import { mkdir, writeFile, rm } from 'fs/promises';
+import { join } from 'path';
+import { tmpdir } from 'os';
 import { InstallAdapter } from '../../src/lib/workshop-adapters/install.js';
 
 describe('InstallAdapter', () => {
@@ -149,6 +153,26 @@ describe('InstallAdapter', () => {
     const exports = InstallAdapter.envExports(profileData);
     expect(exports.find(e => e.key === 'AGW_CRDS_VERSION')).toBeDefined();
     expect(exports.find(e => e.key === 'AGW_CRDS_VERSION').value).toBe('2.0.0');
+  });
+
+  test('generate() with projectRoot finds resources in that root', async () => {
+    const tmpRoot = mkdtempSync(join(tmpdir(), 'install-root-'));
+    const profileDir = join(tmpRoot, 'config', 'profiles', 'test-profile');
+    await mkdir(profileDir, { recursive: true });
+    await writeFile(
+      join(profileDir, 'resource.yaml'),
+      'apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: portability-test-cm\n',
+    );
+    try {
+      const section = await InstallAdapter.generate({
+        labNum: 0,
+        profileData: { resources: ['test-profile/resource.yaml'] },
+        projectRoot: tmpRoot,
+      });
+      expect(section).toContain('portability-test-cm');
+    } finally {
+      await rm(tmpRoot, { recursive: true, force: true });
+    }
   });
 
   test('generate() does not contain ### Set environment variables section', async () => {

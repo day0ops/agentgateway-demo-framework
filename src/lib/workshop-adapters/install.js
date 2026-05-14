@@ -1,12 +1,7 @@
 // src/lib/workshop-adapters/install.js
 import { readFile } from 'fs/promises';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
+import { join } from 'path';
 import yaml from 'js-yaml';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-const PROJECT_ROOT = join(__dirname, '../../..');
 
 // Defaults mirror src/lib/agentgateway.js constants
 const AGW_VERSION = process.env.AGENTGATEWAY_VERSION || '2.1.1';
@@ -76,7 +71,7 @@ export const InstallAdapter = {
    * @param {{ addons?: string[], labNum?: number, profileData?: object|null }} opts
    * @returns {Promise<string>}
    */
-  async generate({ addons = [], labNum = 0, profileData = null } = {}) {
+  async generate({ addons = [], labNum = 0, profileData = null, projectRoot = process.cwd() } = {}) {
     const { version, ociRegistry, gatewayApiVersion, gatewayApiChannel, crdsVersion } =
       _resolveVersions(profileData);
 
@@ -156,7 +151,7 @@ export const InstallAdapter = {
       sections.push('Apply the following profile-specific resources:');
       sections.push('');
       for (const resource of profileData.resources) {
-        const resourcePath = join(PROJECT_ROOT, 'config', 'profiles', resource);
+        const resourcePath = join(projectRoot, 'config', 'profiles', resource);
         let content;
         try {
           content = await readFile(resourcePath, 'utf8');
