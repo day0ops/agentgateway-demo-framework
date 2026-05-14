@@ -368,12 +368,12 @@ function _choiceName(label, description, width = 24) {
 
 function _separator(title, description) {
   return new inquirer.Separator(
-    chalk.bold.cyan(`  ◆  ${title}`) + (description ? chalk.dim(`  —  ${description}`) : '')
+    chalk.bold.cyan(` ${title}`) + (description ? chalk.dim(`  —  ${description}`) : '')
   );
 }
 
 function _gap() {
-  return new inquirer.Separator('');
+  return new inquirer.Separator(' ');
 }
 
 /**
