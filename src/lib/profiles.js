@@ -34,16 +34,16 @@ export class ProfileManager {
    * Get all available profiles
    * @returns {Promise<Array<{name: string, file: string, description: string}>>}
    */
-  static async list() {
+  static async list(root) {
+    const dir = root ? join(root, 'config', 'profiles') : this.PROFILES_DIR;
     try {
-      const files = await readdir(this.PROFILES_DIR);
+      const files = await readdir(dir);
       const yamlFiles = files.filter(f => f.endsWith('.yaml'));
-
       return yamlFiles.map(file => {
         const name = basename(file, '.yaml');
         return {
           name,
-          file: join(this.PROFILES_DIR, file),
+          file: join(dir, file),
           description: this.DESCRIPTIONS[name] || 'Custom profile',
         };
       });

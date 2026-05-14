@@ -95,10 +95,10 @@ export class UseCaseManager {
    * Get all available use cases (recursively searches subdirectories)
    * @returns {Promise<Array<{name: string, file: string, displayName: string, category?: string}>>}
    */
-  static async list() {
+  static async list(root) {
     try {
-      const yamlFiles = await this.findYamlFiles(this.USECASES_DIR);
-
+      const dir = root ? join(root, 'config', 'usecases') : this.USECASES_DIR;
+      const yamlFiles = await this.findYamlFiles(dir, dir);
       return yamlFiles.map(({ file, relativePath }) => {
         const pathParts = relativePath.split('/');
         const category = pathParts.length > 1 ? pathParts[0] : undefined;
@@ -106,13 +106,7 @@ export class UseCaseManager {
         const displayName = category
           ? `${category}/${name}`.replace(/-/g, ' ')
           : name.replace(/-/g, ' ');
-
-        return {
-          name,
-          file,
-          displayName,
-          category,
-        };
+        return { name, file, displayName, category };
       });
     } catch (error) {
       throw new Error(`Failed to list use cases: ${error.message}`);
@@ -124,16 +118,14 @@ export class UseCaseManager {
    * @param {string} name - Use case name or "category/name" format
    * @returns {Promise<{name: string, file: string, displayName: string, category?: string}>}
    */
-  static async get(name) {
-    const usecases = await this.list();
-
+  static async get(name, root) {
+    const usecases = await this.list(root);
     let usecase;
     if (name.includes('/')) {
       const [category, usecaseName] = name.split('/');
       usecase = usecases.find(u => u.category === category && u.name === usecaseName);
     } else {
       usecase = usecases.find(u => u.name === name);
-
       const matches = usecases.filter(u => u.name === name);
       if (matches.length > 1) {
         throw new Error(
@@ -142,11 +134,9 @@ export class UseCaseManager {
         );
       }
     }
-
     if (!usecase) {
       throw new Error(`Use case '${name}' not found`);
     }
-
     return usecase;
   }
 
