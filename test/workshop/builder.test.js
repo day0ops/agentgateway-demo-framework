@@ -89,6 +89,18 @@ describe('WorkshopBuilder', () => {
     expect(md).toContain('export AGW_VERSION=');
     expect(md).toContain('# Component versions');
   });
+
+  test('build() with explicit projectRoot uses that root', async () => {
+    const builder = new WorkshopBuilder({
+      title: 'Portability Test',
+      addons: [],
+      providers: [],
+      labs: [],
+      projectRoot: process.cwd(),
+    });
+    const md = await builder.build();
+    expect(md.startsWith('# Portability Test')).toBe(true);
+  });
 });
 
 describe('WorkshopPicker', () => {
@@ -114,6 +126,12 @@ describe('WorkshopPicker', () => {
     const choices = await WorkshopPicker.buildChoices();
     const values = choices.filter(c => c.value).map(c => c.value);
     expect(values.some(v => v.type === 'provider')).toBe(true);
+  });
+
+  test('buildChoices(projectRoot) includes addon entries from that root', async () => {
+    const choices = await WorkshopPicker.buildChoices(process.cwd());
+    const values = choices.filter(c => c.value).map(c => c.value);
+    expect(values.some(v => v.type === 'addon')).toBe(true);
   });
 });
 

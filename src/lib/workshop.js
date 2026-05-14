@@ -30,6 +30,7 @@ import { EnvironmentManager } from './environment.js';
 export class WorkshopBuilder {
   constructor(selection) {
     this.selection = selection;
+    this.projectRoot = selection.projectRoot ?? process.cwd();
   }
 
   /**
@@ -45,6 +46,7 @@ export class WorkshopBuilder {
       profile = null,
       environment = null,
     } = this.selection;
+    const projectRoot = this.projectRoot;
 
     // Load profile data if a profile was selected
     let profileData = null;
@@ -73,7 +75,7 @@ export class WorkshopBuilder {
     // ── Lab 0: Installation ─────────────────────────────────────────────────
     InstallAdapter.envVars().forEach(v => envVarMap.set(v.name, v));
     for (const addonName of addons) {
-      (await AddonAdapter.envVarsFor(addonName)).forEach(v => envVarMap.set(v.name, v));
+      (await AddonAdapter.envVarsFor(addonName, null, projectRoot)).forEach(v => envVarMap.set(v.name, v));
     }
 
     // Collect all env exports for the consolidated section
@@ -86,7 +88,7 @@ export class WorkshopBuilder {
     for (const addonName of addons) {
       const profileAddonEntry = profileData?.addons?.find(a => a.name === addonName);
       const profileAddonConfig = profileAddonEntry?.config || null;
-      (await AddonAdapter.envExportsFor(addonName, profileAddonConfig)).forEach(e => allEnvExports.push(e));
+      (await AddonAdapter.envExportsFor(addonName, profileAddonConfig, projectRoot)).forEach(e => allEnvExports.push(e));
     }
 
     // Deduplicate by key (first occurrence wins)
@@ -97,12 +99,12 @@ export class WorkshopBuilder {
       return true;
     });
 
-    const installLines = [await InstallAdapter.generate({ addons, labNum, profileData })];
+    const installLines = [await InstallAdapter.generate({ addons, labNum, profileData, projectRoot })];
     for (const addonName of addons) {
       const profileAddonEntry = profileData?.addons?.find(a => a.name === addonName);
       const profileAddonConfig = profileAddonEntry?.config || null;
       installLines.push('');
-      installLines.push(await AddonAdapter.generate(addonName, labNum, profileAddonConfig));
+      installLines.push(await AddonAdapter.generate(addonName, labNum, profileAddonConfig, projectRoot));
     }
     labSections.push(installLines.join('\n'));
     labNum++;
@@ -110,7 +112,7 @@ export class WorkshopBuilder {
     // ── Lab 1: Providers ────────────────────────────────────────────────────
     if (providers.length > 0) {
       ProviderAdapter.envVarsFor(providers).forEach(v => envVarMap.set(v.name, v));
-      labSections.push(await ProviderAdapter.generate(providers, labNum));
+      labSections.push(await ProviderAdapter.generate(providers, labNum, projectRoot));
       labNum++;
     }
 
@@ -118,10 +120,10 @@ export class WorkshopBuilder {
     for (const lab of labs) {
       if (lab.type === 'usecase') {
         labSections.push(
-          await UseCaseAdapter.generate({ name: lab.name, labNum, deployedProviders: providers })
+          await UseCaseAdapter.generate({ name: lab.name, labNum, deployedProviders: providers, projectRoot })
         );
       } else if (lab.type === 'feature') {
-        labSections.push(await FeatureAdapter.generate({ name: lab.name, labNum }));
+        labSections.push(await FeatureAdapter.generate({ name: lab.name, labNum, projectRoot }));
       }
       labNum++;
     }
@@ -288,12 +290,12 @@ export class WorkshopPicker {
    * Choices are grouped by separators: Addons, Providers, Use Cases.
    * @returns {Promise<Array>}
    */
-  static async buildChoices() {
+  static async buildChoices(projectRoot = process.cwd()) {
     const choices = [];
 
     // Addons
     choices.push(new inquirer.Separator('── Addons ──'));
-    for (const addonName of await AddonAdapter.knownAddons()) {
+    for (const addonName of await AddonAdapter.knownAddons(projectRoot)) {
       choices.push({
         name: addonName,
         value: { type: 'addon', name: addonName },
@@ -310,7 +312,7 @@ export class WorkshopPicker {
     }
 
     // Use cases grouped by category
-    const usecases = await UseCaseManager.list();
+    const usecases = await UseCaseManager.list(projectRoot);
     const byCategory = new Map();
     for (const uc of usecases) {
       const cat = uc.category || 'general';
@@ -336,12 +338,13 @@ export class WorkshopPicker {
    * @returns {Promise<import('./workshop.js').WorkshopSelection>}
    */
   static async prompt() {
+    const projectRoot = process.cwd();
     const title = await Prompts.input('Workshop title:', 'Agentgateway Workshop');
 
     // Profile selection
     let profile = null;
     let environment = null;
-    const profiles = await ProfileManager.list();
+    const profiles = await ProfileManager.list(projectRoot);
     if (profiles.length > 0) {
       const profileChoices = [
         { name: 'None (use defaults)', value: null },
@@ -355,7 +358,7 @@ export class WorkshopPicker {
 
     // Environment selection
     if (profile) {
-      const environments = await EnvironmentManager.list();
+      const environments = await EnvironmentManager.list(projectRoot);
       if (environments.length === 1) {
         // Only one environment — auto-select without prompting
         environment = environments[0].name;
@@ -368,7 +371,7 @@ export class WorkshopPicker {
       }
     }
 
-    const choices = await this.buildChoices();
+    const choices = await this.buildChoices(projectRoot);
     const selected = await Prompts.multiSelect('Select labs to include:', choices);
 
     const addons = selected.filter(s => s.type === 'addon').map(s => s.name);
@@ -377,6 +380,6 @@ export class WorkshopPicker {
       .filter(s => s.type === 'usecase' || s.type === 'feature')
       .map(s => ({ type: s.type, name: s.name }));
 
-    return { title, addons, providers, labs, profile, environment };
+    return { title, addons, providers, labs, profile, environment, projectRoot };
   }
 }
