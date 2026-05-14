@@ -2,7 +2,7 @@ apiVersion: agentgateway.demo/v1
 kind: InfraProfile
 metadata:
   name: eks-single-cluster
-  description: Single standard EKS cluster for quick demos and testing
+  description: EKS single cluster
 
 spec:
   provider: eks

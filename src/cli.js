@@ -23,7 +23,7 @@ const program = new Command();
 function showBanner() {
   const banner = figlet.textSync('Agentgateway', { font: 'Standard', horizontalLayout: 'default' });
   console.log(chalk.blue(banner));
-  console.log(chalk.gray(`  Solo.io Agentgateway Demo Framework v${CLI_VERSION}\n`));
+  console.log(chalk.gray(`  Agentgateway Demo Framework v${CLI_VERSION}\n`));
 }
 
 program
