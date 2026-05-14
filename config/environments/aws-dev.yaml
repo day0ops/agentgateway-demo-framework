@@ -20,13 +20,13 @@ spec:
       hostedZoneId: Z08818701HDZ6PBD6LPXU
     childZone: demo
 
-  # Domain mappings - auto-generated pattern: <service>.<childZone>.<parentDomain>
   tls:
     issuer: letsencrypt-dns
 
   keycloak:
     scheme: https
 
+  # Domain mappings - auto-generated pattern: <service>.<childZone>.<parentDomain>
   domains:
     keycloak: keycloak.demo.kasunt.apac.fe.solo.io
     grafana: grafana.demo.kasunt.apac.fe.solo.io

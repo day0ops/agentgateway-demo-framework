@@ -448,6 +448,7 @@ base
     '-p, --profile <name>',
     'Installation profile (standard, standard-with-telemetry, advanced)'
   )
+  .option('--infra <name>', 'Infra profile name (sets KUBECONFIG from provisioned state)')
   .option('--no-prompt', 'Skip interactive prompts and use defaults')
   .option('--skip-addons', 'Skip addon installation')
   .action(async options => {
@@ -477,6 +478,38 @@ base
         } catch (error) {
           Logger.error(`Failed to select/load profile: ${error.message}`);
           throw error;
+        }
+      }
+
+      // Resolve infra: explicit flag > profile binding > auto-detect from provisioned state
+      let resolvedInfra = options.infra || (profileData && profileData.infra) || null;
+
+      if (!resolvedInfra) {
+        const provisioned = (await InfraStateManager.listInfraProfiles()).filter(p => p.provisioned);
+        if (provisioned.length === 1) {
+          resolvedInfra = provisioned[0].name;
+          Logger.info(`Auto-detected provisioned infra: ${resolvedInfra}`);
+        } else if (provisioned.length > 1) {
+          const choices = provisioned.map(p => ({ name: p.name, value: p.name }));
+          resolvedInfra = await Prompts.select('Multiple provisioned infra profiles found. Select one:', choices);
+        }
+      } else {
+        Logger.info(`Using infra '${resolvedInfra}' from profile`);
+      }
+
+      if (resolvedInfra) {
+        const infraState = await InfraStateManager.load(resolvedInfra);
+        if (!infraState?.status?.provisioned) {
+          Logger.error(`Infra '${resolvedInfra}' is not provisioned. Run 'agw base cloud provision -p ${resolvedInfra}' first.`);
+          process.exit(1);
+        }
+        const contexts = InfraStateManager.getAllContexts(infraState);
+        const kubeconfigs = contexts.map(c => c.kubeconfig).filter(Boolean);
+        if (kubeconfigs.length > 0) {
+          const existing = process.env.KUBECONFIG || '';
+          const merged = [...new Set([...existing.split(':').filter(Boolean), ...kubeconfigs])].join(':');
+          process.env.KUBECONFIG = merged;
+          Logger.info(`KUBECONFIG set from infra state: ${process.env.KUBECONFIG}`);
         }
       }
 
@@ -514,6 +547,7 @@ base
     '-p, --profile <name>',
     'Installation profile (standard, standard-with-telemetry, advanced)'
   )
+  .option('--infra <name>', 'Infra profile name (sets KUBECONFIG from provisioned state)')
   .option('--no-prompt', 'Skip interactive prompts and use defaults')
   .action(async options => {
     const startTime = Date.now();
@@ -545,6 +579,38 @@ base
         } catch (error) {
           Logger.error(`Failed to select/load profile: ${error.message}`);
           throw error;
+        }
+      }
+
+      // Resolve infra: explicit flag > profile binding > auto-detect from provisioned state
+      let resolvedInfra = options.infra || (profileData && profileData.infra) || null;
+
+      if (!resolvedInfra) {
+        const provisioned = (await InfraStateManager.listInfraProfiles()).filter(p => p.provisioned);
+        if (provisioned.length === 1) {
+          resolvedInfra = provisioned[0].name;
+          Logger.info(`Auto-detected provisioned infra: ${resolvedInfra}`);
+        } else if (provisioned.length > 1) {
+          const choices = provisioned.map(p => ({ name: p.name, value: p.name }));
+          resolvedInfra = await Prompts.select('Multiple provisioned infra profiles found. Select one:', choices);
+        }
+      } else {
+        Logger.info(`Using infra '${resolvedInfra}' from profile`);
+      }
+
+      if (resolvedInfra) {
+        const infraState = await InfraStateManager.load(resolvedInfra);
+        if (!infraState?.status?.provisioned) {
+          Logger.error(`Infra '${resolvedInfra}' is not provisioned. Run 'agw base cloud provision -p ${resolvedInfra}' first.`);
+          process.exit(1);
+        }
+        const contexts = InfraStateManager.getAllContexts(infraState);
+        const kubeconfigs = contexts.map(c => c.kubeconfig).filter(Boolean);
+        if (kubeconfigs.length > 0) {
+          const existing = process.env.KUBECONFIG || '';
+          const merged = [...new Set([...existing.split(':').filter(Boolean), ...kubeconfigs])].join(':');
+          process.env.KUBECONFIG = merged;
+          Logger.info(`KUBECONFIG set from infra state: ${process.env.KUBECONFIG}`);
         }
       }
 

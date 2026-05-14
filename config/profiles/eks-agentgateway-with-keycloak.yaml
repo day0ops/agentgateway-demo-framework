@@ -3,48 +3,51 @@
 ## Reference: https://docs.solo.io/agentgateway/latest/security/
 
 environment: aws-dev
+infra: eks-single-cluster
 
 agentgateway:
-  version: 'v2026.5.0-beta.3'
+  version: "v2026.5.0-beta.4"
   # ociRegistry: 'oci://us-central1-docker.pkg.dev/developers-369321/enterprise-agentgateway-public-nonprod/charts'
-  ociRegistry: 'oci://us-docker.pkg.dev/solo-public/enterprise-agentgateway/charts'
+  ociRegistry: "oci://us-docker.pkg.dev/solo-public/enterprise-agentgateway/charts"
   # version: v2.3.0-beta.5-8-ge5b1f320b-dirty
   # ociRegistry: oci://australia-southeast1-docker.pkg.dev/field-engineering-apac/public-repo/charts
 
 agentgateway-crds:
-  version: 'v2026.5.0-beta.3'
+  version: "v2026.5.0-beta.4"
   # ociRegistry: 'oci://us-central1-docker.pkg.dev/developers-369321/enterprise-agentgateway-public-nonprod/charts'
-  ociRegistry: 'oci://us-docker.pkg.dev/solo-public/enterprise-agentgateway/charts'
+  ociRegistry: "oci://us-docker.pkg.dev/solo-public/enterprise-agentgateway/charts"
   # version: v2.3.0-beta.5-8-ge5b1f320b-dirty
   # ociRegistry: oci://australia-southeast1-docker.pkg.dev/field-engineering-apac/public-repo/charts
 
   # enable Gateway API experimental features
 gatewayApi:
-  version: 'v1.5.1'
+  version: "v1.5.1"
   channel: experimental
 
 helmValues:
   controller:
     extraEnv:
       # enable Gateway API experimental features in the controller
-      KGW_ENABLE_GATEWAY_API_EXPERIMENTAL_FEATURES: 'true'
+      KGW_ENABLE_GATEWAY_API_EXPERIMENTAL_FEATURES: "true"
 
   # STS token exchange configuration
   tokenExchange:
     enabled: true
-    issuer: 'enterprise-agentgateway.agentgateway-system.svc.cluster.local:7777'
+    issuer: "enterprise-agentgateway.agentgateway-system.svc.cluster.local:7777"
     tokenExpiration: 24h
     subjectValidator:
       validatorType: remote
       remoteConfig:
-        url: "https://{{env.domains.keycloak}}/realms/agw-dev/protocol/openid-connect/c\
+        url:
+          "https://{{env.domains.keycloak}}/realms/agw-dev/protocol/openid-connect/c\
           erts"
     actorValidator:
       validatorType: k8s
     apiValidator:
       validatorType: remote
       remoteConfig:
-        url: "https://{{env.domains.keycloak}}/realms/agw-dev/protocol/openid-connect/c\
+        url:
+          "https://{{env.domains.keycloak}}/realms/agw-dev/protocol/openid-connect/c\
           erts"
 
 resources:
@@ -67,8 +70,8 @@ addons:
     config:
       letsencrypt:
         enabled: true
-        email: '{{env.acme.email}}'
-        region: '{{env.aws.region}}'
+        email: "{{env.acme.email}}"
+        region: "{{env.aws.region}}"
 
   ## external-dns (must be before keycloak so DNS records are created)
   - name: external-dns
@@ -76,8 +79,8 @@ addons:
     namespace: external-dns
     config:
       provider: route53
-      zoneId: '{{env.dns.parentZone.hostedZoneId}}'
-      domainFilter: '{{env.dns.childZone}}.{{env.dns.parentZone.domain}}'
+      zoneId: "{{env.dns.parentZone.hostedZoneId}}"
+      domainFilter: "{{env.dns.childZone}}.{{env.dns.parentZone.domain}}"
       region: ap-southeast-2
 
   ## keycloak
@@ -87,7 +90,7 @@ addons:
     config:
       storageClassName: gp3 # (requires EBS CSI driver)
       keycloakNamespace: keycloak
-      hostname: '{{env.domains.keycloak}}'
+      hostname: "{{env.domains.keycloak}}"
       protocol: https
       tls:
         enabled: true
@@ -114,27 +117,51 @@ addons:
               firstName: Acme Corp
               lastName: Admin
               email: acme-corp-admin@acme-corp.demo
-              attributes: { org_id: acme-corp, is_org: 'true', group: admins }
+              attributes: { org_id: acme-corp, is_org: "true", group: admins }
             - username: user1
               firstName: Alpha
               lastName: User
               email: user1@acme-corp.demo
-              attributes: { org_id: acme-corp, team_id: team-alpha, group: users, is_org: 'false' }
+              attributes:
+                {
+                  org_id: acme-corp,
+                  team_id: team-alpha,
+                  group: users,
+                  is_org: "false",
+                }
             - username: user2
               firstName: Beta
               lastName: User Two
               email: user2@acme-corp.demo
-              attributes: { org_id: acme-corp, team_id: team-beta, group: users, is_org: 'false' }
+              attributes:
+                {
+                  org_id: acme-corp,
+                  team_id: team-beta,
+                  group: users,
+                  is_org: "false",
+                }
             - username: team-alpha-admin
               firstName: Team Alpha
               lastName: Admin
               email: team-alpha-admin@acme-corp.demo
-              attributes: { org_id: acme-corp, team_id: team-alpha, group: users, is_org: 'false' }
+              attributes:
+                {
+                  org_id: acme-corp,
+                  team_id: team-alpha,
+                  group: users,
+                  is_org: "false",
+                }
             - username: team-beta-admin
               firstName: Team Beta
               lastName: Admin
               email: team-beta-admin@acme-corp.demo
-              attributes: { org_id: acme-corp, team_id: team-beta, group: users, is_org: 'false' }
+              attributes:
+                {
+                  org_id: acme-corp,
+                  team_id: team-beta,
+                  group: users,
+                  is_org: "false",
+                }
 
         - realm: org-acme
           orgId: acme
@@ -153,7 +180,8 @@ addons:
                   firstName: Acme Eng
                   lastName: Admin
                   email: acme-eng-admin@org-acme.demo
-                  attributes: { org_id: acme, team_id: team-eng, is_org: 'true' }
+                  attributes:
+                    { org_id: acme, team_id: team-eng, is_org: "true" }
             - teamId: team-finance
               clientId: acme-team-finance
               clientSecret: acme-team-finance-secret
@@ -236,7 +264,7 @@ addons:
       soloUIClients:
         enabled: true
         realm: solo-ui
-        hostname: 'https://{{env.domains.soloUI}}'
+        hostname: "https://{{env.domains.soloUI}}"
         backendClientId: solo-ui-backend
         backendClientSecret: solo-ui-backend-secret
         frontendClientId: solo-ui-frontend
@@ -262,17 +290,17 @@ addons:
     description: Solo Enterprise UI for agentgateway
     namespace: agentgateway-system
     config:
-      managementChartVersion: '0.3.13'
+      managementChartVersion: "0.3.13"
       storageClassName: gp3
       serviceType: ClusterIP
-      hostname: '{{env.domains.soloUI}}'
+      hostname: "{{env.domains.soloUI}}"
       tls:
         enabled: true
         secretName: solo-ui-tls
-        issuer: '{{env.tls.issuer}}'
+        issuer: "{{env.tls.issuer}}"
       oidc:
         enabled: true
-        issuerUrl: 'https://{{env.domains.keycloak}}/realms/solo-ui'
+        issuerUrl: "https://{{env.domains.keycloak}}/realms/solo-ui"
         backendClientId: solo-ui-backend
         backendClientSecret: solo-ui-backend-secret
         frontendClientId: solo-ui-frontend
@@ -283,6 +311,6 @@ addons:
     namespace: telemetry
     config:
       gatewayNamespace: agentgateway-system
-      retention: '120h' # 5 days
-      grafanaServiceType: 'LoadBalancer'
-      grafanaHostname: '{{env.domains.grafana}}'
+      retention: "120h" # 5 days
+      grafanaServiceType: "LoadBalancer"
+      grafanaHostname: "{{env.domains.grafana}}"

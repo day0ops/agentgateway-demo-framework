@@ -85,6 +85,7 @@ export class ProfileManager {
         helmValues: profile.helmValues || profile,
         addons: profile.addons || [],
         resources: profile.resources || [],
+        infra: profile.infra || null,
       };
     } catch (error) {
       throw new Error(`Failed to load profile: ${error.message}`);
