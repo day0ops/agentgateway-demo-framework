@@ -99,6 +99,65 @@ For e.g. a use case to demo OpenAI provider routing can be deployed:
 | `agentgateway-custom-config`      | Custom configuration                                                  |
 | `agentgateway-custom-version`     | Custom version, OCI registry, and controller extraEnv                 |
 
+## Workshop Generation
+
+Generate a self-contained workshop runbook (Markdown) from this repo's profiles, addons, providers, and use cases.
+
+```bash
+agw workshop generate
+```
+
+The command runs an interactive prompt to configure:
+
+- **Title** — workshop document heading
+- **Addons** — optional components to install (telemetry, cert-manager, keycloak, solo-ui)
+- **Providers** — LLM backends to demo (openai, bedrock, vertex, etc.)
+- **Labs** — use-case or feature labs to include after the providers lab
+- **Profile** — pin component versions and configuration (optional)
+- **Environment** — deployment environment overrides (optional)
+
+Output is written to `./workshop.md` by default. Use `-o` to change the path:
+
+```bash
+agw workshop generate -o docs/my-workshop.md
+```
+
+Pass `-t` to set the title without a prompt:
+
+```bash
+agw workshop generate -t "Agentgateway Hands-on Lab"
+```
+
+### Workshop Structure
+
+The generated document follows this structure:
+
+| Section | Content |
+|---------|---------|
+| `## Environment Variables` | Credential table + consolidated `export` block |
+| `## Prerequisites` | Required tools (kubectl, helm, jq, etc.) |
+| `## Component Versions` | Version table sourced from the selected profile |
+| `## Lab 0: Installation` | agentgateway + Gateway API CRDs + addon installs |
+| `## Lab 1: Providers` | Provider-specific manifests (one per selected provider) |
+| `## Lab N: <use-case>` | Use-case or feature lab content |
+| `## Cleanup` | Teardown commands |
+
+### Portability
+
+The workshop generation code is portable. Copy `src/lib/workshop.js`, `src/lib/workshop-adapters/`, and the per-addon `addons/<name>/workshop.js` sidecars into any repo that follows the same directory layout:
+
+```
+config/profiles/    — YAML profile files
+config/environments/ — YAML environment files
+config/usecases/    — YAML use-case definitions
+addons/<name>/workshop.js  — addon sidecar (envVarsFor, envExportsFor, generate)
+features/index.js   — optional feature registry
+```
+
+`WorkshopBuilder` defaults `projectRoot` to `process.cwd()`, so no configuration change is needed when running from the target repo's root.
+
+---
+
 ## Commands
 
 ### Setup
