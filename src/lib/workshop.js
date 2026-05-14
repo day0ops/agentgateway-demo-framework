@@ -73,7 +73,7 @@ export class WorkshopBuilder {
     // ── Lab 0: Installation ─────────────────────────────────────────────────
     InstallAdapter.envVars().forEach(v => envVarMap.set(v.name, v));
     for (const addonName of addons) {
-      AddonAdapter.envVarsFor(addonName).forEach(v => envVarMap.set(v.name, v));
+      (await AddonAdapter.envVarsFor(addonName)).forEach(v => envVarMap.set(v.name, v));
     }
 
     // Collect all env exports for the consolidated section
@@ -86,7 +86,7 @@ export class WorkshopBuilder {
     for (const addonName of addons) {
       const profileAddonEntry = profileData?.addons?.find(a => a.name === addonName);
       const profileAddonConfig = profileAddonEntry?.config || null;
-      AddonAdapter.envExportsFor(addonName, profileAddonConfig).forEach(e => allEnvExports.push(e));
+      (await AddonAdapter.envExportsFor(addonName, profileAddonConfig)).forEach(e => allEnvExports.push(e));
     }
 
     // Deduplicate by key (first occurrence wins)
@@ -293,7 +293,7 @@ export class WorkshopPicker {
 
     // Addons
     choices.push(new inquirer.Separator('── Addons ──'));
-    for (const addonName of AddonAdapter.knownAddons()) {
+    for (const addonName of await AddonAdapter.knownAddons()) {
       choices.push({
         name: addonName,
         value: { type: 'addon', name: addonName },
