@@ -366,7 +366,7 @@ function _choiceName(label, description, width = 24) {
 
 function _separator(title, description) {
   return new inquirer.Separator(
-    chalk.bold.green(` ${title}`) + (description ? chalk.dim(`  —  ${description}`) : '')
+    chalk.bold.magenta(` ${title}`) + (description ? chalk.dim(`  —  ${description}`) : '')
   );
 }
 
