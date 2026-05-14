@@ -52,3 +52,12 @@ export async function generate(_subIndex, _cfg) {
   lines.push('```');
   return lines.join('\n');
 }
+
+export function cleanup(_cfg) {
+  return [
+    '```bash',
+    'helm uninstall cert-manager -n ${CERT_MANAGER_NAMESPACE}',
+    'kubectl delete namespace ${CERT_MANAGER_NAMESPACE} --ignore-not-found',
+    '```',
+  ].join('\n');
+}

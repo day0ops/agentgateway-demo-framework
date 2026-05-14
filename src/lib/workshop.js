@@ -99,7 +99,14 @@ export class WorkshopBuilder {
       return true;
     });
 
-    const installLines = [await InstallAdapter.generate({ addons, labNum, profileData, projectRoot })];
+    // Build addon config map for cleanup
+    const addonConfigMap = {};
+    for (const addonName of addons) {
+      const entry = profileData?.addons?.find(a => a.name === addonName);
+      addonConfigMap[addonName] = entry?.config ?? null;
+    }
+
+    const installLines = [await InstallAdapter.generate({ addons, labNum, profileData, projectRoot, envExports: dedupedExports })];
     for (const addonName of addons) {
       const profileAddonEntry = profileData?.addons?.find(a => a.name === addonName);
       const profileAddonConfig = profileAddonEntry?.config || null;
@@ -136,7 +143,7 @@ export class WorkshopBuilder {
       this._renderVersions(profileData),
       this._renderEnvVarsSection(allEnvVars, dedupedExports),
       ...labSections,
-      this._renderCleanup(profileData),
+      await this._renderCleanup(profileData, addons, addonConfigMap, projectRoot),
     ];
 
     return parts.join('\n\n---\n\n');
@@ -167,19 +174,56 @@ export class WorkshopBuilder {
    * @returns {string}
    */
   _renderEnvVarsSection(vars, exports = []) {
+    const groupLabels = {
+      credentials: 'Credentials',
+      versions: 'Component versions',
+      registry: 'Helm registries',
+      settings: 'Kubernetes settings',
+      endpoints: 'Service endpoints',
+    };
+    const groupOrder = ['credentials', 'versions', 'registry', 'settings', 'endpoints'];
+
+    // Deduplicate and sort credential vars
     const seen = new Set();
-    const deduped = vars.filter(v => {
+    const dedupedVars = vars.filter(v => {
       if (seen.has(v.name)) return false;
       seen.add(v.name);
       return true;
     });
-
-    deduped.sort((a, b) => {
+    dedupedVars.sort((a, b) => {
       const aReq = a.required === true || a.required === 'true';
       const bReq = b.required === true || b.required === 'true';
       if (aReq && !bReq) return -1;
       if (!aReq && bReq) return 1;
       return a.name.localeCompare(b.name);
+    });
+
+    // Deduplicate exports
+    const seenKeys = new Set();
+    const dedupedExports = exports.filter(e => {
+      if (seenKeys.has(e.key)) return false;
+      seenKeys.add(e.key);
+      return true;
+    });
+
+    // Build unified row list: credentials first, then exports by group
+    const credRows = dedupedVars.map(v => ({
+      group: 'credentials',
+      variable: v.name,
+      required: v.required === true ? '✅ Required' : (v.required || 'Optional'),
+      description: v.description || '',
+    }));
+    const exportRows = dedupedExports.map(e => ({
+      group: e.group || 'settings',
+      variable: e.key,
+      required: '-',
+      description: `\`${e.value}\``,
+    }));
+
+    const allRows = [...credRows, ...exportRows].sort((a, b) => {
+      const ai = groupOrder.indexOf(a.group);
+      const bi = groupOrder.indexOf(b.group);
+      return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
     });
 
     const lines = [
@@ -189,20 +233,21 @@ export class WorkshopBuilder {
       '',
     ];
 
-    // Credentials table (only if vars.length > 0)
-    if (deduped.length > 0) {
-      lines.push('| Variable | Required | Description |');
-      lines.push('|----------|----------|-------------|');
-      for (const v of deduped) {
-        const req = v.required === true ? '✅ Required' : v.required || 'Optional';
-        lines.push(`| \`${v.name}\` | ${req} | ${v.description} |`);
+    if (allRows.length > 0) {
+      lines.push('| Category | Variable | Required | Description |');
+      lines.push('|----------|----------|----------|-------------|');
+      let currentGroup = null;
+      for (const row of allRows) {
+        const categoryCell = currentGroup === row.group ? '' : (groupLabels[row.group] || row.group);
+        currentGroup = row.group;
+        lines.push(`| ${categoryCell} | \`${row.variable}\` | ${row.required} | ${row.description} |`);
       }
       lines.push('');
     }
 
-    // Bash exports block (only if exports.length > 0)
-    if (exports.length > 0) {
-      const groupOrder = ['versions', 'registry', 'settings', 'endpoints'];
+    // Bash exports block
+    if (dedupedExports.length > 0) {
+      const exportGroupOrder = ['versions', 'registry', 'settings', 'endpoints'];
       const groupComments = {
         versions: '# Component versions',
         registry: '# Helm registries',
@@ -210,20 +255,20 @@ export class WorkshopBuilder {
         endpoints: '# Service endpoints',
       };
 
-      const sortedExports = [...exports].sort((a, b) => {
-        const ai = groupOrder.indexOf(a.group || 'settings');
-        const bi = groupOrder.indexOf(b.group || 'settings');
+      const sortedExports = [...dedupedExports].sort((a, b) => {
+        const ai = exportGroupOrder.indexOf(a.group || 'settings');
+        const bi = exportGroupOrder.indexOf(b.group || 'settings');
         return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
       });
 
       lines.push('```bash');
-      let currentGroup = null;
+      let currentExportGroup = null;
       for (const e of sortedExports) {
         const group = e.group || 'settings';
-        if (group !== currentGroup) {
-          if (currentGroup !== null) lines.push('');
+        if (group !== currentExportGroup) {
+          if (currentExportGroup !== null) lines.push('');
           lines.push(groupComments[group] || `# ${group}`);
-          currentGroup = group;
+          currentExportGroup = group;
         }
         lines.push(`export ${e.key}="${e.value}"`);
       }
@@ -250,25 +295,46 @@ export class WorkshopBuilder {
     ].join('\n');
   }
 
-  _renderCleanup(profileData = null) {
-    const { agwRelease, agwCrdsRelease, agwNamespace, gatewayApiVersion, gatewayApiChannel } =
+  async _renderCleanup(profileData = null, addons = [], addonConfigs = {}, projectRoot = process.cwd()) {
+    const { agwRelease, agwCrdsRelease, gatewayApiVersion, gatewayApiChannel } =
       InstallAdapter.versions(profileData);
     const installFile =
       gatewayApiChannel === 'experimental' ? 'experimental-install.yaml' : 'standard-install.yaml';
-    return [
+
+    const sections = [
       '## Cleanup',
       '',
       'To remove all resources created in this workshop:',
       '',
-      '```bash',
-      '# Remove agentgateway',
-      `helm uninstall ${agwRelease} -n ${agwNamespace}`,
-      `helm uninstall ${agwCrdsRelease} -n ${agwNamespace}`,
-      '',
-      '# Remove Gateway API CRDs',
-      `kubectl delete -f https://github.com/kubernetes-sigs/gateway-api/releases/download/${gatewayApiVersion}/${installFile}`,
-      '```',
-    ].join('\n');
+    ];
+
+    // Addon cleanup in reverse install order
+    for (const addonName of [...addons].reverse()) {
+      const cfg = addonConfigs[addonName] ?? null;
+      const cleanupMd = await AddonAdapter.cleanupFor(addonName, cfg, projectRoot);
+      if (cleanupMd) {
+        const title = addonName.split('-').map(w => w[0].toUpperCase() + w.slice(1)).join(' ');
+        sections.push(`### Remove ${title}`);
+        sections.push('');
+        sections.push(cleanupMd);
+        sections.push('');
+      }
+    }
+
+    sections.push('### Remove Agentgateway');
+    sections.push('');
+    sections.push('```bash');
+    sections.push(`helm uninstall ${agwRelease} -n \${AGW_NAMESPACE}`);
+    sections.push(`helm uninstall ${agwCrdsRelease} -n \${AGW_NAMESPACE}`);
+    sections.push('');
+    sections.push('# Remove Gateway API CRDs');
+    sections.push(`kubectl delete -f https://github.com/kubernetes-sigs/gateway-api/releases/download/\${GATEWAY_API_VERSION}/${installFile}`);
+    sections.push('');
+    sections.push('# Remove namespace');
+    sections.push('kubectl delete namespace ${AGW_NAMESPACE} --ignore-not-found');
+    sections.push('```');
+
+    return sections.join('\n');
   }
 }
 

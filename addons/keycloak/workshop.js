@@ -228,7 +228,7 @@ export async function generate(_subIndex, profileAddonConfig) {
     for (const wc of workloadClients) {
       lines.push('');
       lines.push(`kubectl create secret generic ${wc.k8sSecretName} \\`);
-      lines.push(`  -n ${wc.k8sSecretNamespace} \\`);
+      lines.push(`  -n \${AGW_NAMESPACE} \\`);
       lines.push(`  --from-literal=clientId=${wc.clientId} \\`);
       lines.push(`  --from-literal=clientSecret=${wc.clientSecret} \\`);
       lines.push(`  --from-literal=audience=${wc.audience} \\`);
@@ -284,4 +284,13 @@ export async function generate(_subIndex, profileAddonConfig) {
 
   lines.push('```');
   return lines.join('\n');
+}
+
+export function cleanup(_cfg) {
+  return [
+    '```bash',
+    'kubectl delete all --all -n ${KC_NAMESPACE}',
+    'kubectl delete namespace ${KC_NAMESPACE} --ignore-not-found',
+    '```',
+  ].join('\n');
 }

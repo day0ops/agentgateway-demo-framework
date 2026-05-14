@@ -84,4 +84,18 @@ export const AddonAdapter = {
     }
     return sidecar.generate(subIndex, cfg);
   },
+
+  /**
+   * Generate a markdown cleanup snippet for an addon.
+   * Returns null if the addon has no cleanup export.
+   * @param {string} name
+   * @param {object|null} [cfg]
+   * @param {string} [projectRoot]
+   * @returns {Promise<string|null>}
+   */
+  async cleanupFor(name, cfg = null, projectRoot = process.cwd()) {
+    const sidecar = await _loadSidecar(name, projectRoot);
+    if (!sidecar?.cleanup) return null;
+    return sidecar.cleanup(cfg);
+  },
 };

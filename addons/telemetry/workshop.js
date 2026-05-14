@@ -71,3 +71,15 @@ export async function generate(_subIndex, _cfg) {
   lines.push('```');
   return lines.join('\n');
 }
+
+export function cleanup(_cfg) {
+  return [
+    '```bash',
+    'helm uninstall alloy -n ${TELEMETRY_NAMESPACE}',
+    'helm uninstall loki -n ${TELEMETRY_NAMESPACE}',
+    'helm uninstall tempo -n ${TELEMETRY_NAMESPACE}',
+    'helm uninstall kube-prometheus-stack -n ${TELEMETRY_NAMESPACE}',
+    'kubectl delete namespace ${TELEMETRY_NAMESPACE} --ignore-not-found',
+    '```',
+  ].join('\n');
+}

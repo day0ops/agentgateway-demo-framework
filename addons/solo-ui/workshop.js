@@ -42,3 +42,12 @@ export async function generate(_subIndex, _cfg) {
   lines.push('```');
   return lines.join('\n');
 }
+
+export function cleanup(_cfg) {
+  return [
+    '```bash',
+    'helm uninstall solo-ui -n ${SOLO_UI_NAMESPACE}',
+    'helm uninstall solo-ui-crds -n ${SOLO_UI_NAMESPACE}',
+    '```',
+  ].join('\n');
+}

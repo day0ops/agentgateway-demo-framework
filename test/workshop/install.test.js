@@ -78,7 +78,8 @@ describe('InstallAdapter', () => {
       helmValues: { controller: { extraEnv: { FOO: 'bar' } } },
     };
     const section = await InstallAdapter.generate({ labNum: 0, profileData });
-    expect(section).toContain("<<'EOF'");
+    expect(section).toContain('<<EOF');
+    expect(section).not.toContain("<<'EOF'");
     expect(section).toContain('FOO');
     expect(section).not.toContain('values.yaml');
   });
@@ -89,7 +90,7 @@ describe('InstallAdapter', () => {
     };
     const section = await InstallAdapter.generate({ labNum: 0, profileData });
     const licensePos = section.indexOf('$ENTERPRISE_AGW_LICENSE_KEY');
-    const heredocPos = section.indexOf("--values - <<'EOF'");
+    const heredocPos = section.indexOf('--values - <<EOF');
     expect(licensePos).toBeGreaterThan(-1);
     expect(heredocPos).toBeGreaterThan(-1);
     expect(licensePos).toBeLessThan(heredocPos);
@@ -97,7 +98,7 @@ describe('InstallAdapter', () => {
 
   test('generate() without helmValues has no heredoc and includes --wait', async () => {
     const section = await InstallAdapter.generate({ labNum: 0 });
-    expect(section).not.toContain("<<'EOF'");
+    expect(section).not.toContain('<<EOF');
     expect(section).toContain('--wait --timeout 5m');
   });
 
@@ -107,7 +108,8 @@ describe('InstallAdapter', () => {
     };
     const section = await InstallAdapter.generate({ labNum: 0, profileData });
     expect(section).toContain('Apply Additional Resources');
-    expect(section).toContain("kubectl apply -f - <<'EOF'");
+    expect(section).toContain('kubectl apply -f - <<EOF');
+    expect(section).not.toContain("kubectl apply -f - <<'EOF'");
     expect(section).toContain('EnterpriseAgentgatewayParameters');
   });
 

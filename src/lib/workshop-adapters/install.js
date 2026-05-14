@@ -71,7 +71,7 @@ export const InstallAdapter = {
    * @param {{ addons?: string[], labNum?: number, profileData?: object|null }} opts
    * @returns {Promise<string>}
    */
-  async generate({ addons = [], labNum = 0, profileData = null, projectRoot = process.cwd() } = {}) {
+  async generate({ addons = [], labNum = 0, profileData = null, projectRoot = process.cwd(), envExports = [] } = {}) {
     const { version, ociRegistry, gatewayApiVersion, gatewayApiChannel, crdsVersion } =
       _resolveVersions(profileData);
 
@@ -132,9 +132,17 @@ export const InstallAdapter = {
     if (hasHelmValues) {
       // Strip licensing key before dumping so the license key never appears in docs
       const { licensing: _licensing, ...safeHelmValues } = profileData.helmValues;
-      const helmValuesYaml = yaml.dump(safeHelmValues, { indent: 2 }).trimEnd();
+      let helmValuesYaml = yaml.dump(safeHelmValues, { indent: 2 }).trimEnd();
+      // Replace hardcoded namespace with shell variable
+      helmValuesYaml = helmValuesYaml.replaceAll('agentgateway-system', '${AGW_NAMESPACE}');
+      // Reverse-substitute resolved endpoint values with their env var references
+      for (const e of envExports) {
+        if (e.group === 'endpoints' && e.value && !e.value.startsWith('<')) {
+          helmValuesYaml = helmValuesYaml.replaceAll(e.value, `\${${e.key}}`);
+        }
+      }
       sections.push(`  --set licensing.licenseKey=$ENTERPRISE_AGW_LICENSE_KEY \\`);
-      sections.push(`  --values - <<'EOF'`);
+      sections.push(`  --values - <<EOF`);
       sections.push(helmValuesYaml);
       sections.push('EOF');
     } else {
@@ -159,9 +167,10 @@ export const InstallAdapter = {
           sections.push(`# (resource not found: config/profiles/${resource})`);
           continue;
         }
+        const processedContent = content.trimEnd().replaceAll('agentgateway-system', '${AGW_NAMESPACE}');
         sections.push('```bash');
-        sections.push(`kubectl apply -f - <<'EOF'`);
-        sections.push(content.trimEnd());
+        sections.push(`kubectl apply -f - <<EOF`);
+        sections.push(processedContent);
         sections.push('EOF');
         sections.push('```');
       }
