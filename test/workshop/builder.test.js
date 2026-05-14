@@ -66,28 +66,36 @@ describe('WorkshopBuilder', () => {
     expect(section).toContain('BAR');
   });
 
-  test('_renderEnvVarsSection renders bash exports grouped by group', async () => {
+  test('_renderEnvVarsSection renders exports grouped by category in table and collapsible block', async () => {
     const builder = new WorkshopBuilder({ title: 'T', addons: [], providers: [], labs: [] });
     const section = builder._renderEnvVarsSection([], [
       { key: 'MY_VERSION', value: '1.0.0', group: 'versions' },
       { key: 'MY_NS', value: 'default', group: 'settings' },
       { key: 'MY_REG', value: 'oci://example.com', group: 'registry' },
     ]);
-    expect(section).toContain('```bash');
+    // table has categorized rows
+    expect(section).toContain('MY_VERSION');
+    expect(section).toContain('MY_NS');
+    expect(section).toContain('Component versions');
+    expect(section).toContain('Kubernetes settings');
+    // versions comes before settings in the output
+    expect(section.indexOf('Component versions')).toBeLessThan(section.indexOf('Kubernetes settings'));
+    // collapsible export block
+    expect(section).toContain('<details>');
     expect(section).toContain('export MY_VERSION="1.0.0"');
     expect(section).toContain('export MY_NS="default"');
     expect(section).toContain('# Component versions');
     expect(section).toContain('# Kubernetes settings');
-    // versions comes before settings in the output
-    expect(section.indexOf('# Component versions')).toBeLessThan(section.indexOf('# Kubernetes settings'));
   });
 
-  test('build() env vars section contains bash exports block', async () => {
+  test('build() env vars section contains categorized table and collapsible export block', async () => {
     const builder = new WorkshopBuilder({ title: 'Test', addons: [], providers: [], labs: [] });
     const md = await builder.build();
-    expect(md).toContain('```bash');
+    expect(md).toContain('AGW_VERSION');
+    expect(md).toContain('Component versions');
+    expect(md).toContain('<details>');
+    expect(md).toContain('Copy-paste export block');
     expect(md).toContain('export AGW_VERSION=');
-    expect(md).toContain('# Component versions');
   });
 
   test('build() with explicit projectRoot uses that root', async () => {

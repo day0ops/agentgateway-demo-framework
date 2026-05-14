@@ -245,7 +245,7 @@ export class WorkshopBuilder {
       lines.push('');
     }
 
-    // Bash exports block
+    // Collapsible bash exports block for copy-paste convenience
     if (dedupedExports.length > 0) {
       const exportGroupOrder = ['versions', 'registry', 'settings', 'endpoints'];
       const groupComments = {
@@ -261,6 +261,9 @@ export class WorkshopBuilder {
         return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
       });
 
+      lines.push('<details>');
+      lines.push('<summary>Copy-paste export block</summary>');
+      lines.push('');
       lines.push('```bash');
       let currentExportGroup = null;
       for (const e of sortedExports) {
@@ -273,6 +276,8 @@ export class WorkshopBuilder {
         lines.push(`export ${e.key}="${e.value}"`);
       }
       lines.push('```');
+      lines.push('');
+      lines.push('</details>');
     }
 
     return lines.join('\n');
